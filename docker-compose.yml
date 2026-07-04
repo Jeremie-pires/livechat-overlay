@@ -1,0 +1,18 @@
+services:
+  livechatccb:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: file:/data/sqlite.db
+      DISCORD_TOKEN: ${DISCORD_TOKEN:-}
+      DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID:-}
+      DISCORD_CHANNEL_ID: ${DISCORD_CHANNEL_ID:-}
+      API_URL: ${API_URL:-http://localhost:3000}
+      DEFAULT_DURATION: ${DEFAULT_DURATION:-5}
+      HIDE_COMMANDS_DISABLED: ${HIDE_COMMANDS_DISABLED:-false}
+    volumes:
+      - livechat_data:/data
+
+volumes:
+  livechat_data:

@@ -44,8 +44,50 @@ Si vous souhaitez modifier le rendu du bot, il vous suffit de modifier le fichie
 - Après cela, vous devez **copier l'ID de l'application sur cette page**
 - Accédez à la barre latérale gauche et cliquez sur "Bot" et cliquez sur le bouton "Réinitialiser le jeton".
 - Après cela, vous devez **copier le Token sur cette page**
+- Créez aussi un salon texte dédié, puis copiez son **ID** pour le mettre dans `DISCORD_CHANNEL_ID`.
 
 #### 2 - Installation
+
+### Self-host sur Linux
+
+Le plus simple pour ton serveur Linux est d'utiliser Docker avec une base SQLite persistée dans un volume. Le bot Discord, l'API et la page client tournent alors sur ton serveur, et l'URL publique renseignée dans `API_URL` sera utilisée par la commande `/client`.
+
+Exemple avec `docker compose`:
+
+```yaml
+services:
+	livechatccb:
+		build: .
+		ports:
+			- "3000:3000"
+		environment:
+			DATABASE_URL: file:/data/sqlite.db
+			DISCORD_TOKEN: ${DISCORD_TOKEN:-}
+			DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID:-}
+			DISCORD_CHANNEL_ID: ${DISCORD_CHANNEL_ID:-}
+			API_URL: ${API_URL:-http://localhost:3000}
+			DEFAULT_DURATION: ${DEFAULT_DURATION:-5}
+			HIDE_COMMANDS_DISABLED: ${HIDE_COMMANDS_DISABLED:-false}
+		volumes:
+			- livechat_data:/data
+
+volumes:
+	livechat_data:
+```
+
+Puis dans ton `.env`:
+
+```bash
+cp .env.example .env
+API_URL=https://ton-domaine-ou-ip
+DISCORD_TOKEN=...
+DISCORD_CLIENT_ID=...
+DISCORD_CHANNEL_ID=...
+HIDE_COMMANDS_DISABLED=false
+DEFAULT_DURATION=5
+```
+
+Le volume `livechat_data` conserve la base SQLite quand le conteneur redémarre.
 
 Vous pouvez installer cette application par deux manières.
 
@@ -129,10 +171,52 @@ If you want to change the rendering of the bot, simply modify the file in `src/c
 - After that you need to **copy APPLICATION ID on this page**
 - Go to the left sidebar and click on "Bot" and click on "Reset Token" button.
 - After that you need to **copy TOKEN on this page**
+- Create a dedicated text channel, then copy its **ID** and put it in `DISCORD_CHANNEL_ID`.
 
 #### 2 - Installation
 
 You can install this application by two way.
+
+### Self-host on Linux
+
+The simplest way to run this on your Linux server is Docker with SQLite persisted in a volume. The Discord bot, API, and client page all run on your server, and the public URL configured in `API_URL` will be used by the `/client` command.
+
+Example with `docker compose`:
+
+```yaml
+services:
+	livechatccb:
+		build: .
+		ports:
+			- "3000:3000"
+		environment:
+			DATABASE_URL: file:/data/sqlite.db
+			DISCORD_TOKEN: ${DISCORD_TOKEN:-}
+			DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID:-}
+			DISCORD_CHANNEL_ID: ${DISCORD_CHANNEL_ID:-}
+			API_URL: ${API_URL:-http://localhost:3000}
+			DEFAULT_DURATION: ${DEFAULT_DURATION:-5}
+			HIDE_COMMANDS_DISABLED: ${HIDE_COMMANDS_DISABLED:-false}
+		volumes:
+			- livechat_data:/data
+
+volumes:
+	livechat_data:
+```
+
+Then in your `.env`:
+
+```bash
+cp .env.example .env
+API_URL=https://your-domain-or-ip
+DISCORD_TOKEN=...
+DISCORD_CLIENT_ID=...
+DISCORD_CHANNEL_ID=...
+HIDE_COMMANDS_DISABLED=false
+DEFAULT_DURATION=5
+```
+
+The `livechat_data` volume keeps the SQLite database when the container restarts.
 
 If you have [Docker](https://www.docker.com/get-started/) and want to build it: 
 
