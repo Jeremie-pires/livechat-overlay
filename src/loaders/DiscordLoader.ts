@@ -40,7 +40,7 @@ export const loadDiscord = async (fastify: FastifyCustomInstance) => {
     logger.info(`[DISCORD] ${rosetty.t('discordBotReady', { username: readyClient.user.tag })}`);
     logger.info(
       `[DISCORD] ${rosetty.t('discordInvite', {
-        link: `https://discord.com/oauth2/authorize?client_id=${env.DISCORD_CLIENT_ID}&scope=bot`,
+        link: `https://discord.com/oauth2/authorize?client_id=${env.DISCORD_CLIENT_ID}&scope=bot%20applications.commands`,
       })}`,
     );
   });
