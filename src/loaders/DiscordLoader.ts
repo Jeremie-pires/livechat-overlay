@@ -117,6 +117,34 @@ const loadDiscordCommandsHandler = () => {
   discordClient.on('interactionCreate', async (interaction) => {
     if (!interaction.isChatInputCommand()) return;
 
+    if (interaction.channelId !== env.DISCORD_CHANNEL_ID) {
+      const channelMention = `<#${env.DISCORD_CHANNEL_ID}>`;
+
+      if (interaction.replied || interaction.deferred) {
+        await interaction.followUp({
+          embeds: [
+            new EmbedBuilder()
+              .setTitle(rosetty.t('error')!)
+              .setDescription(`Use this bot only in ${channelMention}.`)
+              .setColor(0xe74c3c),
+          ],
+          ephemeral: true,
+        });
+      } else {
+        await interaction.reply({
+          embeds: [
+            new EmbedBuilder()
+              .setTitle(rosetty.t('error')!)
+              .setDescription(`Use this bot only in ${channelMention}.`)
+              .setColor(0xe74c3c),
+          ],
+          ephemeral: true,
+        });
+      }
+
+      return;
+    }
+
     //@ts-ignore
     const command = discordClient.commands.get(interaction.commandName);
 
