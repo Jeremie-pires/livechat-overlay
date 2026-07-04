@@ -129,7 +129,7 @@ Le fichier [livechat-overlay.service.example](livechat-overlay.service.example) 
 
 ### Reverse proxy avec HAProxy
 
-Si tu as déjà HAProxy sur ton serveur, tu peux exposer LiveChat sur `3300` côté proxy et laisser l'application interne sur `3000`.
+Si tu as déjà HAProxy sur ton serveur, le plus simple est d'exposer LiveChat en HTTPS sur `443` et de laisser l'application interne sur `3000`.
 
 Exemple minimal:
 
@@ -147,8 +147,14 @@ defaults
 	timeout server  60s
 	timeout tunnel  1h
 
-frontend livechat_frontend
-	bind *:3300
+frontend livechat_http
+	bind *:80
+	mode http
+	option httplog
+	redirect scheme https code 301 if !{ ssl_fc }
+
+frontend livechat_https
+	bind *:443 ssl crt /etc/haproxy/certs/livechat.pem
 	mode http
 	option httplog
 	option forwardfor
@@ -164,9 +170,11 @@ backend livechat_backend
 
 Dans ce cas:
 
-- `API_URL` doit pointer vers l'URL publique que les clients utiliseront, par exemple `http://ton-domaine:3300` ou `https://ton-domaine` si tu termines le TLS dans HAProxy.
+- `API_URL` doit pointer vers l'URL publique que les clients utiliseront, par exemple `https://livechat.ton-domaine.fr`.
 - le conteneur LiveChat reste publié sur `3000` en local.
 - le proxy gère l'exposition externe et les connexions WebSocket de Socket.IO.
+
+Si tu termines le TLS dans HAProxy, il faut déposer un certificat PEM à l'emplacement indiqué dans l'exemple (`/etc/haproxy/certs/livechat.pem`). Un certificat Let's Encrypt concaténé avec sa clé privée fonctionne bien.
 
 Le fichier [haproxy.cfg.example](haproxy.cfg.example) contient le même exemple prêt à copier.
 
@@ -211,7 +219,7 @@ Exemple:
 
 ```bash
 INFO : [DISCORD] En ligne ! Connecté en tant que xxxx
-INFO : [DISCORD] Pour inviter le bot : https://discord.com/oauth2/authorize?client_id=xxxx&scope=bot
+INFO : [DISCORD] Pour inviter le bot : https://discord.com/oauth2/authorize?client_id=xxxx&scope=bot%20applications.commands
 ```
 
 ## ENGLISH
@@ -339,7 +347,7 @@ The [livechat-overlay.service.example](livechat-overlay.service.example) file co
 
 ### Reverse proxy with HAProxy
 
-If you already use HAProxy on your server, you can expose LiveChat on `3300` through the proxy and keep the app itself on `3000` internally.
+If you already use HAProxy on your server, the simplest setup is to expose LiveChat over HTTPS on `443` and keep the app itself on `3000` internally.
 
 Minimal example:
 
@@ -357,8 +365,14 @@ defaults
 	timeout server  60s
 	timeout tunnel  1h
 
-frontend livechat_frontend
-	bind *:3300
+frontend livechat_http
+	bind *:80
+	mode http
+	option httplog
+	redirect scheme https code 301 if !{ ssl_fc }
+
+frontend livechat_https
+	bind *:443 ssl crt /etc/haproxy/certs/livechat.pem
 	mode http
 	option httplog
 	option forwardfor
@@ -374,9 +388,11 @@ backend livechat_backend
 
 In this setup:
 
-- `API_URL` must point to the public URL your clients will use, for example `http://your-domain:3300` or `https://your-domain` if TLS is terminated by HAProxy.
+- `API_URL` must point to the public URL your clients will use, for example `https://livechat.your-domain`.
 - the LiveChat container stays exposed on `3000` locally.
 - the proxy handles external exposure and Socket.IO WebSocket connections.
+
+If you terminate TLS in HAProxy, place a PEM certificate at the path used in the example (`/etc/haproxy/certs/livechat.pem`). A Let's Encrypt certificate concatenated with its private key works fine.
 
 The [haproxy.cfg.example](haproxy.cfg.example) file contains the same example ready to copy.
 
@@ -420,5 +436,5 @@ Exemple :
 
 ```bash
 INFO : [DISCORD] Ready ! Logged in as xxxx
-INFO : [DISCORD] To invite bot : https://discord.com/oauth2/authorize?client_id=xxxx&scope=bot
+INFO : [DISCORD] To invite bot : https://discord.com/oauth2/authorize?client_id=xxxx&scope=bot%20applications.commands
 ```

@@ -11,8 +11,14 @@ defaults
     timeout server  60s
     timeout tunnel  1h
 
-frontend livechat_frontend
-    bind *:3300
+frontend livechat_http
+    bind *:80
+    mode http
+    option httplog
+    redirect scheme https code 301 if !{ ssl_fc }
+
+frontend livechat_https
+    bind *:443 ssl crt /etc/haproxy/certs/livechat.pem
     mode http
     option httplog
     option forwardfor
