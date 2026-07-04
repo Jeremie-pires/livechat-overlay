@@ -89,6 +89,87 @@ DEFAULT_DURATION=5
 
 Le volume `livechat_data` conserve la base SQLite quand le conteneur redémarre.
 
+### Démarrage automatique au boot
+
+Pour que le backend redémarre tout seul après un reboot du serveur, tu peux faire deux choses:
+
+1. garder `restart: unless-stopped` dans `docker-compose.yml`
+2. ajouter un service systemd qui lance `docker compose up -d` au démarrage
+
+Exemple de service systemd:
+
+```ini
+[Unit]
+Description=LiveChat Overlay
+Requires=docker.service
+After=docker.service network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/home/servdeb/livechat/livechat-overlay
+ExecStart=/usr/bin/docker compose up -d --build
+ExecStop=/usr/bin/docker compose down
+TimeoutStartSec=0
+
+[Install]
+WantedBy=multi-user.target
+```
+
+À adapter avec ton chemin réel sur le serveur, puis:
+
+```bash
+sudo cp livechat-overlay.service /etc/systemd/system/livechat-overlay.service
+sudo systemctl daemon-reload
+sudo systemctl enable livechat-overlay.service
+sudo systemctl start livechat-overlay.service
+```
+
+Le fichier [livechat-overlay.service.example](livechat-overlay.service.example) contient le même exemple.
+
+### Reverse proxy avec HAProxy
+
+Si tu as déjà HAProxy sur ton serveur, tu peux exposer LiveChat sur `3300` côté proxy et laisser l'application interne sur `3000`.
+
+Exemple minimal:
+
+```haproxy
+global
+	log stdout format raw local0
+
+defaults
+	mode http
+	log global
+	option httplog
+	option dontlognull
+	timeout connect 5s
+	timeout client  60s
+	timeout server  60s
+	timeout tunnel  1h
+
+frontend livechat_frontend
+	bind *:3300
+	mode http
+	option httplog
+	option forwardfor
+	default_backend livechat_backend
+
+backend livechat_backend
+	mode http
+	balance roundrobin
+	option httpchk GET /client
+	http-check expect status 200
+	server livechat_server 127.0.0.1:3000 check
+```
+
+Dans ce cas:
+
+- `API_URL` doit pointer vers l'URL publique que les clients utiliseront, par exemple `http://ton-domaine:3300` ou `https://ton-domaine` si tu termines le TLS dans HAProxy.
+- le conteneur LiveChat reste publié sur `3000` en local.
+- le proxy gère l'exposition externe et les connexions WebSocket de Socket.IO.
+
+Le fichier [haproxy.cfg.example](haproxy.cfg.example) contient le même exemple prêt à copier.
+
 Vous pouvez installer cette application par deux manières.
 
 Si vous avez [Docker](https://www.docker.com/get-started/) et vous voulez la construire vous:
@@ -111,6 +192,7 @@ OU
 Vous voulez l'installer manuellement:
 
 **Exigences**
+
 - [Node 20](https://nodejs.org/en)
 - [pnpm](https://pnpm.io/fr/installation)
 - OS avec [ffmpeg](https://ffmpeg.org/)
@@ -131,7 +213,6 @@ Exemple:
 INFO : [DISCORD] En ligne ! Connecté en tant que xxxx
 INFO : [DISCORD] Pour inviter le bot : https://discord.com/oauth2/authorize?client_id=xxxx&scope=bot
 ```
-
 
 ## ENGLISH
 
@@ -218,7 +299,88 @@ DEFAULT_DURATION=5
 
 The `livechat_data` volume keeps the SQLite database when the container restarts.
 
-If you have [Docker](https://www.docker.com/get-started/) and want to build it: 
+### Automatic startup on boot
+
+To make the backend restart automatically after a server reboot, you can do two things:
+
+1. keep `restart: unless-stopped` in `docker-compose.yml`
+2. add a systemd service that runs `docker compose up -d` at boot time
+
+Example systemd service:
+
+```ini
+[Unit]
+Description=LiveChat Overlay
+Requires=docker.service
+After=docker.service network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/home/servdeb/livechat/livechat-overlay
+ExecStart=/usr/bin/docker compose up -d --build
+ExecStop=/usr/bin/docker compose down
+TimeoutStartSec=0
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Adjust the working directory to your real path on the server, then:
+
+```bash
+sudo cp livechat-overlay.service /etc/systemd/system/livechat-overlay.service
+sudo systemctl daemon-reload
+sudo systemctl enable livechat-overlay.service
+sudo systemctl start livechat-overlay.service
+```
+
+The [livechat-overlay.service.example](livechat-overlay.service.example) file contains the same example.
+
+### Reverse proxy with HAProxy
+
+If you already use HAProxy on your server, you can expose LiveChat on `3300` through the proxy and keep the app itself on `3000` internally.
+
+Minimal example:
+
+```haproxy
+global
+	log stdout format raw local0
+
+defaults
+	mode http
+	log global
+	option httplog
+	option dontlognull
+	timeout connect 5s
+	timeout client  60s
+	timeout server  60s
+	timeout tunnel  1h
+
+frontend livechat_frontend
+	bind *:3300
+	mode http
+	option httplog
+	option forwardfor
+	default_backend livechat_backend
+
+backend livechat_backend
+	mode http
+	balance roundrobin
+	option httpchk GET /client
+	http-check expect status 200
+	server livechat_server 127.0.0.1:3000 check
+```
+
+In this setup:
+
+- `API_URL` must point to the public URL your clients will use, for example `http://your-domain:3300` or `https://your-domain` if TLS is terminated by HAProxy.
+- the LiveChat container stays exposed on `3000` locally.
+- the proxy handles external exposure and Socket.IO WebSocket connections.
+
+The [haproxy.cfg.example](haproxy.cfg.example) file contains the same example ready to copy.
+
+If you have [Docker](https://www.docker.com/get-started/) and want to build it:
 
 ```bash
 git clone https://github.com/qlaffont/LiveChatCCB
@@ -239,6 +401,7 @@ OR
 You can install it manually :
 
 **Requirements**
+
 - [Node 20](https://nodejs.org/en)
 - [PNPM](https://pnpm.io/en/installation)
 - System with [FFmpeg](https://ffmpeg.org/) install

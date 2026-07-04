@@ -1,8 +1,9 @@
 services:
   livechatccb:
     build: .
+    restart: unless-stopped
     ports:
-      - "3000:3000"
+      - '3000:3000'
     environment:
       DATABASE_URL: file:/data/sqlite.db
       DISCORD_TOKEN: ${DISCORD_TOKEN:-}

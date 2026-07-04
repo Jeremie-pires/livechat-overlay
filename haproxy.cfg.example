@@ -1,0 +1,26 @@
+global
+    log stdout format raw local0
+
+defaults
+    mode http
+    log global
+    option httplog
+    option dontlognull
+    timeout connect 5s
+    timeout client  60s
+    timeout server  60s
+    timeout tunnel  1h
+
+frontend livechat_frontend
+    bind *:3300
+    mode http
+    option httplog
+    option forwardfor
+    default_backend livechat_backend
+
+backend livechat_backend
+    mode http
+    balance roundrobin
+    option httpchk GET /client
+    http-check expect status 200
+    server livechat_server 127.0.0.1:3000 check
