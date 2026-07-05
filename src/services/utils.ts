@@ -5,9 +5,7 @@ export const getDurationFromGuildId = async (duration: number | undefined | null
     },
   });
 
-  const mediaDurationTime = duration ?? guild?.defaultMediaTime ?? env.DEFAULT_DURATION;
-
-  return !!guild?.maxMediaTime && mediaDurationTime > guild?.maxMediaTime ? guild?.maxMediaTime : mediaDurationTime;
+  return duration ?? guild?.defaultMediaTime ?? env.DEFAULT_DURATION;
 };
 
 export const getDisplayMediaFullFromGuildId = async (guildId: string) => {

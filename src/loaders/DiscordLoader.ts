@@ -85,7 +85,6 @@ const loadDiscordCommands = async (fastify: FastifyCustomInstance) => {
       infoCommand(),
       setDefaultTimeCommand(),
       setDisplayMediaFullCommand(),
-      setMaxTimeCommand(),
       stopCommand(fastify),
     ];
     const hideCommands = [hideSendCommand(), hideTalkCommand()];
