@@ -163,6 +163,8 @@ function createControlWindow() {
   controlWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
   controlWindow.on('closed', () => {
     controlWindow = null;
+    destroyOverlayWindow();
+    app.quit();
   });
 }
 
