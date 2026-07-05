@@ -109,8 +109,10 @@
         text-shadow: 0 2px 18px rgba(0, 0, 0, 0.5);
       }
 
-      /* Bare wrapper — no intrinsic size, no frame */
+      /* Invisible 16:9 frame — sized by --overlay-size, zero visual style */
       #message-block {
+        width: var(--overlay-size, 960px);
+        height: calc(var(--overlay-size, 960px) * 9 / 16);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -118,52 +120,46 @@
         background: transparent !important;
       }
 
-      /* Inner player wrapper — also no size */
+      /* Wrapper inherits height so children can use height: 100% */
       #message-block #message-player {
+        height: 100%;
         display: flex;
         align-items: center;
         justify-content: center;
         background: transparent !important;
       }
 
-      /* Landscape video player: width driven by --overlay-size */
+      /* Player: always fills frame by height, width follows aspect-ratio */
       #message-block media-player {
-        display: block;
-        width: min(var(--overlay-size, 960px), 85vw);
-        height: auto;
+        height: 100% !important;
+        width: auto !important;
         aspect-ratio: 16 / 9;
-        max-height: 85vh;
-        border-radius: 22px;
-        box-shadow: 0 28px 70px rgba(0, 0, 0, 0.45);
-        overflow: hidden;
         background: transparent !important;
         background-color: transparent !important;
+        box-shadow: none !important;
+        border-radius: 0 !important;
       }
 
-      /* Portrait video player: height-constrained */
+      /* Portrait aspect-ratio override (is-short) */
       #message-block #message-player.is-short media-player {
-        width: auto !important;
-        height: min(85vh, calc(var(--overlay-size, 960px) * 9 / 16)) !important;
         aspect-ratio: 9 / 16 !important;
-        max-width: min(var(--overlay-size, 960px), 85vw) !important;
       }
 
-      /* Inner Vidstack elements fill the sized media-player — no background */
+      /* Inner Vidstack elements fill the player — fully transparent */
       #message-block media-provider,
       #message-block [data-media-provider],
       #message-block video,
       #message-block audio {
         width: 100% !important;
         height: 100% !important;
-        max-width: 100% !important;
-        max-height: 100% !important;
         object-fit: contain !important;
         background: transparent !important;
         background-color: transparent !important;
         box-shadow: none !important;
+        border-radius: 0 !important;
       }
 
-      /* Hide default Vidstack controls/overlays to ensure no UI frame is visible */
+      /* Hide all Vidstack UI chrome */
       media-player [data-controls],
       .vds-controls,
       .vds-bezel,
@@ -176,16 +172,15 @@
         pointer-events: none !important;
       }
 
-      /* Image sizing mirrors landscape player */
+      /* Image: same height-fill logic, no added style */
       #message-block img {
         display: block;
-        width: min(var(--overlay-size, 960px), 85vw);
-        height: auto;
-        max-height: 85vh;
+        height: 100%;
+        width: auto;
         object-fit: contain;
-        border-radius: 22px;
-        box-shadow: 0 28px 70px rgba(0, 0, 0, 0.45);
-        overflow: hidden;
+        background: transparent !important;
+        box-shadow: none !important;
+        border-radius: 0 !important;
       }
 
       .empty-state {
