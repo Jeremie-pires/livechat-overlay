@@ -42,40 +42,21 @@
         display: flex;
         align-items: center;
         justify-content: center;
+        padding: 24px;
+        box-sizing: border-box;
       }
 
       #overlay-shell {
         position: relative;
-        width: min(88vw, 1280px);
-        max-height: min(88vh, 900px);
         display: grid;
         gap: 18px;
         justify-items: center;
         align-items: center;
       }
 
-      #overlay-shell.is-fullscreen {
-        width: 100vw;
-        height: 100vh;
-        max-height: none;
-        gap: 0;
-      }
-
-      .overlay-glow {
-        position: absolute;
-        inset: auto;
-        width: min(72vw, 920px);
-        height: min(72vw, 920px);
-        border-radius: 999px;
-        background: radial-gradient(circle, rgba(114, 159, 255, 0.2), rgba(114, 159, 255, 0.08) 35%, transparent 70%);
-        filter: blur(28px);
-        z-index: 0;
-      }
-
       .message-frame {
         position: relative;
         z-index: 1;
-        width: min(100%, 1180px);
         display: grid;
         gap: 14px;
         justify-items: center;
@@ -126,13 +107,13 @@
         text-shadow: 0 2px 18px rgba(0, 0, 0, 0.5);
       }
 
+      /* Base layout for the media container */
       #message-block {
         display: flex;
         align-items: center;
         justify-content: center;
         width: min(85vw, 960px);
-        height: min(48vw, 540px); /* 16:9 normalized dimension */
-        margin: 0 auto;
+        height: min(48vw, 540px); /* 16:9 normalized dimension default */
         position: relative;
         background: transparent !important;
       }
@@ -149,7 +130,7 @@
         background: transparent !important;
       }
 
-      /* Make all elements inside the message block transparent to avoid black bars */
+      /* Make all elements inside the player transparent to avoid black bars and glass effects */
       #message-block media-player,
       #message-block [data-media-player],
       #message-block media-provider,
@@ -158,6 +139,17 @@
       #message-block audio {
         background: transparent !important;
         background-color: transparent !important;
+        box-shadow: none !important;
+      }
+
+      /* Hide default Vidstack controls/overlays to ensure no UI frame is visible */
+      media-player [data-controls],
+      .vds-controls,
+      .vds-bezel,
+      .vds-buffering-indicator {
+        display: none !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
       }
 
       /* Consistent aspect-ratio support for player */
@@ -169,10 +161,10 @@
         height: 100%;
       }
 
-      /* For short (9:16) videos, override the aspect-ratio of the player */
+      /* For short (9:16) videos, shrink horizontally */
       #message-block #message-player.is-short media-player {
         aspect-ratio: 9 / 16 !important;
-        width: auto !important; /* Let it shrink horizontally to fit 9:16 aspect ratio inside the 16:9 container */
+        width: auto !important;
         height: 100% !important;
       }
 
@@ -212,7 +204,6 @@
     <div id="overlay-root">
       <div id="overlay-stage">
         <div id="overlay-shell">
-          <div class="overlay-glow"></div>
           <div class="message-frame">
             <div id="author-block" class="message-badge">
               <div class="w-fit">
@@ -232,6 +223,7 @@
     <script type="module">
       import { VidstackPlayer, VidstackPlayerLayout } from '/client/vidstack.js';
 
+      const overlayStage = document.getElementById('overlay-stage');
       const overlayShell = document.getElementById('overlay-shell');
       const emptyState = document.getElementById('empty-state');
       const disappearBtn = document.getElementById('disappear');
@@ -252,26 +244,93 @@
         }
       }
 
+      // Real-time custom width and flex alignment setup
+      window.__updateLayoutSettings = function(size, position) {
+        const messageBlock = document.getElementById('message-block');
+        if (messageBlock) {
+          messageBlock.style.width = `${size}px`;
+          messageBlock.style.height = `calc(${size}px * 9 / 16)`;
+        }
+
+        if (overlayStage) {
+          overlayStage.style.alignItems = '';
+          overlayStage.style.justifyContent = '';
+          overlayStage.style.padding = '24px';
+
+          if (position === 'top-left') {
+            overlayStage.style.alignItems = 'flex-start';
+            overlayStage.style.justifyContent = 'flex-start';
+          } else if (position === 'top-right') {
+            overlayStage.style.alignItems = 'flex-start';
+            overlayStage.style.justifyContent = 'flex-end';
+          } else if (position === 'bottom-left') {
+            overlayStage.style.alignItems = 'flex-end';
+            overlayStage.style.justifyContent = 'flex-start';
+          } else if (position === 'bottom-right') {
+            overlayStage.style.alignItems = 'flex-end';
+            overlayStage.style.justifyContent = 'flex-end';
+          } else {
+            overlayStage.style.alignItems = 'center';
+            overlayStage.style.justifyContent = 'center';
+          }
+        }
+      };
+
+      // Mock media formats testing
+      window.__triggerTestFormat = function(format) {
+        let mediaUrl = '';
+        let mediaType = '';
+        let isShort = false;
+
+        if (format === 'landscape') {
+          mediaUrl = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4';
+          mediaType = 'video/mp4';
+        } else if (format === 'square') {
+          mediaUrl = 'https://picsum.photos/600/600';
+          mediaType = 'image/png';
+        } else if (format === 'portrait') {
+          mediaUrl = 'https://picsum.photos/500/888';
+          mediaType = 'image/png';
+          isShort = true;
+        }
+
+        const mockMessage = {
+          author: 'Utilisateur Test',
+          authorImage: 'https://archive.org/download/discordprofilepictures/discordblue.png',
+          duration: 6,
+          content: JSON.stringify({
+            text: `Test de format : ${format.toUpperCase()}`,
+            mediaContentType: mediaType,
+            media: mediaUrl,
+            mediaIsShort: isShort
+          })
+        };
+
+        displayMessage(mockMessage);
+      };
+
+      // Apply initial size/position from URL params
+      const sizeParam = urlParams.get('size') || '960';
+      const posParam = urlParams.get('position') || 'center';
+      window.__updateLayoutSettings(sizeParam, posParam);
+
       function generateImg(src) {
-        overlayShell.classList.remove('is-fullscreen');
         return '<img id="message-img" alt="" src="' + src + '" />';
       }
 
       function generateAudioVideo(src, mediaIsShort) {
-        overlayShell.classList.remove('is-fullscreen');
-
         setTimeout(() => {
           (async () => {
             await VidstackPlayer.create({
               target: '#message-player',
               src: src,
-              layout: new VidstackPlayerLayout({}),
+              // No layout controls passed to prevent any black borders or glassmorphism panels
               logLevel: 'debug',
               crossOrigin: true,
               playsInline: true,
               load: 'eager',
               autoplay: true,
-              muted: isDesktop ? false : true, // If desktop, we want audio by default as autoplay policy is disabled in Electron
+              muted: isDesktop ? false : true,
             });
 
             const player = document.querySelector('media-player');
@@ -280,13 +339,9 @@
               async () => {
                 try {
                   await player.play();
-                  if (!isDesktop) {
-                    player.muted = false;
-                  } else {
-                    player.muted = false;
-                  }
+                  player.muted = false;
                 } catch (e) {
-                  console.warn('Autoplay blocked, user interaction required:', e);
+                  console.warn('Autoplay blocked:', e);
                 }
               },
               { once: true },
@@ -392,7 +447,6 @@
         elementMessage.innerHTML = '';
         elementBlock.style.display = 'none';
         elementText.style.display = 'none';
-        overlayShell.classList.remove('is-fullscreen');
 
         if (message.author || message.authorImage) {
           displayAuthor(message.author, message.authorImage);
