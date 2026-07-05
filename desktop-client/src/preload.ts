@@ -26,6 +26,7 @@ contextBridge.exposeInMainWorld('livechat', {
   refreshPlacement: () => ipcRenderer.invoke('overlay:refresh-placement') as Promise<boolean>,
   testConnection: (backendUrl: string, guildId: string) => ipcRenderer.invoke('app:test-connection', { backendUrl, guildId }) as Promise<boolean>,
   triggerTestFormat: (format: string) => ipcRenderer.invoke('overlay:trigger-test-format', format) as Promise<boolean>,
+  testSound: () => ipcRenderer.invoke('overlay:test-sound') as Promise<boolean>,
   onStatus: (callback: (status: OverlayStatus) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, status: OverlayStatus) => callback(status);
     ipcRenderer.on('overlay:status', listener);
@@ -50,6 +51,7 @@ declare global {
       refreshPlacement: () => Promise<boolean>;
       testConnection: (backendUrl: string, guildId: string) => Promise<boolean>;
       triggerTestFormat: (format: string) => Promise<boolean>;
+      testSound: () => Promise<boolean>;
       onStatus: (callback: (status: OverlayStatus) => void) => () => void;
       onSettingsChanged: (callback: (settings: AppSettings) => void) => () => void;
     };

@@ -240,6 +240,61 @@
         }
       }
 
+      // Volume control — stores current level so new players inherit it
+      var currentVolume = 1;
+
+      globalThis.__setVolume = function(vol) {
+        currentVolume = Math.max(0, Math.min(1, vol));
+        document.querySelectorAll('audio, video').forEach(function(el) {
+          el.volume = currentVolume;
+          el.muted = currentVolume === 0;
+        });
+        var player = document.querySelector('media-player');
+        if (player) { try { player.volume = currentVolume; } catch {} }
+      };
+
+      // Queue system
+      var messageQueue = [];
+      var isPlaying = false;
+      var finishToken = 0;
+      var displayTimeout = null;
+      var pendingDisplayTimeout = null;
+
+      function onContentDone(token) {
+        if (token !== finishToken) return;
+        isPlaying = false;
+        if (displayTimeout) { clearTimeout(displayTimeout); displayTimeout = null; }
+        playNext();
+      }
+
+      function clearDisplay() {
+        var el = document.getElementById('message-block');
+        var ab = document.getElementById('author-block');
+        var mt = document.getElementById('message-text');
+        if (el) el.innerHTML = '';
+        if (ab) ab.style.display = 'none';
+        if (mt) mt.style.display = 'none';
+        if (!isDesktop) emptyState.style.display = 'block';
+      }
+
+      function playNext() {
+        if (messageQueue.length === 0) {
+          clearDisplay();
+          return;
+        }
+        isPlaying = true;
+        displayMessage(messageQueue.shift());
+      }
+
+      function enqueueMessage(message) {
+        if (isPlaying || messageQueue.length > 0) {
+          messageQueue.push(message);
+        } else {
+          isPlaying = true;
+          displayMessage(message);
+        }
+      }
+
       // Real-time custom width and flex alignment setup
       globalThis.__updateLayoutSettings = function(size, position) {
         const scaleVal = Number(size) / 960;
@@ -285,8 +340,12 @@
       // Mock media formats testing
       globalThis.__triggerTestFormat = function(format) {
         if (format === 'stop') {
-          clearScheduledMessage();
-          displayMessage({});
+          if (pendingDisplayTimeout) { clearTimeout(pendingDisplayTimeout); pendingDisplayTimeout = null; }
+          messageQueue = [];
+          isPlaying = false;
+          finishToken++;
+          if (displayTimeout) { clearTimeout(displayTimeout); displayTimeout = null; }
+          clearDisplay();
           return;
         }
 
@@ -327,7 +386,7 @@
         return '<img id="message-img" alt="" src="' + src + '" />';
       }
 
-      function generateAudioVideo(src, mediaIsShort) {
+      function generateAudioVideo(src, mediaIsShort, onDone) {
         setTimeout(() => {
           (async () => {
             await VidstackPlayer.create({
@@ -344,6 +403,11 @@
 
             const player = document.querySelector('media-player');
 
+            // Apply stored volume to this new player
+            try { player.volume = currentVolume; } catch {}
+            var vid = player.querySelector('video');
+            if (vid) { vid.volume = currentVolume; vid.muted = currentVolume === 0; }
+
             // Adjust player aspect-ratio to the video's real dimensions
             player.addEventListener('loaded-metadata', () => {
               const videoEl = player.querySelector('video');
@@ -352,10 +416,10 @@
               }
             });
 
-            // Listen to ended event to clear message once video playback finishes
+            // When video ends, advance the queue
             player.addEventListener('ended', () => {
-              console.debug('Video ended, clearing message');
-              displayMessage({});
+              console.debug('Video ended');
+              if (onDone) onDone();
             });
 
             player.addEventListener(
@@ -364,6 +428,10 @@
                 try {
                   await player.play();
                   player.muted = false;
+                  // Re-apply volume after unmute
+                  try { player.volume = currentVolume; } catch {}
+                  var v = player.querySelector('video');
+                  if (v) v.volume = currentVolume;
                 } catch (e) {
                   console.warn('Autoplay blocked:', e);
                 }
@@ -405,7 +473,7 @@
       var syncSampleCount = 0;
       var syncSampleTotal = 0;
 
-      function displayContent(data) {
+      function displayContent(data, onDone) {
         var element = document.getElementById('message-block');
 
         element.innerHTML = '';
@@ -415,22 +483,8 @@
           if (data.mediaContentType.indexOf('image') === 0) {
             element.innerHTML = generateImg(data.media || data.url);
           } else {
-            element.innerHTML = generateAudioVideo(data.media || data.url, data.mediaIsShort);
+            element.innerHTML = generateAudioVideo(data.media || data.url, data.mediaIsShort, onDone);
           }
-        }
-      }
-
-      var timeout;
-
-      function clearScheduledMessage() {
-        if (timeout) {
-          clearTimeout(timeout);
-          timeout = null;
-        }
-
-        if (pendingDisplayTimeout) {
-          clearTimeout(pendingDisplayTimeout);
-          pendingDisplayTimeout = null;
         }
       }
 
@@ -443,27 +497,24 @@
       }
 
       function scheduleMessageDisplay(message) {
-        clearScheduledMessage();
+        // Cancel any already-scheduled (but not yet displayed) item
+        if (pendingDisplayTimeout) { clearTimeout(pendingDisplayTimeout); pendingDisplayTimeout = null; }
 
         var targetTime = getLocalTargetTime(message.displayAt || Date.now());
         var delay = targetTime - Date.now();
 
         pendingDisplayTimeout = setTimeout(() => {
           pendingDisplayTimeout = null;
-          displayMessage(message);
+          enqueueMessage(message);
         }, Math.max(0, delay));
       }
 
       function displayMessage(message) {
-        console.debug('New message !', message);
-        if (timeout) {
-          clearTimeout(timeout);
-        }
-        if (message.duration) {
-          timeout = setTimeout(() => {
-            displayMessage({});
-          }, message.duration * 1000 + 100);
-        }
+        console.debug('New message!', message);
+
+        finishToken++;
+        var myToken = finishToken;
+        if (displayTimeout) { clearTimeout(displayTimeout); displayTimeout = null; }
 
         var elementMessage = document.getElementById('message-block');
         var elementBlock = document.getElementById('author-block');
@@ -479,7 +530,15 @@
         var data = JSON.parse(message.content || '{}');
 
         displayText(data.text);
-        displayContent(data);
+
+        function done() { onContentDone(myToken); }
+
+        displayContent(data, done);
+
+        // Duration timeout — fires if video ends early or content has no ended event (images)
+        if (message.duration) {
+          displayTimeout = setTimeout(done, message.duration * 1000 + 100);
+        }
 
         if (!data.text && !data.mediaContentType) {
           if (!isDesktop) {
@@ -532,9 +591,13 @@
         });
 
         socket.on('stop', function () {
-          console.debug('Media stopped !');
-          clearScheduledMessage();
-          displayMessage({});
+          console.debug('Media stopped!');
+          if (pendingDisplayTimeout) { clearTimeout(pendingDisplayTimeout); pendingDisplayTimeout = null; }
+          messageQueue = [];
+          isPlaying = false;
+          finishToken++;
+          if (displayTimeout) { clearTimeout(displayTimeout); displayTimeout = null; }
+          clearDisplay();
         });
       });
     </script>

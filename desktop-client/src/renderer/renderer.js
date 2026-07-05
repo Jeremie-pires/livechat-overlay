@@ -28,6 +28,7 @@ const elements = {
   testLandscapeBtn: document.getElementById('testLandscapeBtn'),
   testSquareBtn: document.getElementById('testSquareBtn'),
   testPortraitBtn: document.getElementById('testPortraitBtn'),
+  testSoundBtn: document.getElementById('testSoundBtn'),
 
   // Config Tab Fields
   backendUrl: document.getElementById('backendUrl'),
@@ -79,6 +80,7 @@ function renderStatus(status) {
     elements.testLandscapeBtn.disabled = false;
     elements.testSquareBtn.disabled = false;
     elements.testPortraitBtn.disabled = false;
+    elements.testSoundBtn.disabled = false;
   } else {
     // Clear mock test button highlights if disconnected or loading
     state.activeTestFormat = null;
@@ -96,6 +98,7 @@ function renderStatus(status) {
       elements.testLandscapeBtn.disabled = true;
       elements.testSquareBtn.disabled = true;
       elements.testPortraitBtn.disabled = true;
+      elements.testSoundBtn.disabled = true;
     } else {
       elements.toggleOverlayBtn.textContent = "Activer l'overlay";
       elements.toggleOverlayBtn.className = "primary-toggle btn-inactive";
@@ -106,6 +109,7 @@ function renderStatus(status) {
       elements.testLandscapeBtn.disabled = true;
       elements.testSquareBtn.disabled = true;
       elements.testPortraitBtn.disabled = true;
+      elements.testSoundBtn.disabled = true;
     }
   }
 }
@@ -352,6 +356,10 @@ function bindEvents() {
   });
   elements.testPortraitBtn.addEventListener('click', () => {
     toggleTestFormat('portrait', elements.testPortraitBtn);
+  });
+
+  elements.testSoundBtn.addEventListener('click', async () => {
+    await window.livechat.testSound();
   });
 }
 
