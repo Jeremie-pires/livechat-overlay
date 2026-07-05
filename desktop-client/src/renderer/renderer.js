@@ -5,6 +5,7 @@ const state = {
     type: 'idle',
     message: 'Prêt',
   },
+  activeTestFormat: null,
 };
 
 const elements = {
@@ -77,26 +78,34 @@ function renderStatus(status) {
     elements.testLandscapeBtn.disabled = false;
     elements.testSquareBtn.disabled = false;
     elements.testPortraitBtn.disabled = false;
-  } else if (status.type === 'loading') {
-    elements.toggleOverlayBtn.textContent = "Connexion en cours...";
-    elements.toggleOverlayBtn.className = "primary-toggle btn-inactive";
-    elements.toggleOverlayBtn.disabled = true;
-    elements.windowSummary.textContent = 'Chargement';
-
-    // Disable format tests
-    elements.testLandscapeBtn.disabled = true;
-    elements.testSquareBtn.disabled = true;
-    elements.testPortraitBtn.disabled = true;
   } else {
-    elements.toggleOverlayBtn.textContent = "Activer l'overlay";
-    elements.toggleOverlayBtn.className = "primary-toggle btn-inactive";
-    elements.toggleOverlayBtn.disabled = false;
-    elements.windowSummary.textContent = 'Inactive';
+    // Clear mock test button highlights if disconnected or loading
+    state.activeTestFormat = null;
+    elements.testLandscapeBtn.classList.remove('active-test');
+    elements.testSquareBtn.classList.remove('active-test');
+    elements.testPortraitBtn.classList.remove('active-test');
 
-    // Disable format tests
-    elements.testLandscapeBtn.disabled = true;
-    elements.testSquareBtn.disabled = true;
-    elements.testPortraitBtn.disabled = true;
+    if (status.type === 'loading') {
+      elements.toggleOverlayBtn.textContent = "Connexion en cours...";
+      elements.toggleOverlayBtn.className = "primary-toggle btn-inactive";
+      elements.toggleOverlayBtn.disabled = true;
+      elements.windowSummary.textContent = 'Chargement';
+
+      // Disable format tests
+      elements.testLandscapeBtn.disabled = true;
+      elements.testSquareBtn.disabled = true;
+      elements.testPortraitBtn.disabled = true;
+    } else {
+      elements.toggleOverlayBtn.textContent = "Activer l'overlay";
+      elements.toggleOverlayBtn.className = "primary-toggle btn-inactive";
+      elements.toggleOverlayBtn.disabled = false;
+      elements.windowSummary.textContent = 'Inactive';
+
+      // Disable format tests
+      elements.testLandscapeBtn.disabled = true;
+      elements.testSquareBtn.disabled = true;
+      elements.testPortraitBtn.disabled = true;
+    }
   }
 }
 
@@ -300,15 +309,32 @@ function bindEvents() {
 
   // Click-through is now permanent, event listener removed
 
+  function toggleTestFormat(format, btn) {
+    const testButtons = [elements.testLandscapeBtn, elements.testSquareBtn, elements.testPortraitBtn];
+
+    if (state.activeTestFormat === format) {
+      state.activeTestFormat = null;
+      btn.classList.remove('active-test');
+      window.livechat.triggerTestFormat('stop');
+    } else {
+      state.activeTestFormat = format;
+      for (const b of testButtons) {
+        b.classList.remove('active-test');
+      }
+      btn.classList.add('active-test');
+      window.livechat.triggerTestFormat(format);
+    }
+  }
+
   // Mock Format Test buttons
   elements.testLandscapeBtn.addEventListener('click', () => {
-    window.livechat.triggerTestFormat('landscape');
+    toggleTestFormat('landscape', elements.testLandscapeBtn);
   });
   elements.testSquareBtn.addEventListener('click', () => {
-    window.livechat.triggerTestFormat('square');
+    toggleTestFormat('square', elements.testSquareBtn);
   });
   elements.testPortraitBtn.addEventListener('click', () => {
-    window.livechat.triggerTestFormat('portrait');
+    toggleTestFormat('portrait', elements.testPortraitBtn);
   });
 }
 

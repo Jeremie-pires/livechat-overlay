@@ -533,3 +533,10 @@ button:active:not(:disabled) {
   box-shadow: 0 0 8px rgba(101, 217, 255, 0.4);
 }
 
+.small-btn.active-test {
+  background: linear-gradient(135deg, var(--success-bg) 0%, rgba(79, 227, 162, 0.25) 100%) !important;
+  border-color: var(--success) !important;
+  color: var(--success) !important;
+  box-shadow: 0 0 8px rgba(79, 227, 162, 0.3) !important;
+}
+

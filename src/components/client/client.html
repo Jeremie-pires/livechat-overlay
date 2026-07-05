@@ -107,23 +107,17 @@
         text-shadow: 0 2px 18px rgba(0, 0, 0, 0.5);
       }
 
-      /* Base layout for the media container */
+      /* Base layout for the media container (no fixed aspect-ratio, collapses to content) */
       #message-block {
         display: flex;
         align-items: center;
         justify-content: center;
-        width: min(85vw, 960px);
-        height: min(48vw, 540px); /* 16:9 normalized dimension default */
         position: relative;
         background: transparent !important;
       }
 
       /* Style for the wrapper div that gets created for the video player */
       #message-block #message-player {
-        width: 100% !important;
-        height: 100% !important;
-        max-width: 100% !important;
-        max-height: 100% !important;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -169,25 +163,16 @@
       /* Consistent aspect-ratio support for player */
       #message-block media-player {
         aspect-ratio: 16 / 9;
-        max-width: 100%;
-        max-height: 100%;
-        width: 100%;
-        height: 100%;
-      }
-
-      /* For short (9:16) videos, shrink horizontally */
-      #message-block #message-player.is-short media-player {
-        aspect-ratio: 9 / 16 !important;
-        width: auto !important;
-        height: 100% !important;
       }
 
       /* Style for image and video content to ensure they render nicely with rounded corners and shadow */
       #message-block img,
       #message-block media-player {
         display: block;
-        max-width: 100%;
-        max-height: 100%;
+        width: auto !important;
+        height: auto !important;
+        max-width: min(85vw, var(--max-size, 960px)) !important;
+        max-height: min(78vh, calc(var(--max-size, 960px) * 9 / 16)) !important;
         border-radius: 22px;
         box-shadow: 0 28px 70px rgba(0, 0, 0, 0.45);
         overflow: hidden;
@@ -260,11 +245,7 @@
 
       // Real-time custom width and flex alignment setup
       window.__updateLayoutSettings = function(size, position) {
-        const messageBlock = document.getElementById('message-block');
-        if (messageBlock) {
-          messageBlock.style.width = `${size}px`;
-          messageBlock.style.height = `calc(${size}px * 9 / 16)`;
-        }
+        document.documentElement.style.setProperty('--max-size', `${size}px`);
 
         if (overlayStage) {
           overlayStage.style.alignItems = '';
@@ -304,26 +285,29 @@
 
       // Mock media formats testing
       window.__triggerTestFormat = function(format) {
+        if (format === 'stop') {
+          clearScheduledMessage();
+          displayMessage({});
+          return;
+        }
+
         let mediaUrl = '';
-        let mediaType = '';
+        let mediaType = 'image/svg+xml';
         let isShort = false;
 
         if (format === 'landscape') {
-          mediaUrl = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4';
-          mediaType = 'video/mp4';
+          mediaUrl = '/client/img/landscape.svg';
         } else if (format === 'square') {
-          mediaUrl = 'https://picsum.photos/600/600';
-          mediaType = 'image/png';
+          mediaUrl = '/client/img/square.svg';
         } else if (format === 'portrait') {
-          mediaUrl = 'https://picsum.photos/500/888';
-          mediaType = 'image/png';
+          mediaUrl = '/client/img/portrait.svg';
           isShort = true;
         }
 
         const mockMessage = {
           author: 'Utilisateur Test',
           authorImage: 'https://archive.org/download/discordprofilepictures/discordblue.png',
-          duration: 6,
+          duration: 999999, // Set high duration so test remains active until closed
           content: JSON.stringify({
             text: `Test de format : ${format.toUpperCase()}`,
             mediaContentType: mediaType,
@@ -360,6 +344,16 @@
             });
 
             const player = document.querySelector('media-player');
+
+            // Listen to metadata loaded to adjust player ratio dynamically based on video size
+            player.addEventListener('loaded-metadata', () => {
+              const videoEl = player.querySelector('video');
+              if (videoEl && videoEl.videoWidth && videoEl.videoHeight) {
+                const ratio = videoEl.videoWidth / videoEl.videoHeight;
+                player.style.setProperty('aspect-ratio', String(ratio), 'important');
+              }
+            });
+
             player.addEventListener(
               'can-play',
               async () => {
