@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "Desktop overlay client for LiveChat CCB",
+  "author": "jere",
   "main": "dist/main.js",
   "scripts": {
     "dev": "npm run build && electron .",
@@ -25,15 +26,20 @@
     ],
     "win": {
       "target": [
-        "nsis"
-      ]
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
+      "artifactName": "LiveChatCCB-Desktop-Setup-${version}.exe"
     },
     "nsis": {
       "oneClick": true,
       "perMachine": false,
-      "allowToChangeInstallationDirectory": true,
+      "runAfterFinish": true,
       "createDesktopShortcut": true,
-      "createStartMenuShortcut": true
+      "createStartMenuShortcut": true,
+      "shortcutName": "LiveChatCCB Desktop"
     }
   },
   "devDependencies": {
