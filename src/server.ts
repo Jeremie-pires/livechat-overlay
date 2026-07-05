@@ -40,7 +40,7 @@ export const runServer = async () => {
     logger.info('[DB] Connected to database');
     await loadPrismaClient();
   } catch (e) {
-    logger.fatal('[DB] Impossible to connect to database', e);
+    logger.fatal(e, '[DB] Impossible to connect to database');
     process.exit(1);
   }
 

@@ -377,6 +377,12 @@
               }
             });
 
+            // Listen to ended event to clear message once video playback finishes
+            player.addEventListener('ended', () => {
+              console.debug('Video ended, clearing message');
+              displayMessage({});
+            });
+
             player.addEventListener(
               'can-play',
               async () => {

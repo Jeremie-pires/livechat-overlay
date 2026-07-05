@@ -1,4 +1,4 @@
-import { Client, CommandInteraction, EmbedBuilder, PermissionFlagsBits, SlashCommandBuilder } from 'discord.js';
+import { Client, ChatInputCommandInteraction, EmbedBuilder, PermissionFlagsBits, SlashCommandBuilder } from 'discord.js';
 
 export const setDisplayMediaFullCommand = () => ({
   data: new SlashCommandBuilder()
@@ -10,7 +10,7 @@ export const setDisplayMediaFullCommand = () => ({
         .setDescription(rosetty.t('setDisplayMediaFullCommandOptionTextDescription')!)
         .setRequired(true),
     ),
-  handler: async (interaction: CommandInteraction, discordClient: Client) => {
+  handler: async (interaction: ChatInputCommandInteraction, discordClient: Client) => {
     const value = interaction.options.get(rosetty.t('setDisplayMediaFullCommandOptionText')!)?.value as boolean;
 
     const userId = interaction.user.id;

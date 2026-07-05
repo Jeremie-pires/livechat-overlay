@@ -32,7 +32,7 @@ export const enLang = {
   sendCommandOptionMedia: 'media',
   sendCommandOptionMediaDescription: 'Media to display',
   sendCommandOptionDuration: 'duration',
-  sendCommandOptionDurationDescription: 'Display duration in seconds (optional)',
+  sendCommandOptionDurationDescription: 'Display duration in seconds or "full" for videos',
   sendCommandAnswer: 'Content received ! Will be played soon !',
   
   hideSendCommand: 'hsend',
@@ -44,7 +44,7 @@ export const enLang = {
   hideSendCommandOptionMedia: 'media',
   hideSendCommandOptionMediaDescription: 'Media to display',
   hideSendCommandOptionDuration: 'duration',
-  hideSendCommandOptionDurationDescription: 'Display duration in seconds (optional)',
+  hideSendCommandOptionDurationDescription: 'Display duration in seconds or "full" for videos',
   hideSendCommandAnswer: 'Content received ! Will be played soon !',
 
   talkCommand: 'talk',

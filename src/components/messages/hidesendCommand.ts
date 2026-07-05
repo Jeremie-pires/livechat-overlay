@@ -1,4 +1,4 @@
-import { CommandInteraction, EmbedBuilder, SlashCommandBuilder } from 'discord.js';
+import { ChatInputCommandInteraction, EmbedBuilder, SlashCommandBuilder } from 'discord.js';
 import { QueueType } from '../../services/prisma/loadPrisma';
 import { getContentInformationsFromUrl } from '../../services/content-utils';
 import { getDisplayMediaFullFromGuildId, getDurationFromGuildId } from '../../services/utils';
@@ -23,17 +23,17 @@ export const hideSendCommand = () => ({
         .setDescription(rosetty.t('hideSendCommandOptionTextDescription')!)
         .setRequired(false),
     )
-    .addIntegerOption((option) =>
+    .addStringOption((option) =>
       option
         .setName(rosetty.t('hideSendCommandOptionDuration')!)
         .setDescription(rosetty.t('hideSendCommandOptionDurationDescription')!)
         .setRequired(false),
     ),
-  handler: async (interaction: CommandInteraction) => {
+  handler: async (interaction: ChatInputCommandInteraction) => {
     const url = interaction.options.get(rosetty.t('hideSendCommandOptionURL')!)?.value;
     const text = interaction.options.get(rosetty.t('hideSendCommandOptionText')!)?.value;
     const media = interaction.options.get(rosetty.t('hideSendCommandOptionMedia')!)?.attachment?.proxyURL;
-    const customDuration = interaction.options.get(rosetty.t('hideSendCommandOptionDuration')!)?.value as number | undefined;
+    const customDurationString = interaction.options.get(rosetty.t('hideSendCommandOptionDuration')!)?.value as string | undefined;
     let mediaContentType = interaction.options.get(rosetty.t('sendCommandOptionMedia')!)?.attachment?.contentType;
     let mediaDuration = interaction.options.get(rosetty.t('sendCommandOptionMedia')!)?.attachment?.duration;
     let mediaIsShort = false;
@@ -63,7 +63,26 @@ export const hideSendCommand = () => ({
       mediaIsShort = additionalContent.mediaIsShort || false;
     }
 
-    const finalDuration = customDuration || mediaDuration;
+    let finalDuration: number | undefined = undefined;
+    const isVideo = mediaContentType?.startsWith('video/') || mediaContentType?.startsWith('audio/');
+
+    if (customDurationString) {
+      const trimmed = customDurationString.trim().toLowerCase();
+      if (trimmed === 'full') {
+        finalDuration = mediaDuration ? Math.ceil(mediaDuration) : 0;
+      } else {
+        const parsed = parseInt(trimmed, 10);
+        if (!isNaN(parsed) && parsed > 0) {
+          finalDuration = parsed;
+        }
+      }
+    }
+
+    if (finalDuration === undefined) {
+      if (isVideo) {
+        finalDuration = mediaDuration ? Math.ceil(mediaDuration) : 0;
+      }
+    }
 
     await prisma.queue.create({
       data: {
@@ -73,7 +92,7 @@ export const hideSendCommand = () => ({
           media,
           mediaContentType,
           mediaDuration: await getDurationFromGuildId(
-            finalDuration ? Math.ceil(finalDuration) : undefined,
+            finalDuration !== undefined ? Math.ceil(finalDuration) : undefined,
             interaction.guildId!,
           ),
           displayFull: await getDisplayMediaFullFromGuildId(interaction.guildId!),
@@ -82,7 +101,7 @@ export const hideSendCommand = () => ({
         type: QueueType.MESSAGE,
         discordGuildId: interaction.guildId!,
         duration: await getDurationFromGuildId(
-          finalDuration ? Math.ceil(finalDuration) : undefined,
+          finalDuration !== undefined ? Math.ceil(finalDuration) : undefined,
           interaction.guildId!,
         ),
       },
