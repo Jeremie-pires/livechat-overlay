@@ -14,6 +14,7 @@
     <style>
       :root {
         color-scheme: dark;
+        --scale: calc(var(--max-size, 960px) / 960);
       }
 
       html,
@@ -49,7 +50,7 @@
       #overlay-shell {
         position: relative;
         display: grid;
-        gap: 18px;
+        gap: calc(10px * var(--scale));
         justify-items: center;
         align-items: center;
       }
@@ -58,15 +59,15 @@
         position: relative;
         z-index: 1;
         display: grid;
-        gap: 14px;
+        gap: calc(8px * var(--scale));
         justify-items: center;
       }
 
       .message-badge {
         display: inline-flex;
         align-items: center;
-        gap: 12px;
-        padding: 10px 16px;
+        gap: calc(8px * var(--scale));
+        padding: calc(6px * var(--scale)) calc(12px * var(--scale));
         border-radius: 999px;
         background: rgba(17, 24, 39, 0.74);
         border: 1px solid rgba(148, 163, 184, 0.18);
@@ -80,14 +81,14 @@
       }
 
       #author-block img {
-        width: 42px;
-        height: 42px;
+        width: calc(36px * var(--scale));
+        height: calc(36px * var(--scale));
         border-radius: 999px;
         object-fit: cover;
       }
 
       #author-username {
-        font-size: 18px;
+        font-size: calc(16px * var(--scale));
         font-weight: 700;
         color: #eff6ff;
         text-shadow: 0 2px 14px rgba(0, 0, 0, 0.45);
@@ -96,9 +97,9 @@
       #message-text {
         display: none;
         margin: 0;
-        padding: 0.75rem 1rem;
-        max-width: 1180px;
-        font-size: clamp(1.7rem, 2.4vw, 3.7rem);
+        padding: calc(6px * var(--scale)) calc(10px * var(--scale));
+        max-width: 100%;
+        font-size: calc(2.2rem * var(--scale));
         line-height: 1.15;
         font-weight: 800;
         letter-spacing: -0.03em;
@@ -260,6 +261,7 @@
 
       // Real-time custom width and flex alignment setup
       window.__updateLayoutSettings = function(size, position) {
+        document.documentElement.style.setProperty('--max-size', `${size}px`);
         const messageBlock = document.getElementById('message-block');
         if (messageBlock) {
           messageBlock.style.width = `${size}px`;
