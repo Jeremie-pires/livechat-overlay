@@ -115,7 +115,7 @@
         align-items: center;
         justify-content: center;
         width: min(85vw, 960px);
-        height: min(48vw, 540px); /* 16:9 normalized dimension default */
+        aspect-ratio: 16 / 9;
         position: relative;
         background: transparent !important;
       }
@@ -258,6 +258,15 @@
         }
       }
 
+      let currentVideoRatio = null;
+
+      function applyMessageBlockRatio() {
+        const messageBlock = document.getElementById('message-block');
+        if (!messageBlock) return;
+        messageBlock.style.height = '';
+        messageBlock.style.aspectRatio = currentVideoRatio || '';
+      }
+
       // Real-time custom width and flex alignment setup
       globalThis.__updateLayoutSettings = function(size, position) {
         const scaleVal = Number(size) / 960;
@@ -266,7 +275,7 @@
         const messageBlock = document.getElementById('message-block');
         if (messageBlock) {
           messageBlock.style.width = `${size}px`;
-          messageBlock.style.height = `calc(${size}px * 9 / 16)`;
+          applyMessageBlockRatio();
         }
 
         if (overlayStage) {
@@ -371,8 +380,10 @@
             player.addEventListener('loaded-metadata', () => {
               const videoEl = player.querySelector('video');
               if (videoEl && videoEl.videoWidth && videoEl.videoHeight) {
-                const ratio = videoEl.videoWidth / videoEl.videoHeight;
-                player.style.setProperty('aspect-ratio', String(ratio), 'important');
+                const ratioStr = `${videoEl.videoWidth} / ${videoEl.videoHeight}`;
+                player.style.setProperty('aspect-ratio', ratioStr, 'important');
+                currentVideoRatio = ratioStr;
+                applyMessageBlockRatio();
               }
             });
 
@@ -433,6 +444,8 @@
         var element = document.getElementById('message-block');
 
         element.innerHTML = '';
+        currentVideoRatio = null;
+        applyMessageBlockRatio();
         emptyState.style.display = 'none';
 
         if (data.mediaContentType) {

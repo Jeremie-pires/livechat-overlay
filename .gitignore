@@ -78,3 +78,4 @@ data
 sqlite.db*
 
 ytdl.json
+package-lock.json
