@@ -1,0 +1,321 @@
+import { app, BrowserWindow, ipcMain, screen } from 'electron';
+import fs from 'fs/promises';
+import path from 'path';
+
+type OverlayStatusType = 'idle' | 'loading' | 'connected' | 'error';
+
+type AppSettings = {
+  backendUrl: string;
+  guildId: string;
+  screenId: number;
+  volume: number;
+  autoConnect: boolean;
+  clickThrough: boolean;
+};
+
+type DisplayInfo = {
+  id: number;
+  label: string;
+  primary: boolean;
+  bounds: Electron.Rectangle;
+  workArea: Electron.Rectangle;
+};
+
+const DEFAULT_BACKEND_URL = 'https://livechat.oliviermineost.fr';
+const DEFAULT_SETTINGS: AppSettings = {
+  backendUrl: DEFAULT_BACKEND_URL,
+  guildId: '',
+  screenId: 0,
+  volume: 100,
+  autoConnect: true,
+  clickThrough: true,
+};
+
+let controlWindow: BrowserWindow | null = null;
+let overlayWindow: BrowserWindow | null = null;
+let statusType: OverlayStatusType = 'idle';
+let statusMessage = 'Prêt';
+let settings = { ...DEFAULT_SETTINGS };
+
+function getSettingsPath() {
+  return path.join(app.getPath('userData'), 'settings.json');
+}
+
+function clampVolume(value: number) {
+  return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+function normalizeSettings(candidate: Partial<AppSettings> | undefined): AppSettings {
+  return {
+    backendUrl: candidate?.backendUrl?.trim() || DEFAULT_SETTINGS.backendUrl,
+    guildId: candidate?.guildId?.trim() || '',
+    screenId: Number.isFinite(candidate?.screenId as number) ? Number(candidate?.screenId) : DEFAULT_SETTINGS.screenId,
+    volume: clampVolume(Number(candidate?.volume ?? DEFAULT_SETTINGS.volume)),
+    autoConnect: Boolean(candidate?.autoConnect ?? DEFAULT_SETTINGS.autoConnect),
+    clickThrough: Boolean(candidate?.clickThrough ?? DEFAULT_SETTINGS.clickThrough),
+  };
+}
+
+function getDisplayList(): DisplayInfo[] {
+  return screen.getAllDisplays().map((display) => ({
+    id: display.id,
+    label: display.label || `Écran ${display.id}`,
+    primary: display.id === screen.getPrimaryDisplay().id,
+    bounds: display.bounds,
+    workArea: display.workArea,
+  }));
+}
+
+function getSelectedDisplay() {
+  const displays = screen.getAllDisplays();
+  const selectedDisplay = displays.find((display) => display.id === settings.screenId);
+
+  if (selectedDisplay) {
+    return selectedDisplay;
+  }
+
+  return screen.getPrimaryDisplay();
+}
+
+function getOverlayUrl() {
+  const backendUrl = settings.backendUrl.replace(/\/$/, '');
+  const guildId = encodeURIComponent(settings.guildId);
+  return `${backendUrl}/client?guildId=${guildId}&client=desktop`;
+}
+
+function updateStatus(type: OverlayStatusType, message: string) {
+  statusType = type;
+  statusMessage = message;
+  controlWindow?.webContents.send('overlay:status', { type, message });
+}
+
+async function loadSettingsFromDisk() {
+  try {
+    const content = await fs.readFile(getSettingsPath(), 'utf-8');
+    const parsed = JSON.parse(content) as Partial<AppSettings>;
+    settings = normalizeSettings(parsed);
+  } catch {
+    settings = { ...DEFAULT_SETTINGS };
+  }
+}
+
+async function saveSettingsToDisk() {
+  await fs.mkdir(path.dirname(getSettingsPath()), { recursive: true });
+  await fs.writeFile(getSettingsPath(), `${JSON.stringify(settings, null, 2)}\n`, 'utf-8');
+}
+
+function applyOverlayPlacement() {
+  if (!overlayWindow) {
+    return;
+  }
+
+  const display = getSelectedDisplay();
+  overlayWindow.setBounds(display.bounds, false);
+  overlayWindow.setIgnoreMouseEvents(settings.clickThrough);
+  overlayWindow.setAlwaysOnTop(true, 'screen-saver');
+  overlayWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+}
+
+async function applyMediaVolume() {
+  if (!overlayWindow) {
+    return;
+  }
+
+  const volume = settings.volume / 100;
+  const script = `
+    (() => {
+      const volume = ${volume};
+      const applyToElement = (element) => {
+        try {
+          element.volume = volume;
+          element.muted = volume === 0;
+        } catch {
+        }
+      };
+      const applyAll = () => {
+        document.querySelectorAll('audio,video').forEach(applyToElement);
+      };
+      applyAll();
+      const observer = new MutationObserver(() => applyAll());
+      observer.observe(document.documentElement, { childList: true, subtree: true });
+      window.addEventListener('beforeunload', () => observer.disconnect(), { once: true });
+    })();
+  `;
+
+  await overlayWindow.webContents.executeJavaScript(script, true).catch(() => undefined);
+}
+
+function createControlWindow() {
+  controlWindow = new BrowserWindow({
+    width: 420,
+    height: 640,
+    minWidth: 380,
+    minHeight: 600,
+    title: 'LiveChatCCB Desktop',
+    backgroundColor: '#0b1020',
+    autoHideMenuBar: true,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+
+  controlWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
+  controlWindow.on('closed', () => {
+    controlWindow = null;
+  });
+}
+
+function destroyOverlayWindow() {
+  if (!overlayWindow) {
+    return;
+  }
+
+  overlayWindow.destroy();
+  overlayWindow = null;
+}
+
+function createOverlayWindow() {
+  const display = getSelectedDisplay();
+
+  overlayWindow = new BrowserWindow({
+    x: display.bounds.x,
+    y: display.bounds.y,
+    width: display.bounds.width,
+    height: display.bounds.height,
+    show: false,
+    frame: false,
+    thickFrame: false,
+    transparent: true,
+    backgroundColor: '#00000000',
+    resizable: false,
+    movable: false,
+    focusable: false,
+    fullscreenable: false,
+    skipTaskbar: true,
+    hasShadow: false,
+    alwaysOnTop: true,
+    title: 'LiveChat overlay',
+    webPreferences: {
+      backgroundThrottling: false,
+      nodeIntegration: false,
+      contextIsolation: true,
+      autoplayPolicy: 'no-user-gesture-required',
+    },
+  });
+
+  overlayWindow.webContents.on('did-finish-load', async () => {
+    if (overlayWindow) {
+      await overlayWindow.webContents.insertCSS(`
+        #disappear, #empty-state {
+          display: none !important;
+        }
+      `).catch(() => undefined);
+    }
+    await applyMediaVolume();
+    overlayWindow?.showInactive();
+    updateStatus('connected', `Connecté à ${settings.guildId}`);
+  });
+
+  overlayWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+    if (!isMainFrame) {
+      return;
+    }
+
+    updateStatus('error', `Impossible de charger l'overlay (${errorCode}) ${errorDescription}`);
+  });
+
+  overlayWindow.on('closed', () => {
+    overlayWindow = null;
+  });
+
+  applyOverlayPlacement();
+}
+
+async function connectOverlay() {
+  if (!settings.guildId) {
+    updateStatus('error', "Renseigne l'ID du serveur Discord pour connecter la salle.");
+    return;
+  }
+
+  if (!overlayWindow) {
+    createOverlayWindow();
+  }
+
+  if (!overlayWindow) {
+    updateStatus('error', 'Impossible de créer la fenêtre overlay.');
+    return;
+  }
+
+  applyOverlayPlacement();
+  updateStatus('loading', `Connexion à ${settings.backendUrl}`);
+  overlayWindow.showInactive();
+  await overlayWindow.loadURL(getOverlayUrl());
+}
+
+function registerIpc() {
+  ipcMain.handle('app:get-settings', async () => settings);
+
+  ipcMain.handle('app:get-displays', async () => getDisplayList());
+
+  ipcMain.handle('app:save-settings', async (_event, nextSettings: Partial<AppSettings>) => {
+    settings = normalizeSettings(nextSettings);
+    await saveSettingsToDisk();
+    applyOverlayPlacement();
+    if (overlayWindow && settings.volume >= 0) {
+      await applyMediaVolume();
+    }
+    controlWindow?.webContents.send('overlay:settings-changed', settings);
+    return settings;
+  });
+
+  ipcMain.handle('overlay:connect', async () => {
+    await connectOverlay();
+    return { type: statusType, message: statusMessage };
+  });
+
+  ipcMain.handle('overlay:disconnect', async () => {
+    destroyOverlayWindow();
+    updateStatus('idle', 'Fenêtre overlay fermée');
+    return { type: statusType, message: statusMessage };
+  });
+
+  ipcMain.handle('overlay:set-volume', async (_event, nextVolume: number) => {
+    settings.volume = clampVolume(nextVolume);
+    await saveSettingsToDisk();
+    await applyMediaVolume();
+    controlWindow?.webContents.send('overlay:settings-changed', settings);
+    return settings.volume;
+  });
+
+  ipcMain.handle('overlay:refresh-placement', async () => {
+    applyOverlayPlacement();
+    return true;
+  });
+}
+
+async function bootstrap() {
+  await loadSettingsFromDisk();
+  registerIpc();
+  createControlWindow();
+  updateStatus('idle', statusMessage);
+
+  if (settings.autoConnect) {
+    await connectOverlay();
+  }
+}
+
+app.whenReady().then(() => {
+  void bootstrap();
+
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) {
+      createControlWindow();
+    }
+  });
+});
+
+app.on('window-all-closed', () => {
+  app.quit();
+});

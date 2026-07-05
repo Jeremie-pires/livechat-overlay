@@ -1,5 +1,7 @@
 import { addMilliseconds, addSeconds } from 'date-fns';
 
+const MESSAGE_SYNC_LEAD_TIME_MS = 1200;
+
 export const executeMessagesWorker = async (fastify: FastifyCustomInstance) => {
   //Get last message
   const lastMessage = await prisma.queue.findFirst({
@@ -42,7 +44,7 @@ export const executeMessagesWorker = async (fastify: FastifyCustomInstance) => {
     let busyUntil = addSeconds(new Date(), lastMessage.duration);
 
     //Safety mesure
-    busyUntil = addMilliseconds(busyUntil, 250);
+    busyUntil = addMilliseconds(busyUntil, 250 + MESSAGE_SYNC_LEAD_TIME_MS);
 
     await prisma.guild.upsert({
       where: {
@@ -58,7 +60,10 @@ export const executeMessagesWorker = async (fastify: FastifyCustomInstance) => {
     });
   }
 
-  fastify.io.to(`messages-${lastMessage.discordGuildId}`).emit('new-message', lastMessage);
+  fastify.io.to(`messages-${lastMessage.discordGuildId}`).emit('new-message', {
+    ...lastMessage,
+    displayAt: Date.now() + MESSAGE_SYNC_LEAD_TIME_MS,
+  });
   logger.debug(`[SOCKET] New message ${lastMessage.id} (guild: ${lastMessage.discordGuildId}): ${lastMessage.content}`);
 
   await prisma.queue.delete({ where: { id: lastMessage.id } });

@@ -15,5 +15,16 @@ export const loadSocket = (fastify: FastifyCustomInstance) => {
     socket.on('ping', () => {
       fastify.io.to(socket.id).emit('ping', 'pong');
     });
+
+    socket.on('sync-time', (clientSentAt, callback) => {
+      if (typeof callback !== 'function') {
+        return;
+      }
+
+      callback({
+        clientSentAt,
+        serverNow: Date.now(),
+      });
+    });
   });
 };

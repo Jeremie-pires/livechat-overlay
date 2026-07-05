@@ -1,0 +1,45 @@
+{
+  "name": "livechat-ccb-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Desktop overlay client for LiveChat CCB",
+  "main": "dist/main.js",
+  "scripts": {
+    "dev": "npm run build && electron .",
+    "build": "npm run build:renderer && npm run build:main",
+    "build:main": "tsc -p tsconfig.json",
+    "build:renderer": "node scripts/copy-renderer.mjs",
+    "dist": "npm run build && electron-builder --win nsis",
+    "pack": "npm run build && electron-builder --dir"
+  },
+  "build": {
+    "appId": "fr.livechat.ccb.desktop",
+    "productName": "LiveChatCCB Desktop",
+    "asar": true,
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  },
+  "devDependencies": {
+    "@types/node": "20.11.17",
+    "electron": "^33.0.0",
+    "electron-builder": "^24.13.3",
+    "typescript": "5.3.3"
+  }
+}

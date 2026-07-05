@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LiveChatCCB Desktop</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="hero-card">
+        <div>
+          <p class="eyebrow">Desktop overlay</p>
+          <h1>LiveChatCCB</h1>
+          <p class="lead">
+            Contrôle la fenêtre overlay, choisis ton écran et garde le flux au-dessus du jeu sans capturer les clics.
+          </p>
+        </div>
+        <div class="status-pills">
+          <span class="status-dot" id="statusDot"></span>
+          <span id="statusText">Prêt</span>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-title">
+          <h2>Connexion</h2>
+          <p>Le client rejoint automatiquement la salle liée au serveur Discord.</p>
+        </div>
+
+        <label class="field">
+          <span>URL du backend</span>
+          <input id="backendUrl" type="text" placeholder="https://livechat.oliviermineost.fr" />
+        </label>
+
+        <label class="field">
+          <span>Guild Discord</span>
+          <input id="guildId" type="text" placeholder="123456789012345678" />
+        </label>
+
+        <div class="field-row">
+          <label class="field grow">
+            <span>Écran</span>
+            <select id="screenId"></select>
+          </label>
+
+          <label class="field small-field">
+            <span>Volume</span>
+            <div class="volume-box">
+              <input id="volume" type="range" min="0" max="100" step="1" />
+              <strong id="volumeValue">100%</strong>
+            </div>
+          </label>
+        </div>
+
+        <div class="toggles">
+          <label class="toggle">
+            <input id="autoConnect" type="checkbox" />
+            <span>Connexion automatique</span>
+          </label>
+
+          <label class="toggle">
+            <input id="clickThrough" type="checkbox" />
+            <span>Overlay non cliquable</span>
+          </label>
+        </div>
+
+        <div class="actions">
+          <button id="saveButton" class="secondary">Enregistrer</button>
+          <button id="connectButton">Connecter</button>
+        </div>
+      </section>
+
+      <section class="panel compact">
+        <div class="panel-title">
+          <h2>État rapide</h2>
+        </div>
+        <div class="summary-grid">
+          <div>
+            <span>Statut</span>
+            <strong id="statusSummary">Prêt</strong>
+          </div>
+          <div>
+            <span>Fenêtre</span>
+            <strong id="windowSummary">Inactive</strong>
+          </div>
+          <div>
+            <span>Placement</span>
+            <strong id="screenSummary">Écran principal</strong>
+          </div>
+        </div>
+        <button id="disconnectButton" class="ghost">Fermer l’overlay</button>
+      </section>
+    </main>
+
+    <script src="./renderer.js"></script>
+  </body>
+</html>

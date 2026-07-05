@@ -1,189 +1,464 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
+  <head>
+    <title>LiveChatCCB</title>
+    <script
+      src="https://cdn.socket.io/4.7.4/socket.io.min.js"
+      integrity="sha384-Gr6Lu2Ajx28mzwyVR8CFkULdCU7kMlZ9UthllibdOSo6qAiN+yXNHqtgdTvFXMT4"
+      crossorigin="anonymous"
+    ></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/client/vidstack.theme.css" />
+    <link rel="stylesheet" href="/client/vidstack.video.css" />
+    <script src="/client/vidstack.js" type="module"></script>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
 
-<head>
-  <title>LiveChatCCB</title>
-  <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"
-    integrity="sha384-Gr6Lu2Ajx28mzwyVR8CFkULdCU7kMlZ9UthllibdOSo6qAiN+yXNHqtgdTvFXMT4"
-    crossorigin="anonymous"></script>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="/client/vidstack.theme.css" />
-  <link rel="stylesheet" href="/client/vidstack.video.css" />
-  <script src="/client/vidstack.js" type="module"></script>
-  <style>
-    media-player.is-short {
-      aspect-ratio: 9 / 16;
-    }
-  </style>
-</head>
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        overflow: hidden;
+        background: transparent;
+        font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      }
 
-<body>
-  <button class="absolute z-50 rounded-full bg-red-500 px-4" id="disappear">Click on me so i can disappear <br/>(Fix Autoplay, Browser Source > Right Click > Interact / Interragir <br/>and click on button.) </button>
-  <div class="absolute top-3 left-3 hidden flex-col items-center z-50" id="author-block">
-    <div class="w-fit">
-      <div class="border-4 rounded-full border-[#57F287] inline-block">
-        <img id="author-img" src="" class="w-full h-full max-w-[70px] max-h-[70px] rounded-full" />
+      body {
+        pointer-events: none;
+      }
+
+      #overlay-root {
+        position: fixed;
+        inset: 0;
+        overflow: hidden;
+      }
+
+      #overlay-stage {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      #overlay-shell {
+        position: relative;
+        width: min(88vw, 1280px);
+        max-height: min(88vh, 900px);
+        display: grid;
+        gap: 18px;
+        justify-items: center;
+        align-items: center;
+      }
+
+      #overlay-shell.is-fullscreen {
+        width: 100vw;
+        height: 100vh;
+        max-height: none;
+        gap: 0;
+      }
+
+      .overlay-glow {
+        position: absolute;
+        inset: auto;
+        width: min(72vw, 920px);
+        height: min(72vw, 920px);
+        border-radius: 999px;
+        background: radial-gradient(circle, rgba(114, 159, 255, 0.2), rgba(114, 159, 255, 0.08) 35%, transparent 70%);
+        filter: blur(28px);
+        z-index: 0;
+      }
+
+      .message-frame {
+        position: relative;
+        z-index: 1;
+        width: min(100%, 1180px);
+        display: grid;
+        gap: 14px;
+        justify-items: center;
+      }
+
+      .message-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 16px;
+        border-radius: 999px;
+        background: rgba(17, 24, 39, 0.74);
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        box-shadow: 0 16px 42px rgba(0, 0, 0, 0.35);
+        backdrop-filter: blur(16px);
+      }
+
+      #author-block {
+        display: none;
+        align-items: center;
+      }
+
+      #author-block img {
+        width: 42px;
+        height: 42px;
+        border-radius: 999px;
+        object-fit: cover;
+      }
+
+      #author-username {
+        font-size: 18px;
+        font-weight: 700;
+        color: #eff6ff;
+        text-shadow: 0 2px 14px rgba(0, 0, 0, 0.45);
+      }
+
+      #message-text {
+        display: none;
+        margin: 0;
+        padding: 0.75rem 1rem;
+        max-width: 1180px;
+        font-size: clamp(1.7rem, 2.4vw, 3.7rem);
+        line-height: 1.15;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+        color: #ffffff;
+        text-align: center;
+        text-shadow: 0 2px 18px rgba(0, 0, 0, 0.5);
+      }
+
+      #message-block {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: min(85vw, 960px);
+        height: min(48vw, 540px); /* 16:9 normalized dimension */
+        margin: 0 auto;
+        position: relative;
+        background: transparent !important;
+      }
+
+      /* Style for the wrapper div that gets created for the video player */
+      #message-block #message-player {
+        width: 100% !important;
+        height: 100% !important;
+        max-width: 100% !important;
+        max-height: 100% !important;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: transparent !important;
+      }
+
+      /* Make all elements inside the message block transparent to avoid black bars */
+      #message-block media-player,
+      #message-block [data-media-player],
+      #message-block media-provider,
+      #message-block [data-media-provider],
+      #message-block video,
+      #message-block audio {
+        background: transparent !important;
+        background-color: transparent !important;
+      }
+
+      /* Consistent aspect-ratio support for player */
+      #message-block media-player {
+        aspect-ratio: 16 / 9;
+        max-width: 100%;
+        max-height: 100%;
+        width: 100%;
+        height: 100%;
+      }
+
+      /* For short (9:16) videos, override the aspect-ratio of the player */
+      #message-block #message-player.is-short media-player {
+        aspect-ratio: 9 / 16 !important;
+        width: auto !important; /* Let it shrink horizontally to fit 9:16 aspect ratio inside the 16:9 container */
+        height: 100% !important;
+      }
+
+      /* Style for image and video content to ensure they render nicely with rounded corners and shadow */
+      #message-block img,
+      #message-block media-player {
+        display: block;
+        max-width: 100%;
+        max-height: 100%;
+        border-radius: 22px;
+        box-shadow: 0 28px 70px rgba(0, 0, 0, 0.45);
+        overflow: hidden;
+      }
+
+      #message-block img {
+        width: auto;
+        height: auto;
+        object-fit: contain;
+      }
+
+      .empty-state {
+        display: none;
+        color: rgba(226, 232, 240, 0.74);
+        text-align: center;
+        font-size: 14px;
+        letter-spacing: 0.02em;
+      }
+    </style>
+  </head>
+
+  <body>
+    <button class="absolute z-50 rounded-full bg-red-500 px-4 text-white pointer-events-auto" id="disappear">
+      Click on me so i can disappear <br />(Fix Autoplay, Browser Source > Right Click > Interact / Interragir <br />and
+      click on button.)
+    </button>
+
+    <div id="overlay-root">
+      <div id="overlay-stage">
+        <div id="overlay-shell">
+          <div class="overlay-glow"></div>
+          <div class="message-frame">
+            <div id="author-block" class="message-badge">
+              <div class="w-fit">
+                <img id="author-img" src="" alt="" />
+              </div>
+              <p id="author-username"></p>
+            </div>
+
+            <p id="message-text"></p>
+            <div id="message-block"></div>
+            <div id="empty-state" class="empty-state">LiveChat prêt</div>
+          </div>
+        </div>
       </div>
     </div>
-    <div>
-      <p id="author-username" class="text-center font-medium text-white text-lg max-w-[100px]"
-        style="text-shadow: #57F287 1px 0 10px;"></p>
-    </div>
-  </div>
 
-  <div class="absolute w-screen h-screen flex items-end justify-center top-0 left-0 z-20 px-5 pb-5">
-    <div>
-      <p id="message-text" class="text-white text-5xl font-medium text-center" style="text-shadow:white 1px 0 10px;">
-      </p>
-    </div>
-  </div>
+    <script type="module">
+      import { VidstackPlayer, VidstackPlayerLayout } from '/client/vidstack.js';
 
-  <div class="absolute max-w-screen max-h-screen h-full w-full flex items-center justify-center top-0 left-0">
-    <div id="message-block">
-    </div>
-  </div>
+      const overlayShell = document.getElementById('overlay-shell');
+      const emptyState = document.getElementById('empty-state');
+      const disappearBtn = document.getElementById('disappear');
 
-  <script type="module">
-    import { VidstackPlayer, VidstackPlayerLayout } from '/client/vidstack.js';
+      // Check if we are running in the desktop client
+      const urlParams = new URLSearchParams(window.location.search);
+      const isDesktop = urlParams.get('client') === 'desktop';
 
-    function generateImg(src, displayFull) {
-      return '<img id="message-img" ' + (displayFull ? 'class="aspect-auto w-full h-full max-w-[100vw] max-h-[100vh]"' : '') + ' src="' + src + '" />';
-    }
-
-    function generateAudioVideo(src, displayFull, mediaIsShort) {
-      setTimeout(() => {
-
-        (async () => {
-          await VidstackPlayer.create({
-            target: '#message-player',
-            src: src,
-            layout: new VidstackPlayerLayout({
-            }),
-            logLevel: 'debug',
-            crossOrigin: true,
-            playsInline: true,
-            load: "eager",
-            autoplay: true, // lowercase per Vidstack API
-            muted: true, // Required for cross-platform autoplay
+      if (isDesktop) {
+        if (disappearBtn) {
+          disappearBtn.style.display = 'none';
+        }
+      } else {
+        if (disappearBtn) {
+          disappearBtn.addEventListener('click', () => {
+            disappearBtn.style.display = 'none';
           });
-
-          const player = document.querySelector('media-player');
-          // Fallback: explicitly call play() after player is ready
-          player.addEventListener('can-play', async () => {
-            try {
-              await player.play();
-              // Unmute after playback starts
-              player.muted = false;
-            } catch (e) {
-              console.warn('Autoplay blocked, user interaction required:', e);
-            }
-          }, { once: true });
-        })();
-      }, 100);
-
-      return '<div id="message-player" ' + (displayFull ? "class='h-[100vh] " + (mediaIsShort ? "is-short mx-auto" : "aspect-contain w-[100vw] ") + "'" : "class='aspect-contain " + (mediaIsShort ? "is-short" : "") + "'") + ' >' +
-        '</div>';
-    }
-
-    function displayAuthor(authorUsername, authorPictureURL) {
-      var elementBlock = document.getElementById('author-block');
-      var elementUsername = document.getElementById('author-username');
-      var elementImg = document.getElementById('author-img');
-
-      elementBlock.style.display = 'none';
-
-      elementUsername.innerHTML = authorUsername;
-      // Display default image if user doesn't have an image
-      elementImg.src = authorPictureURL || 'https://archive.org/download/discordprofilepictures/discordblue.png';
-
-      if (authorUsername || authorPictureURL) {
-        elementBlock.style.display = 'flex';
-      }
-    }
-
-    function displayText(text) {
-      var element = document.getElementById('message-text');
-      element.style.display = 'none';
-
-      if (text) {
-        element.innerHTML = text;
-        element.style.display = 'block';
-      }
-    }
-
-    function displayContent(data) {
-      var element = document.getElementById('message-block');
-
-      element.innerHTML = '';
-
-      if (data.mediaContentType) {
-        if (data.mediaContentType.indexOf('image') === 0) {
-          element.innerHTML = generateImg(data.media || data.url, data.displayFull);
-        } else {
-          element.innerHTML = generateAudioVideo(data.media || data.url, data.displayFull, data.mediaIsShort);
         }
       }
-    }
 
-    var timeout;
-    function displayMessage(message) {
-      console.debug("New message !", message);
-      if (timeout) {
-        clearTimeout(timeout);
-      }
-      if (message.duration) {
-        timeout = setTimeout(() => {
-          displayMessage({})
-        }, (message.duration * 1000) + 100);
+      function generateImg(src) {
+        overlayShell.classList.remove('is-fullscreen');
+        return '<img id="message-img" alt="" src="' + src + '" />';
       }
 
-      var elementMessage = document.getElementById('message-block');
-      var elementBlock = document.getElementById('author-block');
-      var elementText = document.getElementById('message-text');
-      elementMessage.innerHTML = '';
-      elementBlock.style.display = 'none';
-      elementText.style.display = 'none';
+      function generateAudioVideo(src, mediaIsShort) {
+        overlayShell.classList.remove('is-fullscreen');
 
-      displayAuthor(message.author, message.authorImage);
+        setTimeout(() => {
+          (async () => {
+            await VidstackPlayer.create({
+              target: '#message-player',
+              src: src,
+              layout: new VidstackPlayerLayout({}),
+              logLevel: 'debug',
+              crossOrigin: true,
+              playsInline: true,
+              load: 'eager',
+              autoplay: true,
+              muted: isDesktop ? false : true, // If desktop, we want audio by default as autoplay policy is disabled in Electron
+            });
 
-      var data = JSON.parse(message.content || '{}');
+            const player = document.querySelector('media-player');
+            player.addEventListener(
+              'can-play',
+              async () => {
+                try {
+                  await player.play();
+                  if (!isDesktop) {
+                    player.muted = false;
+                  } else {
+                    player.muted = false;
+                  }
+                } catch (e) {
+                  console.warn('Autoplay blocked, user interaction required:', e);
+                }
+              },
+              { once: true },
+            );
+          })();
+        }, 100);
 
-      displayText(data.text);
-      displayContent(data);
-    }
+        return '<div id="message-player" ' + (mediaIsShort ? "class='is-short'" : '') + '></div>';
+      }
 
-    document.addEventListener("DOMContentLoaded", function () {
-      var socket = io({
-        'reconnection': true,
-        'reconnectionDelay': 1000,
-        'reconnectionDelayMax': 1000,
-        'reconnectionAttempts': 999
+      function displayAuthor(authorUsername, authorPictureURL) {
+        var elementBlock = document.getElementById('author-block');
+        var elementUsername = document.getElementById('author-username');
+        var elementImg = document.getElementById('author-img');
+
+        elementBlock.style.display = 'none';
+        elementUsername.textContent = authorUsername || '';
+        elementImg.src = authorPictureURL || 'https://archive.org/download/discordprofilepictures/discordblue.png';
+
+        if (authorUsername || authorPictureURL) {
+          elementBlock.style.display = 'inline-flex';
+        }
+      }
+
+      function displayText(text) {
+        var element = document.getElementById('message-text');
+        element.style.display = 'none';
+
+        if (text) {
+          element.textContent = text;
+          element.style.display = 'block';
+        }
+      }
+
+      var serverClockOffset = null;
+      var pendingDisplayTimeout;
+      var syncSampleCount = 0;
+      var syncSampleTotal = 0;
+
+      function displayContent(data) {
+        var element = document.getElementById('message-block');
+
+        element.innerHTML = '';
+        emptyState.style.display = 'none';
+
+        if (data.mediaContentType) {
+          if (data.mediaContentType.indexOf('image') === 0) {
+            element.innerHTML = generateImg(data.media || data.url);
+          } else {
+            element.innerHTML = generateAudioVideo(data.media || data.url, data.mediaIsShort);
+          }
+        }
+      }
+
+      var timeout;
+
+      function clearScheduledMessage() {
+        if (timeout) {
+          clearTimeout(timeout);
+          timeout = null;
+        }
+
+        if (pendingDisplayTimeout) {
+          clearTimeout(pendingDisplayTimeout);
+          pendingDisplayTimeout = null;
+        }
+      }
+
+      function getLocalTargetTime(serverTimestamp) {
+        if (serverClockOffset === null) {
+          return serverTimestamp;
+        }
+
+        return serverTimestamp - serverClockOffset;
+      }
+
+      function scheduleMessageDisplay(message) {
+        clearScheduledMessage();
+
+        var targetTime = getLocalTargetTime(message.displayAt || Date.now());
+        var delay = targetTime - Date.now();
+
+        pendingDisplayTimeout = setTimeout(() => {
+          pendingDisplayTimeout = null;
+          displayMessage(message);
+        }, Math.max(0, delay));
+      }
+
+      function displayMessage(message) {
+        console.debug('New message !', message);
+        if (timeout) {
+          clearTimeout(timeout);
+        }
+        if (message.duration) {
+          timeout = setTimeout(() => {
+            displayMessage({});
+          }, message.duration * 1000 + 100);
+        }
+
+        var elementMessage = document.getElementById('message-block');
+        var elementBlock = document.getElementById('author-block');
+        var elementText = document.getElementById('message-text');
+        elementMessage.innerHTML = '';
+        elementBlock.style.display = 'none';
+        elementText.style.display = 'none';
+        overlayShell.classList.remove('is-fullscreen');
+
+        if (message.author || message.authorImage) {
+          displayAuthor(message.author, message.authorImage);
+        }
+
+        var data = JSON.parse(message.content || '{}');
+
+        displayText(data.text);
+        displayContent(data);
+
+        if (!data.text && !data.mediaContentType) {
+          if (!isDesktop) {
+            emptyState.style.display = 'block';
+          }
+        }
+      }
+
+      function syncServerClock(socket) {
+        var samplesLeft = 3;
+
+        var runSample = () => {
+          var clientSentAt = Date.now();
+
+          socket.emit('sync-time', clientSentAt, (response) => {
+            var roundTripTime = Date.now() - clientSentAt;
+            var estimatedOffset = response.serverNow - (clientSentAt + roundTripTime / 2);
+
+            syncSampleCount += 1;
+            syncSampleTotal += estimatedOffset;
+            serverClockOffset = syncSampleTotal / syncSampleCount;
+
+            samplesLeft -= 1;
+
+            if (samplesLeft > 0) {
+              setTimeout(runSample, 150);
+            }
+          });
+        };
+
+        runSample();
+      }
+
+      document.addEventListener('DOMContentLoaded', function () {
+        var socket = io({
+          reconnection: true,
+          reconnectionDelay: 1000,
+          reconnectionDelayMax: 1000,
+          reconnectionAttempts: 999,
+        });
+
+        socket.on('connect', () => {
+          socket.emit('join-room', 'messages-' + urlParams.get('guildId'));
+          syncServerClock(socket);
+        });
+
+        socket.on('new-message', function (data) {
+          console.debug(data);
+          scheduleMessageDisplay(data);
+        });
+
+        socket.on('stop', function () {
+          console.debug('Media stopped !');
+          clearScheduledMessage();
+          displayMessage({});
+        });
       });
-
-      socket.on('connect', () => {
-        //Get query param
-        const urlParams = new URLSearchParams(window.location.search);
-        socket.emit("join-room", "messages-" + urlParams.get('guildId'));
-      });
-
-      socket.on("new-message", function (data) {
-        console.debug(data);
-        displayMessage(data);
-      });
-
-      socket.on("stop", function (data) {
-        console.debug("Media stopped !");
-        clearTimeout(timeout);
-        displayMessage({});
-      });
-
-
-    
-      document.getElementById('disappear').addEventListener('click', () => {
-        document.getElementById('disappear').style.display = 'none';
-      });
-    });
-  </script>
-</body>
-
+    </script>
+  </body>
 </html>
