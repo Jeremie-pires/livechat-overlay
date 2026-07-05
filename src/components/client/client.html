@@ -382,8 +382,11 @@
               if (videoEl && videoEl.videoWidth && videoEl.videoHeight) {
                 const ratioStr = `${videoEl.videoWidth} / ${videoEl.videoHeight}`;
                 player.style.setProperty('aspect-ratio', ratioStr, 'important');
-                currentVideoRatio = ratioStr;
-                applyMessageBlockRatio();
+                // Portrait videos are height-constrained by .is-short — don't touch #message-block
+                if (videoEl.videoWidth > videoEl.videoHeight) {
+                  currentVideoRatio = ratioStr;
+                  applyMessageBlockRatio();
+                }
               }
             });
 
