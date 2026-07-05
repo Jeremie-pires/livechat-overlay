@@ -36,6 +36,7 @@ const elements = {
   testConnBtn: document.getElementById('testConnBtn'),
   saveConfigBtn: document.getElementById('saveConfigBtn'),
   testResultBox: document.getElementById('testResultBox'),
+  testResultIcon: document.getElementById('testResultIcon'),
   testResultText: document.getElementById('testResultText'),
 
   // Summary Metrics
@@ -177,18 +178,34 @@ async function toggleOverlay() {
   }
 }
 
+let testResultTimeout = null;
+
 function showTestResult(type, message) {
+  if (testResultTimeout) {
+    clearTimeout(testResultTimeout);
+    testResultTimeout = null;
+  }
+
   elements.testResultBox.className = `test-result-box ${type}`;
   elements.testResultBox.classList.remove('hidden');
   elements.testResultText.textContent = message;
 
   const icon = elements.testResultIcon;
-  if (type === 'success') {
-    icon.textContent = '✓';
-  } else if (type === 'error') {
-    icon.textContent = '✗';
-  } else {
-    icon.textContent = '⏳';
+  if (icon) {
+    if (type === 'success') {
+      icon.textContent = '✓';
+    } else if (type === 'error') {
+      icon.textContent = '✗';
+    } else {
+      icon.textContent = '⏳';
+    }
+  }
+
+  // Hide the alert box after 5 seconds if connection test finished (success or error)
+  if (type === 'success' || type === 'error') {
+    testResultTimeout = setTimeout(() => {
+      elements.testResultBox.classList.add('hidden');
+    }, 5000);
   }
 }
 
