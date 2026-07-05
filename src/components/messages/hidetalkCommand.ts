@@ -1,4 +1,4 @@
-import { CommandInteraction, EmbedBuilder, SlashCommandBuilder } from 'discord.js';
+import { ChatInputCommandInteraction, EmbedBuilder, SlashCommandBuilder } from 'discord.js';
 import { QueueType } from '../../services/prisma/loadPrisma';
 import { getContentInformationsFromUrl } from '../../services/content-utils';
 import { deleteGtts, promisedGtts, readGttsAsStream } from '../../services/gtts';
@@ -19,7 +19,7 @@ export const hideTalkCommand = () => ({
         .setName(rosetty.t('hideTalkCommandOptionText')!)
         .setDescription(rosetty.t('hideTalkCommandOptionTextDescription')!),
     ),
-  handler: async (interaction: CommandInteraction) => {
+  handler: async (interaction: ChatInputCommandInteraction) => {
     const text = interaction.options.get(rosetty.t('hideTalkCommandOptionText')!)?.value;
     const voice = interaction.options.get(rosetty.t('hideTalkCommandOptionVoice')!)?.value;
 

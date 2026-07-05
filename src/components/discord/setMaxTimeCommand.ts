@@ -1,4 +1,4 @@
-import { Client, CommandInteraction, EmbedBuilder, PermissionFlagsBits, SlashCommandBuilder } from 'discord.js';
+import { Client, ChatInputCommandInteraction, EmbedBuilder, PermissionFlagsBits, SlashCommandBuilder } from 'discord.js';
 
 export const setMaxTimeCommand = () => ({
   data: new SlashCommandBuilder()
@@ -10,7 +10,7 @@ export const setMaxTimeCommand = () => ({
         .setDescription(rosetty.t('setMaxTimeCommandOptionTextDescription')!)
         .setRequired(true),
     ),
-  handler: async (interaction: CommandInteraction, discordClient: Client) => {
+  handler: async (interaction: ChatInputCommandInteraction, discordClient: Client) => {
     const number = interaction.options.get(rosetty.t('setMaxTimeCommandOptionText')!)?.value as number;
 
     const userId = interaction.user.id;
