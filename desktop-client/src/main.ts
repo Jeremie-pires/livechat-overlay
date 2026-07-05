@@ -11,6 +11,8 @@ type AppSettings = {
   volume: number;
   autoConnect: boolean;
   clickThrough: boolean;
+  overlaySize: number;
+  overlayPosition: string;
 };
 
 type DisplayInfo = {
@@ -29,6 +31,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   volume: 100,
   autoConnect: true,
   clickThrough: true,
+  overlaySize: 960,
+  overlayPosition: 'center',
 };
 
 let controlWindow: BrowserWindow | null = null;
@@ -53,6 +57,8 @@ function normalizeSettings(candidate: Partial<AppSettings> | undefined): AppSett
     volume: clampVolume(Number(candidate?.volume ?? DEFAULT_SETTINGS.volume)),
     autoConnect: Boolean(candidate?.autoConnect ?? DEFAULT_SETTINGS.autoConnect),
     clickThrough: Boolean(candidate?.clickThrough ?? DEFAULT_SETTINGS.clickThrough),
+    overlaySize: Number.isFinite(candidate?.overlaySize as number) ? Number(candidate?.overlaySize) : DEFAULT_SETTINGS.overlaySize,
+    overlayPosition: candidate?.overlayPosition?.trim() || DEFAULT_SETTINGS.overlayPosition,
   };
 }
 
@@ -80,7 +86,9 @@ function getSelectedDisplay() {
 function getOverlayUrl() {
   const backendUrl = settings.backendUrl.replace(/\/$/, '');
   const guildId = encodeURIComponent(settings.guildId);
-  return `${backendUrl}/client?guildId=${guildId}&client=desktop`;
+  const size = settings.overlaySize;
+  const position = encodeURIComponent(settings.overlayPosition);
+  return `${backendUrl}/client?guildId=${guildId}&client=desktop&size=${size}&position=${position}`;
 }
 
 function updateStatus(type: OverlayStatusType, message: string) {
@@ -263,11 +271,37 @@ function registerIpc() {
     settings = normalizeSettings(nextSettings);
     await saveSettingsToDisk();
     applyOverlayPlacement();
-    if (overlayWindow && settings.volume >= 0) {
-      await applyMediaVolume();
+    if (overlayWindow) {
+      if (settings.volume >= 0) {
+        await applyMediaVolume();
+      }
+      const js = `if (typeof window.__updateLayoutSettings === 'function') { window.__updateLayoutSettings(${settings.overlaySize}, '${settings.overlayPosition}'); }`;
+      overlayWindow.webContents.executeJavaScript(js).catch(() => undefined);
     }
     controlWindow?.webContents.send('overlay:settings-changed', settings);
     return settings;
+  });
+
+  ipcMain.handle('app:test-connection', async (_event, { backendUrl, guildId }) => {
+    try {
+      const url = `${backendUrl.replace(/\/$/, '')}/client?guildId=${encodeURIComponent(guildId)}`;
+      const controller = new AbortController();
+      const id = setTimeout(() => controller.abort(), 4000);
+      const response = await fetch(url, { signal: controller.signal });
+      clearTimeout(id);
+      return response.ok;
+    } catch {
+      return false;
+    }
+  });
+
+  ipcMain.handle('overlay:trigger-test-format', async (_event, format: string) => {
+    if (overlayWindow) {
+      const js = `if (typeof window.__triggerTestFormat === 'function') { window.__triggerTestFormat('${format}'); }`;
+      await overlayWindow.webContents.executeJavaScript(js).catch(() => undefined);
+      return true;
+    }
+    return false;
   });
 
   ipcMain.handle('overlay:connect', async () => {

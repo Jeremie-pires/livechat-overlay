@@ -7,6 +7,8 @@ type AppSettings = {
   volume: number;
   autoConnect: boolean;
   clickThrough: boolean;
+  overlaySize: number;
+  overlayPosition: string;
 };
 
 type OverlayStatus = {
@@ -22,6 +24,8 @@ contextBridge.exposeInMainWorld('livechat', {
   disconnect: () => ipcRenderer.invoke('overlay:disconnect') as Promise<OverlayStatus>,
   setVolume: (volume: number) => ipcRenderer.invoke('overlay:set-volume', volume) as Promise<number>,
   refreshPlacement: () => ipcRenderer.invoke('overlay:refresh-placement') as Promise<boolean>,
+  testConnection: (backendUrl: string, guildId: string) => ipcRenderer.invoke('app:test-connection', { backendUrl, guildId }) as Promise<boolean>,
+  triggerTestFormat: (format: string) => ipcRenderer.invoke('overlay:trigger-test-format', format) as Promise<boolean>,
   onStatus: (callback: (status: OverlayStatus) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, status: OverlayStatus) => callback(status);
     ipcRenderer.on('overlay:status', listener);
@@ -44,6 +48,8 @@ declare global {
       disconnect: () => Promise<OverlayStatus>;
       setVolume: (volume: number) => Promise<number>;
       refreshPlacement: () => Promise<boolean>;
+      testConnection: (backendUrl: string, guildId: string) => Promise<boolean>;
+      triggerTestFormat: (format: string) => Promise<boolean>;
       onStatus: (callback: (status: OverlayStatus) => void) => () => void;
       onSettingsChanged: (callback: (settings: AppSettings) => void) => () => void;
     };
