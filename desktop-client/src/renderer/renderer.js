@@ -209,6 +209,17 @@ async function testConnection() {
   }
 }
 
+function updatePositionGridActive(positionValue) {
+  const cells = document.querySelectorAll('.position-cell');
+  for (const cell of cells) {
+    if (cell.dataset.value === positionValue) {
+      cell.classList.add('active');
+    } else {
+      cell.classList.remove('active');
+    }
+  }
+}
+
 async function refreshUi() {
   const [settings, displays] = await Promise.all([
     window.livechat.getSettings(),
@@ -228,6 +239,7 @@ async function refreshUi() {
   elements.volume.value = String(settings.volume);
   elements.overlaySize.value = String(settings.overlaySize || 960);
   elements.overlayPosition.value = settings.overlayPosition || 'center';
+  updatePositionGridActive(settings.overlayPosition || 'center');
 
   renderVolume(settings.volume);
   renderSize(settings.overlaySize);
@@ -260,6 +272,17 @@ function bindEvents() {
   });
 
   elements.overlayPosition.addEventListener('change', saveSettings);
+
+  // Grid cells click binding
+  const positionCells = document.querySelectorAll('.position-cell');
+  for (const cell of positionCells) {
+    cell.addEventListener('click', () => {
+      const val = cell.dataset.value;
+      elements.overlayPosition.value = val;
+      updatePositionGridActive(val);
+      elements.overlayPosition.dispatchEvent(new Event('change'));
+    });
+  }
 
   elements.overlaySize.addEventListener('input', () => {
     renderSize(elements.overlaySize.value);
@@ -302,6 +325,7 @@ window.livechat.onSettingsChanged((settings) => {
   elements.volume.value = String(settings.volume);
   elements.overlaySize.value = String(settings.overlaySize);
   elements.overlayPosition.value = settings.overlayPosition;
+  updatePositionGridActive(settings.overlayPosition || 'center');
   renderVolume(settings.volume);
   renderSize(settings.overlaySize);
   renderScreenSummary();

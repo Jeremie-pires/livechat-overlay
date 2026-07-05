@@ -43,16 +43,21 @@
         </div>
 
         <div class="field-row">
-          <label class="field grow">
+                  <div class="field">
             <span>Position de l'affichage</span>
-            <select id="overlayPosition">
-              <option value="center">Milieu de l'écran</option>
-              <option value="top-left">Haut Gauche</option>
-              <option value="top-right">Haut Droit</option>
-              <option value="bottom-left">Bas Gauche</option>
-              <option value="bottom-right">Bas Droit</option>
-            </select>
-          </label>
+            <div class="position-grid" id="positionGrid">
+              <div class="position-cell" data-value="top-left" title="Haut Gauche"></div>
+              <div class="position-cell" data-value="top-center" title="Haut Centre"></div>
+              <div class="position-cell" data-value="top-right" title="Haut Droit"></div>
+              <div class="position-cell" data-value="center-left" title="Milieu Gauche"></div>
+              <div class="position-cell" data-value="center" title="Milieu Centre"></div>
+              <div class="position-cell" data-value="center-right" title="Milieu Droit"></div>
+              <div class="position-cell" data-value="bottom-left" title="Bas Gauche"></div>
+              <div class="position-cell" data-value="bottom-center" title="Bas Centre"></div>
+              <div class="position-cell" data-value="bottom-right" title="Bas Droit"></div>
+            </div>
+            <input type="hidden" id="overlayPosition" value="center" />
+          </div>
 
           <label class="field grow">
             <span>Écran cible</span>

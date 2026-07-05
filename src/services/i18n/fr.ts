@@ -33,6 +33,8 @@ export const frLang: typeof enLang = {
   sendCommandOptionTextDescription: 'Texte à afficher',
   sendCommandOptionMedia: 'média',
   sendCommandOptionMediaDescription: 'Média à afficher',
+  sendCommandOptionDuration: 'temps',
+  sendCommandOptionDurationDescription: 'Temps d\'affichage en secondes (optionnel)',
   sendCommandAnswer: 'Contenu reçu ! Il sera bientôt joué !',
 
   hideSendCommand: 'cmsg',
@@ -43,6 +45,8 @@ export const frLang: typeof enLang = {
   hideSendCommandOptionTextDescription: 'Texte à afficher',
   hideSendCommandOptionMedia: 'média',
   hideSendCommandOptionMediaDescription: 'Média à afficher',
+  hideSendCommandOptionDuration: 'temps',
+  hideSendCommandOptionDurationDescription: 'Temps d\'affichage en secondes (optionnel)',
   hideSendCommandAnswer: 'Contenu reçu ! Il sera bientôt joué !',
 
   talkCommand: 'dire',

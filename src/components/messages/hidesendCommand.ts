@@ -22,11 +22,18 @@ export const hideSendCommand = () => ({
         .setName(rosetty.t('hideSendCommandOptionText')!)
         .setDescription(rosetty.t('hideSendCommandOptionTextDescription')!)
         .setRequired(false),
+    )
+    .addIntegerOption((option) =>
+      option
+        .setName(rosetty.t('hideSendCommandOptionDuration')!)
+        .setDescription(rosetty.t('hideSendCommandOptionDurationDescription')!)
+        .setRequired(false),
     ),
   handler: async (interaction: CommandInteraction) => {
     const url = interaction.options.get(rosetty.t('hideSendCommandOptionURL')!)?.value;
     const text = interaction.options.get(rosetty.t('hideSendCommandOptionText')!)?.value;
     const media = interaction.options.get(rosetty.t('hideSendCommandOptionMedia')!)?.attachment?.proxyURL;
+    const customDuration = interaction.options.get(rosetty.t('hideSendCommandOptionDuration')!)?.value as number | undefined;
     let mediaContentType = interaction.options.get(rosetty.t('sendCommandOptionMedia')!)?.attachment?.contentType;
     let mediaDuration = interaction.options.get(rosetty.t('sendCommandOptionMedia')!)?.attachment?.duration;
     let mediaIsShort = false;
@@ -56,6 +63,8 @@ export const hideSendCommand = () => ({
       mediaIsShort = additionalContent.mediaIsShort || false;
     }
 
+    const finalDuration = customDuration || mediaDuration;
+
     await prisma.queue.create({
       data: {
         content: JSON.stringify({
@@ -64,7 +73,7 @@ export const hideSendCommand = () => ({
           media,
           mediaContentType,
           mediaDuration: await getDurationFromGuildId(
-            mediaDuration ? Math.ceil(mediaDuration) : undefined,
+            finalDuration ? Math.ceil(finalDuration) : undefined,
             interaction.guildId!,
           ),
           displayFull: await getDisplayMediaFullFromGuildId(interaction.guildId!),
@@ -73,7 +82,7 @@ export const hideSendCommand = () => ({
         type: QueueType.MESSAGE,
         discordGuildId: interaction.guildId!,
         duration: await getDurationFromGuildId(
-          mediaDuration ? Math.ceil(mediaDuration) : undefined,
+          finalDuration ? Math.ceil(finalDuration) : undefined,
           interaction.guildId!,
         ),
       },

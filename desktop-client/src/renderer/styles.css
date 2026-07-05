@@ -500,3 +500,36 @@ button:active:not(:disabled) {
     grid-template-columns: 1fr;
   }
 }
+
+/* Interactive Position Selector Grid */
+.position-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  width: 100px;
+  height: 90px;
+  background: rgba(5, 11, 20, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  padding: 8px;
+}
+
+.position-cell {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.position-cell:hover {
+  background: rgba(101, 217, 255, 0.15);
+  border-color: var(--accent);
+}
+
+.position-cell.active {
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+  border-color: var(--accent);
+  box-shadow: 0 0 8px rgba(101, 217, 255, 0.4);
+}
+
