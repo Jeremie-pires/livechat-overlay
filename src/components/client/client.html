@@ -107,21 +107,39 @@
         text-shadow: 0 2px 18px rgba(0, 0, 0, 0.5);
       }
 
-      /* Base layout for the media container (no fixed aspect-ratio, collapses to content) */
+      /* Base layout for the media container */
       #message-block {
         display: flex;
         align-items: center;
         justify-content: center;
+        width: min(85vw, 960px);
+        height: min(48vw, 540px); /* 16:9 normalized dimension default */
         position: relative;
         background: transparent !important;
       }
 
       /* Style for the wrapper div that gets created for the video player */
       #message-block #message-player {
+        width: 100% !important;
+        height: 100% !important;
+        max-width: 100% !important;
+        max-height: 100% !important;
         display: flex;
         align-items: center;
         justify-content: center;
         background: transparent !important;
+      }
+
+      #message-block #message-player.is-short {
+        aspect-ratio: 9 / 16 !important;
+        width: auto !important;
+        height: 100% !important;
+      }
+
+      #message-block #message-player.is-short media-player {
+        aspect-ratio: 9 / 16 !important;
+        width: 100% !important;
+        height: 100% !important;
       }
 
       /* Make all elements inside the player transparent to avoid black bars and glass effects */
@@ -137,7 +155,6 @@
       }
 
       /* Force player and video elements to occupy the full container size */
-      #message-block media-player,
       #message-block media-provider,
       #message-block video {
         width: 100% !important;
@@ -169,18 +186,16 @@
       #message-block img,
       #message-block media-player {
         display: block;
+        max-width: 100% !important;
+        max-height: 100% !important;
         width: auto !important;
         height: auto !important;
-        max-width: min(85vw, var(--max-size, 960px)) !important;
-        max-height: min(78vh, calc(var(--max-size, 960px) * 9 / 16)) !important;
         border-radius: 22px;
         box-shadow: 0 28px 70px rgba(0, 0, 0, 0.45);
         overflow: hidden;
       }
 
       #message-block img {
-        width: auto;
-        height: auto;
         object-fit: contain;
       }
 
@@ -245,7 +260,11 @@
 
       // Real-time custom width and flex alignment setup
       window.__updateLayoutSettings = function(size, position) {
-        document.documentElement.style.setProperty('--max-size', `${size}px`);
+        const messageBlock = document.getElementById('message-block');
+        if (messageBlock) {
+          messageBlock.style.width = `${size}px`;
+          messageBlock.style.height = `calc(${size}px * 9 / 16)`;
+        }
 
         if (overlayStage) {
           overlayStage.style.alignItems = '';
