@@ -21,7 +21,9 @@ export const enLang = {
 
   clientCommand: 'client',
   clientCommandDescription: 'Get OBS link to integrate LiveChat',
-  clientCommandsAnswer: 'Here is the link : {{link}}',
+  clientCommandsAnswer: 'Here are the connection settings to enter in the app:',
+  clientCommandsUrlLabel: 'Server URL',
+  clientCommandsGuildIdLabel: 'Discord Guild ID',
 
   sendCommand: 'send',
   sendCommandDescription: 'Send content to stream',

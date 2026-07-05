@@ -14,10 +14,7 @@
     "noUnusedParameters": false,
     "allowJs": true,
     "outDir": "dist",
-    "baseUrl": ".",
-    "paths": {
-      "*": ["node_modules/*"],
-    },
+    "rootDir": "./src",
     "skipLibCheck": true,
     "lib":["ES2021"]
   },

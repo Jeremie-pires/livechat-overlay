@@ -5,10 +5,18 @@ export const clientCommand = () => ({
     .setName(rosetty.t('clientCommand')!)
     .setDescription(rosetty.t('clientCommandDescription')!),
   handler: async (interaction: CommandInteraction) => {
-    const link = env.API_URL + '/client?guildId=' + interaction.guildId;
+    const url = env.API_URL;
+    const guildId = interaction.guildId ?? '';
 
     await interaction.reply({
-      embeds: [new EmbedBuilder().setDescription(rosetty.t('clientCommandsAnswer', { link })!)],
+      embeds: [
+        new EmbedBuilder()
+          .setDescription(rosetty.t('clientCommandsAnswer')!)
+          .addFields(
+            { name: rosetty.t('clientCommandsUrlLabel')!, value: `\`${url}\``, inline: false },
+            { name: rosetty.t('clientCommandsGuildIdLabel')!, value: `\`${guildId}\``, inline: false },
+          ),
+      ],
     });
   },
 });

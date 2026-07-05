@@ -23,7 +23,9 @@ export const frLang: typeof enLang = {
 
   clientCommand: 'client',
   clientCommandDescription: 'Obtenez un lien OBS pour intégrer LiveChat',
-  clientCommandsAnswer: 'Voici le lien : {{link}}',
+  clientCommandsAnswer: 'Voici les infos de connexion à entrer dans l\'app :',
+  clientCommandsUrlLabel: 'URL du serveur',
+  clientCommandsGuildIdLabel: 'ID de la Guild Discord',
 
   sendCommand: 'msg',
   sendCommandDescription: 'Envoyer du contenu sur le stream',
