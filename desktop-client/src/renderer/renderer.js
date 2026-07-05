@@ -22,7 +22,6 @@ const elements = {
   sizeValue: document.getElementById('sizeValue'),
   volume: document.getElementById('volume'),
   volumeValue: document.getElementById('volumeValue'),
-  clickThrough: document.getElementById('clickThrough'),
 
   // Format Test Buttons
   testLandscapeBtn: document.getElementById('testLandscapeBtn'),
@@ -137,7 +136,7 @@ function readFormValues() {
     overlaySize: Number(elements.overlaySize.value),
     overlayPosition: elements.overlayPosition.value,
     autoConnect: elements.autoConnect.checked,
-    clickThrough: elements.clickThrough.checked,
+    clickThrough: true, // Click-through is now forced to true for user convenience
   };
 }
 
@@ -229,7 +228,6 @@ async function refreshUi() {
   elements.volume.value = String(settings.volume);
   elements.overlaySize.value = String(settings.overlaySize || 960);
   elements.overlayPosition.value = settings.overlayPosition || 'center';
-  elements.clickThrough.checked = settings.clickThrough;
 
   renderVolume(settings.volume);
   renderSize(settings.overlaySize);
@@ -277,10 +275,7 @@ function bindEvents() {
     await saveSettings();
   });
 
-  elements.clickThrough.addEventListener('change', async () => {
-    await saveSettings();
-    await window.livechat.refreshPlacement();
-  });
+  // Click-through is now permanent, event listener removed
 
   // Mock Format Test buttons
   elements.testLandscapeBtn.addEventListener('click', () => {
@@ -307,7 +302,6 @@ window.livechat.onSettingsChanged((settings) => {
   elements.volume.value = String(settings.volume);
   elements.overlaySize.value = String(settings.overlaySize);
   elements.overlayPosition.value = settings.overlayPosition;
-  elements.clickThrough.checked = settings.clickThrough;
   renderVolume(settings.volume);
   renderSize(settings.overlaySize);
   renderScreenSummary();

@@ -56,7 +56,7 @@ function normalizeSettings(candidate: Partial<AppSettings> | undefined): AppSett
     screenId: Number.isFinite(candidate?.screenId as number) ? Number(candidate?.screenId) : DEFAULT_SETTINGS.screenId,
     volume: clampVolume(Number(candidate?.volume ?? DEFAULT_SETTINGS.volume)),
     autoConnect: Boolean(candidate?.autoConnect ?? DEFAULT_SETTINGS.autoConnect),
-    clickThrough: Boolean(candidate?.clickThrough ?? DEFAULT_SETTINGS.clickThrough),
+    clickThrough: true, // Always true to prevent desktop locks
     overlaySize: Number.isFinite(candidate?.overlaySize as number) ? Number(candidate?.overlaySize) : DEFAULT_SETTINGS.overlaySize,
     overlayPosition: candidate?.overlayPosition?.trim() || DEFAULT_SETTINGS.overlayPosition,
   };
@@ -119,7 +119,7 @@ function applyOverlayPlacement() {
 
   const display = getSelectedDisplay();
   overlayWindow.setBounds(display.bounds, false);
-  overlayWindow.setIgnoreMouseEvents(settings.clickThrough);
+  overlayWindow.setIgnoreMouseEvents(true); // Always ignore mouse events to ensure click-through
   overlayWindow.setAlwaysOnTop(true, 'screen-saver');
   overlayWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
 }
@@ -247,6 +247,10 @@ async function connectOverlay() {
     return;
   }
 
+  if (statusType === 'loading' || statusType === 'connected') {
+    return;
+  }
+
   if (!overlayWindow) {
     createOverlayWindow();
   }
@@ -259,7 +263,15 @@ async function connectOverlay() {
   applyOverlayPlacement();
   updateStatus('loading', `Connexion à ${settings.backendUrl}`);
   overlayWindow.showInactive();
-  await overlayWindow.loadURL(getOverlayUrl());
+  try {
+    await overlayWindow.loadURL(getOverlayUrl());
+  } catch (err: any) {
+    // Only report error if we didn't transition to connected/idle in the meantime
+    if ((statusType as string) === 'loading') {
+      console.error('Failed to load overlay URL:', err);
+      updateStatus('error', `Erreur de chargement: ${err.message || err}`);
+    }
+  }
 }
 
 function registerIpc() {
