@@ -1,6 +1,7 @@
 <!doctype html>
-<html>
+<html lang="fr">
   <head>
+    <base href="/client/" />
     <title>LiveChatCCB</title>
     <script
       src="https://cdn.socket.io/4.7.4/socket.io.min.js"
@@ -8,9 +9,9 @@
       crossorigin="anonymous"
     ></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="/client/vidstack.theme.css" />
-    <link rel="stylesheet" href="/client/vidstack.video.css" />
-    <script src="/client/vidstack.js" type="module"></script>
+    <link rel="stylesheet" href="./vidstack.theme.css" />
+    <link rel="stylesheet" href="./vidstack.video.css" />
+    <script src="./vidstack.js" type="module"></script>
     <style>
       :root {
         color-scheme: dark;
@@ -236,7 +237,7 @@
     </div>
 
     <script type="module">
-      import { VidstackPlayer, VidstackPlayerLayout } from '/client/vidstack.js';
+      import { VidstackPlayer, VidstackPlayerLayout } from './vidstack.js';
 
       const overlayStage = document.getElementById('overlay-stage');
       const overlayShell = document.getElementById('overlay-shell');
@@ -244,15 +245,13 @@
       const disappearBtn = document.getElementById('disappear');
 
       // Check if we are running in the desktop client
-      const urlParams = new URLSearchParams(window.location.search);
+      const urlParams = new URLSearchParams(globalThis.location.search);
       const isDesktop = urlParams.get('client') === 'desktop';
 
-      if (isDesktop) {
-        if (disappearBtn) {
+      if (disappearBtn) {
+        if (isDesktop) {
           disappearBtn.style.display = 'none';
-        }
-      } else {
-        if (disappearBtn) {
+        } else {
           disappearBtn.addEventListener('click', () => {
             disappearBtn.style.display = 'none';
           });
@@ -260,7 +259,7 @@
       }
 
       // Real-time custom width and flex alignment setup
-      window.__updateLayoutSettings = function(size, position) {
+      globalThis.__updateLayoutSettings = function(size, position) {
         const scaleVal = Number(size) / 960;
         document.documentElement.style.setProperty('--scale', scaleVal);
 
@@ -307,7 +306,7 @@
       };
 
       // Mock media formats testing
-      window.__triggerTestFormat = function(format) {
+      globalThis.__triggerTestFormat = function(format) {
         if (format === 'stop') {
           clearScheduledMessage();
           displayMessage({});
@@ -319,11 +318,11 @@
         let isShort = false;
 
         if (format === 'landscape') {
-          mediaUrl = '/client/img/landscape.svg';
+          mediaUrl = './img/landscape.svg';
         } else if (format === 'square') {
-          mediaUrl = '/client/img/square.svg';
+          mediaUrl = './img/square.svg';
         } else if (format === 'portrait') {
-          mediaUrl = '/client/img/portrait.svg';
+          mediaUrl = './img/portrait.svg';
           isShort = true;
         }
 
@@ -345,7 +344,7 @@
       // Apply initial size/position from URL params
       const sizeParam = urlParams.get('size') || '960';
       const posParam = urlParams.get('position') || 'center';
-      window.__updateLayoutSettings(sizeParam, posParam);
+      globalThis.__updateLayoutSettings(sizeParam, posParam);
 
       function generateImg(src) {
         return '<img id="message-img" alt="" src="' + src + '" />';
@@ -363,7 +362,7 @@
               playsInline: true,
               load: 'eager',
               autoplay: true,
-              muted: isDesktop ? false : true,
+              muted: !isDesktop,
             });
 
             const player = document.querySelector('media-player');
