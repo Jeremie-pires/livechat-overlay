@@ -109,61 +109,58 @@
         text-shadow: 0 2px 18px rgba(0, 0, 0, 0.5);
       }
 
-      /* Base layout for the media container */
+      /* Bare wrapper — no intrinsic size, no frame */
       #message-block {
         display: flex;
         align-items: center;
         justify-content: center;
-        width: min(85vw, 960px);
-        aspect-ratio: 16 / 9;
         position: relative;
         background: transparent !important;
       }
 
-      /* Style for the wrapper div that gets created for the video player */
+      /* Inner player wrapper — also no size */
       #message-block #message-player {
-        width: 100% !important;
-        height: 100% !important;
-        max-width: 100% !important;
-        max-height: 100% !important;
         display: flex;
         align-items: center;
         justify-content: center;
         background: transparent !important;
       }
 
-      #message-block #message-player.is-short {
-        aspect-ratio: 9 / 16 !important;
-        width: auto !important;
-        height: 100% !important;
+      /* Landscape video player: width driven by --overlay-size */
+      #message-block media-player {
+        display: block;
+        width: min(var(--overlay-size, 960px), 85vw);
+        height: auto;
+        aspect-ratio: 16 / 9;
+        max-height: 85vh;
+        border-radius: 22px;
+        box-shadow: 0 28px 70px rgba(0, 0, 0, 0.45);
+        overflow: hidden;
+        background: transparent !important;
+        background-color: transparent !important;
       }
 
+      /* Portrait video player: height-constrained */
       #message-block #message-player.is-short media-player {
+        width: auto !important;
+        height: min(85vh, calc(var(--overlay-size, 960px) * 9 / 16)) !important;
         aspect-ratio: 9 / 16 !important;
-        width: 100% !important;
-        height: 100% !important;
+        max-width: min(var(--overlay-size, 960px), 85vw) !important;
       }
 
-      /* Make all elements inside the player transparent to avoid black bars and glass effects */
-      #message-block media-player,
-      #message-block [data-media-player],
+      /* Inner Vidstack elements fill the sized media-player — no background */
       #message-block media-provider,
       #message-block [data-media-provider],
       #message-block video,
       #message-block audio {
-        background: transparent !important;
-        background-color: transparent !important;
-        box-shadow: none !important;
-      }
-
-      /* Force player and video elements to occupy the full container size */
-      #message-block media-provider,
-      #message-block video {
         width: 100% !important;
         height: 100% !important;
         max-width: 100% !important;
         max-height: 100% !important;
         object-fit: contain !important;
+        background: transparent !important;
+        background-color: transparent !important;
+        box-shadow: none !important;
       }
 
       /* Hide default Vidstack controls/overlays to ensure no UI frame is visible */
@@ -179,26 +176,16 @@
         pointer-events: none !important;
       }
 
-      /* Consistent aspect-ratio support for player */
-      #message-block media-player {
-        aspect-ratio: 16 / 9;
-      }
-
-      /* Style for image and video content to ensure they render nicely with rounded corners and shadow */
-      #message-block img,
-      #message-block media-player {
+      /* Image sizing mirrors landscape player */
+      #message-block img {
         display: block;
-        max-width: 100% !important;
-        max-height: 100% !important;
-        width: auto !important;
-        height: auto !important;
+        width: min(var(--overlay-size, 960px), 85vw);
+        height: auto;
+        max-height: 85vh;
+        object-fit: contain;
         border-radius: 22px;
         box-shadow: 0 28px 70px rgba(0, 0, 0, 0.45);
         overflow: hidden;
-      }
-
-      #message-block img {
-        object-fit: contain;
       }
 
       .empty-state {
@@ -258,25 +245,11 @@
         }
       }
 
-      let currentVideoRatio = null;
-
-      function applyMessageBlockRatio() {
-        const messageBlock = document.getElementById('message-block');
-        if (!messageBlock) return;
-        messageBlock.style.height = '';
-        messageBlock.style.aspectRatio = currentVideoRatio || '';
-      }
-
       // Real-time custom width and flex alignment setup
       globalThis.__updateLayoutSettings = function(size, position) {
         const scaleVal = Number(size) / 960;
         document.documentElement.style.setProperty('--scale', scaleVal);
-
-        const messageBlock = document.getElementById('message-block');
-        if (messageBlock) {
-          messageBlock.style.width = `${size}px`;
-          applyMessageBlockRatio();
-        }
+        document.documentElement.style.setProperty('--overlay-size', `${size}px`);
 
         if (overlayStage) {
           overlayStage.style.alignItems = '';
@@ -376,17 +349,11 @@
 
             const player = document.querySelector('media-player');
 
-            // Listen to metadata loaded to adjust player ratio dynamically based on video size
+            // Adjust player aspect-ratio to the video's real dimensions
             player.addEventListener('loaded-metadata', () => {
               const videoEl = player.querySelector('video');
               if (videoEl && videoEl.videoWidth && videoEl.videoHeight) {
-                const ratioStr = `${videoEl.videoWidth} / ${videoEl.videoHeight}`;
-                player.style.setProperty('aspect-ratio', ratioStr, 'important');
-                // Portrait videos are height-constrained by .is-short — don't touch #message-block
-                if (videoEl.videoWidth > videoEl.videoHeight) {
-                  currentVideoRatio = ratioStr;
-                  applyMessageBlockRatio();
-                }
+                player.style.setProperty('aspect-ratio', `${videoEl.videoWidth} / ${videoEl.videoHeight}`, 'important');
               }
             });
 
@@ -447,8 +414,6 @@
         var element = document.getElementById('message-block');
 
         element.innerHTML = '';
-        currentVideoRatio = null;
-        applyMessageBlockRatio();
         emptyState.style.display = 'none';
 
         if (data.mediaContentType) {
