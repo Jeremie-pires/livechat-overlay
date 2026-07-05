@@ -129,25 +129,16 @@ async function applyMediaVolume() {
     return;
   }
 
-  const volume = settings.volume / 100;
+  const vol = settings.volume / 100;
   const script = `
-    (() => {
-      const volume = ${volume};
-      const applyToElement = (element) => {
-        try {
-          element.volume = volume;
-          element.muted = volume === 0;
-        } catch {
-        }
-      };
-      const applyAll = () => {
-        document.querySelectorAll('audio,video').forEach(applyToElement);
-      };
-      applyAll();
-      const observer = new MutationObserver(() => applyAll());
-      observer.observe(document.documentElement, { childList: true, subtree: true });
-      window.addEventListener('beforeunload', () => observer.disconnect(), { once: true });
-    })();
+    if (typeof window.__setVolume === 'function') {
+      window.__setVolume(${vol});
+    } else {
+      document.querySelectorAll('audio,video').forEach(el => {
+        el.volume = ${vol};
+        el.muted = ${vol === 0};
+      });
+    }
   `;
 
   await overlayWindow.webContents.executeJavaScript(script, true).catch(() => undefined);
@@ -337,6 +328,29 @@ function registerIpc() {
 
   ipcMain.handle('overlay:refresh-placement', async () => {
     applyOverlayPlacement();
+    return true;
+  });
+
+  ipcMain.handle('overlay:test-sound', async () => {
+    if (!overlayWindow) return false;
+    const vol = settings.volume / 100;
+    const script = `
+      (() => {
+        try {
+          const ctx = new AudioContext();
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.frequency.value = 880;
+          gain.gain.setValueAtTime(${vol} * 0.4, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.8);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.8);
+        } catch(e) { console.warn('Test sound failed:', e); }
+      })();
+    `;
+    await overlayWindow.webContents.executeJavaScript(script, true).catch(() => undefined);
     return true;
   });
 }
