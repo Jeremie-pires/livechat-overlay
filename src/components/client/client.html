@@ -14,7 +14,7 @@
     <style>
       :root {
         color-scheme: dark;
-        --scale: calc(var(--max-size, 960px) / 960);
+        --scale: 1; /* Set dynamically via JS */
       }
 
       html,
@@ -50,7 +50,7 @@
       #overlay-shell {
         position: relative;
         display: grid;
-        gap: calc(10px * var(--scale));
+        gap: calc(14px * var(--scale));
         justify-items: center;
         align-items: center;
       }
@@ -59,7 +59,7 @@
         position: relative;
         z-index: 1;
         display: grid;
-        gap: calc(8px * var(--scale));
+        gap: calc(12px * var(--scale));
         justify-items: center;
       }
 
@@ -81,14 +81,14 @@
       }
 
       #author-block img {
-        width: calc(36px * var(--scale));
-        height: calc(36px * var(--scale));
+        width: calc(32px * var(--scale)) !important;
+        height: calc(32px * var(--scale)) !important;
         border-radius: 999px;
         object-fit: cover;
       }
 
       #author-username {
-        font-size: calc(16px * var(--scale));
+        font-size: calc(14px * var(--scale));
         font-weight: 700;
         color: #eff6ff;
         text-shadow: 0 2px 14px rgba(0, 0, 0, 0.45);
@@ -99,7 +99,7 @@
         margin: 0;
         padding: calc(6px * var(--scale)) calc(10px * var(--scale));
         max-width: 100%;
-        font-size: calc(2.2rem * var(--scale));
+        font-size: calc(2.6rem * var(--scale));
         line-height: 1.15;
         font-weight: 800;
         letter-spacing: -0.03em;
@@ -261,7 +261,9 @@
 
       // Real-time custom width and flex alignment setup
       window.__updateLayoutSettings = function(size, position) {
-        document.documentElement.style.setProperty('--max-size', `${size}px`);
+        const scaleVal = Number(size) / 960;
+        document.documentElement.style.setProperty('--scale', scaleVal);
+
         const messageBlock = document.getElementById('message-block');
         if (messageBlock) {
           messageBlock.style.width = `${size}px`;
