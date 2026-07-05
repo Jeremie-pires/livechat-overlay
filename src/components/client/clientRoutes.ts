@@ -30,4 +30,25 @@ export const ClientRoutes = () =>
       reply.type('text/css');
       return stream;
     });
+
+    fastify.get('/img/:filename', async function (req, reply) {
+      const { filename } = req.params as { filename: string };
+      const filePath = join(__dirname, 'img', filename);
+      
+      if (fs.existsSync(filePath)) {
+        const stream = fs.createReadStream(filePath);
+        if (filename.endsWith('.svg')) {
+          reply.type('image/svg+xml');
+        } else if (filename.endsWith('.png')) {
+          reply.type('image/png');
+        } else if (filename.endsWith('.jpg') || filename.endsWith('.jpeg')) {
+          reply.type('image/jpeg');
+        } else if (filename.endsWith('.webp')) {
+          reply.type('image/webp');
+        }
+        return stream;
+      }
+      
+      reply.status(404).send('Not Found');
+    });
   };

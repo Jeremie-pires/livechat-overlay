@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1920" width="100%" height="100%">
+  <defs>
+    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#833ab4"/>
+      <stop offset="50%" stop-color="#fd1d1d"/>
+      <stop offset="100%" stop-color="#fcb045"/>
+    </linearGradient>
+  </defs>
+  <rect width="1080" height="1920" fill="url(#g)"/>
+  <circle cx="540" cy="960" r="250" fill="none" stroke="rgba(255, 255, 255, 0.2)" stroke-width="8"/>
+  <text x="540" y="930" font-family="system-ui, sans-serif" font-weight="bold" font-size="64" fill="#ffffff" text-anchor="middle">FORMAT PORTRAIT</text>
+  <text x="540" y="1010" font-family="system-ui, sans-serif" font-size="36" fill="rgba(255,255,255,0.8)" text-anchor="middle">9:16 (1080x1920)</text>
+</svg>
