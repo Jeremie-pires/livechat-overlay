@@ -363,6 +363,17 @@ function bindEvents() {
   });
 }
 
+window.livechat.onUpdateDownloaded((info) => {
+  const banner = document.getElementById('updateBanner');
+  const text = document.getElementById('updateBannerText');
+  const btn = document.getElementById('updateInstallBtn');
+  if (banner && text && btn) {
+    text.textContent = `Mise à jour v${info.version} téléchargée — redémarre pour l'installer.`;
+    banner.classList.remove('hidden');
+    btn.addEventListener('click', () => window.livechat.installUpdate(), { once: true });
+  }
+});
+
 window.livechat.onStatus((status) => {
   renderStatus(status);
 });

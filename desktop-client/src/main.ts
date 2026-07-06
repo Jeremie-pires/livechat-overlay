@@ -1,4 +1,5 @@
 import { app, BrowserWindow, ipcMain, screen } from 'electron';
+import { autoUpdater } from 'electron-updater';
 import fs from 'fs/promises';
 import path from 'path';
 
@@ -357,11 +358,36 @@ function registerIpc() {
   });
 }
 
+function setupAutoUpdater() {
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+
+  autoUpdater.on('update-downloaded', (info) => {
+    controlWindow?.webContents.send('update:downloaded', { version: info.version });
+  });
+
+  autoUpdater.on('error', () => {
+    // Silent — update check failures shouldn't interrupt the user
+  });
+
+  ipcMain.handle('update:install', () => {
+    autoUpdater.quitAndInstall();
+  });
+
+  setTimeout(() => {
+    autoUpdater.checkForUpdates().catch(() => undefined);
+  }, 5000);
+}
+
 async function bootstrap() {
   await loadSettingsFromDisk();
   registerIpc();
   createControlWindow();
   updateStatus('idle', statusMessage);
+
+  if (app.isPackaged) {
+    setupAutoUpdater();
+  }
 
   if (settings.autoConnect) {
     await connectOverlay();
