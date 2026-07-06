@@ -2,6 +2,7 @@ import { CommandInteraction, EmbedBuilder, SlashCommandBuilder } from 'discord.j
 
 export const helpCommand = () => ({
   data: new SlashCommandBuilder().setName('help').setDescription('List of Commands'),
+  bypassChannelCheck: true,
   handler: async (interaction: CommandInteraction) => {
     await interaction.reply({
       embeds: [

@@ -28,7 +28,7 @@ L’installateur NSIS sortira dans `release/` et s’installe côté utilisateur
 
 ## Réglages attendus
 
-- `backendUrl` : URL du backend public, par défaut `https://livechat.oliviermineost.fr`
+- `backendUrl` : URL du backend public, par défaut `http://localhost:3000`
 - `guildId` : ID du serveur Discord utilisé par le client
 - `screenId` : écran choisi pour l’overlay
 - `volume` : volume des médias entre 0 et 100

@@ -30,4 +30,5 @@ model Guild {
   defaultMediaTime Int?
   maxMediaTime     Int?
   displayMediaFull Boolean   @default(false)
+  channelId        String?
 }

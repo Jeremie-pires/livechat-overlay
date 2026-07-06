@@ -19,7 +19,7 @@ export const env = createEnv({
 
     DISCORD_TOKEN: z.string(),
     DISCORD_CLIENT_ID: z.string(),
-    DISCORD_CHANNEL_ID: z.string(),
+    DISCORD_OWNER_ID: z.string().optional(),
 
     DATABASE_URL: z.string().url(),
 

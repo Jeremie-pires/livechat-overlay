@@ -23,7 +23,7 @@ type DisplayInfo = {
   workArea: Electron.Rectangle;
 };
 
-const DEFAULT_BACKEND_URL = 'https://livechat.oliviermineost.fr';
+const DEFAULT_BACKEND_URL = 'http://localhost:3000';
 const DEFAULT_SETTINGS: AppSettings = {
   backendUrl: DEFAULT_BACKEND_URL,
   guildId: '',

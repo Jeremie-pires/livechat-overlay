@@ -90,4 +90,16 @@ export const frLang: typeof enLang = {
   stopCommand: 'stop',
   stopCommandDescription: 'Supprime le média',
   stopCommandAnswer: 'Média interrompu !',
+
+  setupCommand: 'setup',
+  setupCommandDescription: 'Configurer le canal du bot pour ce serveur',
+  setupCommandOptionChannelDescription: 'Canal texte où les commandes du bot seront acceptées',
+  setupCommandAnswer: 'Bot configuré ! Les commandes seront acceptées dans {{channel}}.',
+  noChannelConfigured: "Ce serveur n'a pas encore de canal configuré. Un administrateur doit d'abord faire `/setup #canal`.",
+
+  announceCommand: 'announce',
+  announceCommandDescription: 'Envoyer une annonce à tous les serveurs (propriétaire du bot uniquement)',
+  announceCommandOptionDescription: 'Message à diffuser',
+  announceCommandTitle: '📢 Annonce',
+  announceCommandAnswer: 'Message envoyé à {{count}} serveur(s).',
 };

@@ -5,6 +5,7 @@ export const aliveCommand = () => ({
   data: new SlashCommandBuilder()
     .setName(rosetty.t('aliveCommand')!)
     .setDescription(rosetty.t('aliveCommandDescription')!),
+  bypassChannelCheck: true,
   handler: async (interaction: CommandInteraction) => {
     await interaction.reply({
       embeds: [

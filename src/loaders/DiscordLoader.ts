@@ -22,6 +22,8 @@ import { setDefaultTimeCommand } from '../components/discord/setDefaultTimeComma
 import { setDisplayMediaFullCommand } from '../components/discord/setDisplayFullCommand';
 import { setMaxTimeCommand } from '../components/discord/setMaxTimeCommand';
 import { stopCommand } from '../components/messages/stopCommand';
+import { setupCommand } from '../components/discord/setupCommand';
+import { announceCommand } from '../components/discord/announceCommand';
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export const loadDiscord = async (fastify: FastifyCustomInstance) => {
@@ -85,7 +87,10 @@ const loadDiscordCommands = async (fastify: FastifyCustomInstance) => {
       infoCommand(),
       setDefaultTimeCommand(),
       setDisplayMediaFullCommand(),
+      setMaxTimeCommand(),
       stopCommand(fastify),
+      setupCommand(),
+      announceCommand(),
     ];
     const hideCommands = [hideSendCommand(), hideTalkCommand()];
 
@@ -116,20 +121,31 @@ const loadDiscordCommandsHandler = () => {
   discordClient.on('interactionCreate', async (interaction) => {
     if (!interaction.isChatInputCommand()) return;
 
-    if (interaction.channelId !== env.DISCORD_CHANNEL_ID) {
-      const channelMention = `<#${env.DISCORD_CHANNEL_ID}>`;
+    //@ts-ignore
+    const command = discordClient.commands.get(interaction.commandName);
 
-      if (interaction.replied || interaction.deferred) {
-        await interaction.followUp({
+    if (!command) {
+      return;
+    }
+
+    if (!command.bypassChannelCheck) {
+      const guild = await prisma.guild.findFirst({ where: { id: interaction.guildId! } });
+
+      if (!guild?.channelId) {
+        await interaction.reply({
           embeds: [
             new EmbedBuilder()
               .setTitle(rosetty.t('error')!)
-              .setDescription(`Use this bot only in ${channelMention}.`)
+              .setDescription(rosetty.t('noChannelConfigured')!)
               .setColor(0xe74c3c),
           ],
           ephemeral: true,
         });
-      } else {
+        return;
+      }
+
+      if (interaction.channelId !== guild.channelId) {
+        const channelMention = `<#${guild.channelId}>`;
         await interaction.reply({
           embeds: [
             new EmbedBuilder()
@@ -139,16 +155,8 @@ const loadDiscordCommandsHandler = () => {
           ],
           ephemeral: true,
         });
+        return;
       }
-
-      return;
-    }
-
-    //@ts-ignore
-    const command = discordClient.commands.get(interaction.commandName);
-
-    if (!command) {
-      return;
     }
 
     try {

@@ -4,8 +4,11 @@ export const clientCommand = () => ({
   data: new SlashCommandBuilder()
     .setName(rosetty.t('clientCommand')!)
     .setDescription(rosetty.t('clientCommandDescription')!),
+  bypassChannelCheck: true,
   handler: async (interaction: CommandInteraction) => {
-    const url = env.API_URL;
+    const parsed = new URL(env.API_URL);
+    parsed.port = '';
+    const url = parsed.toString().replace(/\/$/, '');
     const guildId = interaction.guildId ?? '';
 
     await interaction.reply({

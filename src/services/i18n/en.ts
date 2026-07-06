@@ -87,4 +87,16 @@ export const enLang = {
   stopCommand: 'stop',
   stopCommandDescription: 'Remove content displayed',
   stopCommandAnswer: 'Content removed',
+
+  setupCommand: 'setup',
+  setupCommandDescription: 'Configure the bot channel for this server',
+  setupCommandOptionChannelDescription: 'Text channel where bot commands will be accepted',
+  setupCommandAnswer: 'Bot configured! Commands will be accepted in {{channel}}.',
+  noChannelConfigured: 'This server has no channel configured yet. An administrator must run `/setup #channel` first.',
+
+  announceCommand: 'announce',
+  announceCommandDescription: 'Send an announcement to all servers (bot owner only)',
+  announceCommandOptionDescription: 'Message to broadcast',
+  announceCommandTitle: '📢 Announcement',
+  announceCommandAnswer: 'Message sent to {{count}} server(s).',
 };

@@ -1,440 +1,148 @@
-# LiveChat CCB
+# LiveChat CCB Desktop
 
-Demonstration :
+Envoie du contenu (vidéos, images, audio, texte) sur ton écran en direct depuis Discord, affiché en overlay dans une fenêtre non clicable qui n'interfere pas avec ton écran.
 
-[![Watch the video](https://img.youtube.com/vi/SVI3SKVrznE/default.jpg)](https://youtu.be/SVI3SKVrznE)
+> Basé sur le travail original de [Quentin Laffont] [repo d'origine](https://github.com/qlaffont/LiveChatCaCaBox)
 
-For english language, please scroll down to ENGLISH.
+---
 
-## FRANÇAIS
+## Comment ça marche
 
-Cette application est inspirée d'un projet (LiveChat) qui a été développé par un groupe de streameur appelé [Cacabox](https://www.youtube.com/channel/uc6izvpg2aik83k-rqs6agma).
+Un bot Discord écoute les commandes sur ton serveur. Quand tu envoies un contenu, l'app desktop Windows permet d'afficher cet overlay directement par-dessus ton jeu, sans capturer la souris.
 
-L'objectif de cette application est d'envoyer du contenu sur une page Web qui est utilisée dans un logiciel de diffusion comme OBS, XSplit, etc.
+Ce code source est public pour garantir sa sécurité, son intégrité et partager son utilisation pour des forks potentiels. Pour tout fork ou réutilisation, n'hésitez pas à me crediter dessus.
 
-Une version hébergée existe sur la plateforme [LeStudio](https://lestudio.qlaffont.com) !
+---
 
-**Aucun support ne sera traitée si vous ne maitrisez pas Docker OU JavaScript.**
+## Utilisation
 
-### Caractéristiques
+### 1. Inviter le bot
 
-- Envoyez tout type de contenu (audio, vidéo, image, texte) sur le stream
-- Générez un audio de bot à jouer sur le stream
+[👉 Inviter le bot sur ton serveur Discord](#) *(lien à venir)*
 
-### Commandes Discord
+### 2. Configurer le canal
 
-- `/dispo` -> Vérifiez si le bot est vivant
-- `/client` -> Obtenez un lien pour intégrer livechat dans obs, xsplit
-- `/msg` -> Envoyer du contenu au flux
-- `/cmsg` -> Envoyez du contenu au flux (mais caché 😈)
-- `/dire` -> Demandez à un bot de dire quelque chose
-- `/cire` -> Demandez à un bot de dire quelque chose (mais caché 😈)
+Sur ton serveur, dans le canal où tu veux que le bot écoute les commandes, tape :
 
-### Customisation
-
-Si vous souhaitez modifier le rendu du bot, il vous suffit de modifier le fichier dans `src/components/client/client.html` !
-(Attention si vous êtes sur docker il faut rebuild l'application !)
-
-### Installation
-
-#### 1 - Informations Discord
-
-- Vous devez d'abord créer une application Discord: https://discord.com/developers/applications?new_application=true
-- Vous devez définir un nom du bot (ce nom sera affiché)
-- Après cela, vous devez **copier l'ID de l'application sur cette page**
-- Accédez à la barre latérale gauche et cliquez sur "Bot" et cliquez sur le bouton "Réinitialiser le jeton".
-- Après cela, vous devez **copier le Token sur cette page**
-- Créez aussi un salon texte dédié, puis copiez son **ID** pour le mettre dans `DISCORD_CHANNEL_ID`.
-
-#### 2 - Installation
-
-### Self-host sur Linux
-
-Le plus simple pour ton serveur Linux est d'utiliser Docker avec une base SQLite persistée dans un volume. Le bot Discord, l'API et la page client tournent alors sur ton serveur, et l'URL publique renseignée dans `API_URL` sera utilisée par la commande `/client`.
-
-Exemple avec `docker compose`:
-
-```yaml
-services:
-	livechatccb:
-		build: .
-		ports:
-			- "3000:3000"
-		environment:
-			DATABASE_URL: file:/data/sqlite.db
-			DISCORD_TOKEN: ${DISCORD_TOKEN:-}
-			DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID:-}
-			DISCORD_CHANNEL_ID: ${DISCORD_CHANNEL_ID:-}
-			API_URL: ${API_URL:-http://localhost:3000}
-			DEFAULT_DURATION: ${DEFAULT_DURATION:-5}
-			HIDE_COMMANDS_DISABLED: ${HIDE_COMMANDS_DISABLED:-false}
-		volumes:
-			- livechat_data:/data
-
-volumes:
-	livechat_data:
+```
+/setup #ton-canal
 ```
 
-Puis dans ton `.env`:
+Seul un **administrateur** du serveur peut faire cette commande.
+
+### 3. Récupérer l'URL
+
+```
+/client
+```
+
+Le bot te donne l'URL à coller dans l'app côté serveur et l'ID de ton serveur Discord.
+
+### 4. App desktop (overlay Windows)
+
+L'app desktop affiche le livechat directement par-dessus ton jeu en borderless, sans passer par OBS.
+
+[⬇️ Télécharger LiveChatCCB Desktop](#) *(lien à venir)*
+
+Dans l'onglet **Serveur** de l'app :
+- **URL du backend** : l'URL fournie par `/client`
+- **ID de la Guild Discord** : l'ID fourni par `/client`
+
+### Commandes disponibles
+
+| Commande | Description |
+|---|---|
+| `/dispo` | Vérifie si le bot répond |
+| `/client` | Donne l'URL OBS et l'ID de la guild |
+| `/msg` | Envoie un contenu sur le stream (lien, image, texte) |
+| `/cmsg` | Même chose, mais discret (pas de confirmation visible) |
+| `/dire` | Fait lire un texte par une voix de synthèse |
+| `/cdire` | Même chose, mais discret |
+| `/stop` | Interrompt le contenu en cours |
+| `/help` | Liste toutes les commandes |
+
+---
+
+## Auto-hébergement et développement
+
+Cette section s'adresse aux personnes qui veulent faire tourner leur propre instance (bot Discord séparé, backend perso).
+
+### Prérequis
+
+- [Docker](https://www.docker.com/get-started/) (recommandé)
+- Ou [Node 20](https://nodejs.org/en) + [pnpm](https://pnpm.io/fr/installation) + [ffmpeg](https://ffmpeg.org/)
+
+### Créer son bot Discord
+
+1. Créer une application sur [discord.com/developers](https://discord.com/developers/applications?new_application=true)
+2. Définir un nom (ce sera le nom affiché du bot)
+3. Copier l'**Application ID** → `DISCORD_CLIENT_ID`
+4. Dans la sidebar : **Bot** → **Reset Token** → copier le token → `DISCORD_TOKEN`
+5. Activer le bot en mode public si tu veux que d'autres serveurs puissent l'inviter
+6. Au démarrage, le backend affiche dans les logs le lien d'invitation
+
+### Lancer avec Docker
+
+```yaml
+# docker-compose.yml
+services:
+  livechatccb:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: file:/data/sqlite.db
+      DISCORD_TOKEN: ${DISCORD_TOKEN}
+      DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID}
+      DISCORD_OWNER_ID: ${DISCORD_OWNER_ID}   # optionnel, pour /announce
+      API_URL: ${API_URL}
+      DEFAULT_DURATION: ${DEFAULT_DURATION:-5}
+      HIDE_COMMANDS_DISABLED: ${HIDE_COMMANDS_DISABLED:-false}
+    volumes:
+      - livechat_data:/data
+
+volumes:
+  livechat_data:
+```
 
 ```bash
 cp .env.example .env
-API_URL=https://ton-domaine-ou-ip
-DISCORD_TOKEN=...
-DISCORD_CLIENT_ID=...
-DISCORD_CHANNEL_ID=...
-HIDE_COMMANDS_DISABLED=false
-DEFAULT_DURATION=5
+# Remplir le .env avec tes valeurs
+docker compose up -d --build
 ```
 
-Le volume `livechat_data` conserve la base SQLite quand le conteneur redémarre.
+### Variables d'environnement
 
-### Démarrage automatique au boot
+| Variable | Description |
+|---|---|
+| `API_URL` | URL publique du backend (ex: `https://livechat.ton-domaine.fr`) |
+| `DISCORD_TOKEN` | Token du bot Discord |
+| `DISCORD_CLIENT_ID` | ID de l'application Discord |
+| `DISCORD_OWNER_ID` | Ton ID Discord — permet d'utiliser `/announce` |
+| `DEFAULT_DURATION` | Durée d'affichage par défaut en secondes (défaut: `5`) |
+| `HIDE_COMMANDS_DISABLED` | Désactiver `/cmsg` et `/cdire` (`true`/`false`) |
 
-Pour que le backend redémarre tout seul après un reboot du serveur, tu peux faire deux choses:
+### Démarrage automatique (Linux / systemd)
 
-1. garder `restart: unless-stopped` dans `docker-compose.yml`
-2. ajouter un service systemd qui lance `docker compose up -d` au démarrage
+Voir [livechat-overlay.service.example](livechat-overlay.service.example) pour un exemple de service systemd.
 
-Exemple de service systemd:
+### Reverse proxy HTTPS (HAProxy)
 
-```ini
-[Unit]
-Description=LiveChat Overlay
-Requires=docker.service
-After=docker.service network-online.target
+Voir [haproxy.cfg.example](haproxy.cfg.example) pour un exemple de configuration HAProxy avec terminaison TLS.
 
-[Service]
-Type=oneshot
-RemainAfterExit=yes
-WorkingDirectory=/home/servdeb/livechat/livechat-overlay
-ExecStart=/usr/bin/docker compose up -d --build
-ExecStop=/usr/bin/docker compose down
-TimeoutStartSec=0
-
-[Install]
-WantedBy=multi-user.target
-```
-
-À adapter avec ton chemin réel sur le serveur, puis:
+### Développement local
 
 ```bash
-sudo cp livechat-overlay.service /etc/systemd/system/livechat-overlay.service
-sudo systemctl daemon-reload
-sudo systemctl enable livechat-overlay.service
-sudo systemctl start livechat-overlay.service
-```
-
-Le fichier [livechat-overlay.service.example](livechat-overlay.service.example) contient le même exemple.
-
-### Reverse proxy avec HAProxy
-
-Si tu as déjà HAProxy sur ton serveur, le plus simple est d'exposer LiveChat en HTTPS sur `443` et de laisser l'application interne sur `3000`.
-
-Exemple minimal:
-
-```haproxy
-global
-	log stdout format raw local0
-
-defaults
-	mode http
-	log global
-	option httplog
-	option dontlognull
-	timeout connect 5s
-	timeout client  60s
-	timeout server  60s
-	timeout tunnel  1h
-
-frontend livechat_http
-	bind *:80
-	mode http
-	option httplog
-	redirect scheme https code 301 if !{ ssl_fc }
-
-frontend livechat_https
-	bind *:443 ssl crt /etc/haproxy/certs/livechat.pem
-	mode http
-	option httplog
-	option forwardfor
-	default_backend livechat_backend
-
-backend livechat_backend
-	mode http
-	balance roundrobin
-	option httpchk GET /client
-	http-check expect status 200
-	server livechat_server 127.0.0.1:3000 check
-```
-
-Dans ce cas:
-
-- `API_URL` doit pointer vers l'URL publique que les clients utiliseront, par exemple `https://livechat.ton-domaine.fr`.
-- le conteneur LiveChat reste publié sur `3000` en local.
-- le proxy gère l'exposition externe et les connexions WebSocket de Socket.IO.
-
-Si tu termines le TLS dans HAProxy, il faut déposer un certificat PEM à l'emplacement indiqué dans l'exemple (`/etc/haproxy/certs/livechat.pem`). Un certificat Let's Encrypt concaténé avec sa clé privée fonctionne bien.
-
-Le fichier [haproxy.cfg.example](haproxy.cfg.example) contient le même exemple prêt à copier.
-
-Vous pouvez installer cette application par deux manières.
-
-Si vous avez [Docker](https://www.docker.com/get-started/) et vous voulez la construire vous:
-
-```bash
-git clone https://github.com/qlaffont/LiveChatCCB
-
-docker build -t qlaffont-livechatccb .
-
-docker run -p 3000:3000 qlaffont-livechatccb \
--e DISCORD_TOKEN='DISCORD-TOKEN-TO-REPLACE' \ # <-- Remplacer par le token Discord
--e DISCORD_CLIENT_ID='DISCORD-ID-TO-REPLACE' \ # <--Remplacer par l'ID de l'application Discord
--e DEFAULT_DURATION='5' \ # <-- Durée par défaut si le contenu n'est pas vidéo ou audio
--e HIDE_COMMANDS_DISABLED='false' \ # <-- Si vous souhaitez désactiver les commandes masquées, vous pouvez modifier la valeur de 'false' à 'true'
--e API_URL='API-URL-TO-REPLACE' # <-- Remplacer par l'adresse où l'utilisateur se connectera (Ex: https://livechat.domainname.com)
-```
-
-OU
-
-Vous voulez l'installer manuellement:
-
-**Exigences**
-
-- [Node 20](https://nodejs.org/en)
-- [pnpm](https://pnpm.io/fr/installation)
-- OS avec [ffmpeg](https://ffmpeg.org/)
-
-```bash
-cp .env.example .env # Remplacer DISCORD_TOKEN/DISCORD_CLIENT_ID/API_URL avec vos informations
+cp .env.example .env
 pnpm install
 pnpm dev
 ```
 
-#### 3 - Invitez le bot
-
-Lorsque vous demarrez l'application, dans le journal, vous verrez l'invitation.
-
-Exemple:
+### App desktop — build
 
 ```bash
-INFO : [DISCORD] En ligne ! Connecté en tant que xxxx
-INFO : [DISCORD] Pour inviter le bot : https://discord.com/oauth2/authorize?client_id=xxxx&scope=bot%20applications.commands
-```
-
-## ENGLISH
-
-This application is inspired from a project (LiveChat) who have been developed by streamer group called [Cacabox](https://www.youtube.com/channel/UC6izVPg2AiK83K-rqS6AgmA).
-
-The objective of this application is to send content on a webpage who is used in a broadcast sofware like OBS, XSplit, etc.
-
-An hosted version exist on [LeStudio](https://lestudio.qlaffont.com) !
-
-**No support will be answered if you don't know Docker OR JavaScript.**
-
-### Features
-
-- Send any type of content (audio, video, image, text) to the stream
-- Generate a bot audio to be played on stream
-
-### Discord Commands
-
-- `/alive` -> Check if bot is alive
-- `/client` -> Get OBS link to integrate LiveChat into OBS, XSplit
-- `/send` -> Send content to stream
-- `/hsend` -> Send content to stream (but hided 😈)
-- `/talk` -> Ask a bot to say something
-- `/htalk` -> Ask a bot to say something (but hided 😈)
-
-### Customisation
-
-If you want to change the rendering of the bot, simply modify the file in `src/components/client/client.html` !
-(Be careful if you run on Docker you have to rebuild the application !)
-
-### Installation
-
-#### 1 - Discord Informations
-
-- First you need to create a Discord Application : https://discord.com/developers/applications?new_application=true
-- You need to set a Discord Name (This name will be displayed)
-- After that you need to **copy APPLICATION ID on this page**
-- Go to the left sidebar and click on "Bot" and click on "Reset Token" button.
-- After that you need to **copy TOKEN on this page**
-- Create a dedicated text channel, then copy its **ID** and put it in `DISCORD_CHANNEL_ID`.
-
-#### 2 - Installation
-
-You can install this application by two way.
-
-### Self-host on Linux
-
-The simplest way to run this on your Linux server is Docker with SQLite persisted in a volume. The Discord bot, API, and client page all run on your server, and the public URL configured in `API_URL` will be used by the `/client` command.
-
-Example with `docker compose`:
-
-```yaml
-services:
-	livechatccb:
-		build: .
-		ports:
-			- "3000:3000"
-		environment:
-			DATABASE_URL: file:/data/sqlite.db
-			DISCORD_TOKEN: ${DISCORD_TOKEN:-}
-			DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID:-}
-			DISCORD_CHANNEL_ID: ${DISCORD_CHANNEL_ID:-}
-			API_URL: ${API_URL:-http://localhost:3000}
-			DEFAULT_DURATION: ${DEFAULT_DURATION:-5}
-			HIDE_COMMANDS_DISABLED: ${HIDE_COMMANDS_DISABLED:-false}
-		volumes:
-			- livechat_data:/data
-
-volumes:
-	livechat_data:
-```
-
-Then in your `.env`:
-
-```bash
-cp .env.example .env
-API_URL=https://your-domain-or-ip
-DISCORD_TOKEN=...
-DISCORD_CLIENT_ID=...
-DISCORD_CHANNEL_ID=...
-HIDE_COMMANDS_DISABLED=false
-DEFAULT_DURATION=5
-```
-
-The `livechat_data` volume keeps the SQLite database when the container restarts.
-
-### Automatic startup on boot
-
-To make the backend restart automatically after a server reboot, you can do two things:
-
-1. keep `restart: unless-stopped` in `docker-compose.yml`
-2. add a systemd service that runs `docker compose up -d` at boot time
-
-Example systemd service:
-
-```ini
-[Unit]
-Description=LiveChat Overlay
-Requires=docker.service
-After=docker.service network-online.target
-
-[Service]
-Type=oneshot
-RemainAfterExit=yes
-WorkingDirectory=/home/servdeb/livechat/livechat-overlay
-ExecStart=/usr/bin/docker compose up -d --build
-ExecStop=/usr/bin/docker compose down
-TimeoutStartSec=0
-
-[Install]
-WantedBy=multi-user.target
-```
-
-Adjust the working directory to your real path on the server, then:
-
-```bash
-sudo cp livechat-overlay.service /etc/systemd/system/livechat-overlay.service
-sudo systemctl daemon-reload
-sudo systemctl enable livechat-overlay.service
-sudo systemctl start livechat-overlay.service
-```
-
-The [livechat-overlay.service.example](livechat-overlay.service.example) file contains the same example.
-
-### Reverse proxy with HAProxy
-
-If you already use HAProxy on your server, the simplest setup is to expose LiveChat over HTTPS on `443` and keep the app itself on `3000` internally.
-
-Minimal example:
-
-```haproxy
-global
-	log stdout format raw local0
-
-defaults
-	mode http
-	log global
-	option httplog
-	option dontlognull
-	timeout connect 5s
-	timeout client  60s
-	timeout server  60s
-	timeout tunnel  1h
-
-frontend livechat_http
-	bind *:80
-	mode http
-	option httplog
-	redirect scheme https code 301 if !{ ssl_fc }
-
-frontend livechat_https
-	bind *:443 ssl crt /etc/haproxy/certs/livechat.pem
-	mode http
-	option httplog
-	option forwardfor
-	default_backend livechat_backend
-
-backend livechat_backend
-	mode http
-	balance roundrobin
-	option httpchk GET /client
-	http-check expect status 200
-	server livechat_server 127.0.0.1:3000 check
-```
-
-In this setup:
-
-- `API_URL` must point to the public URL your clients will use, for example `https://livechat.your-domain`.
-- the LiveChat container stays exposed on `3000` locally.
-- the proxy handles external exposure and Socket.IO WebSocket connections.
-
-If you terminate TLS in HAProxy, place a PEM certificate at the path used in the example (`/etc/haproxy/certs/livechat.pem`). A Let's Encrypt certificate concatenated with its private key works fine.
-
-The [haproxy.cfg.example](haproxy.cfg.example) file contains the same example ready to copy.
-
-If you have [Docker](https://www.docker.com/get-started/) and want to build it:
-
-```bash
-git clone https://github.com/qlaffont/LiveChatCCB
-
-docker build -t qlaffont-livechatccb .
-
-docker run -p 3000:3000 qlaffont-livechatccb \
--e DISCORD_TOKEN='DISCORD-TOKEN-TO-REPLACE' \ # <--Replace with Discord Token
--e DISCORD_CLIENT_ID='DISCORD-ID-TO-REPLACE' \ # <--Replace with Discord Application Id
--e DEFAULT_DURATION='5' \ # <-- Default duration if content is not video or audio
--e HIDE_COMMANDS_DISABLED='false' \ # <-- If you want to disable hided commands, you can change the value from 'false' to 'true'
--e API_URL='API-URL-TO-REPLACE' \ # <--Replace with the endpoint where user will connect (Ex: https://livechat.domainname.com)
--e I18N='en'
-```
-
-OR
-
-You can install it manually :
-
-**Requirements**
-
-- [Node 20](https://nodejs.org/en)
-- [PNPM](https://pnpm.io/en/installation)
-- System with [FFmpeg](https://ffmpeg.org/) install
-
-```bash
-cp .env.example .env # Replace DISCORD_TOKEN/DISCORD_CLIENT_ID/API_URL with your informations
-pnpm install
-pnpm dev
-```
-
-#### 3 - Invite the bot
-
-When you will start the application, in log you will see the invite.
-
-Exemple :
-
-```bash
-INFO : [DISCORD] Ready ! Logged in as xxxx
-INFO : [DISCORD] To invite bot : https://discord.com/oauth2/authorize?client_id=xxxx&scope=bot%20applications.commands
+cd desktop-client
+npm install
+npm run dist   # génère le .exe dans release/
 ```
