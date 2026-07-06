@@ -11,7 +11,8 @@
     "build:main": "tsc -p tsconfig.json",
     "build:renderer": "node scripts/copy-renderer.mjs",
     "dist": "npm run build && electron-builder --win nsis",
-    "pack": "npm run build && electron-builder --dir"
+    "pack": "npm run build && electron-builder --dir",
+    "release": "npm run build && electron-builder --win nsis --publish always"
   },
   "build": {
     "appId": "fr.livechat.ccb.desktop",
@@ -41,7 +42,14 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "LiveChatCCB Desktop"
+    },
+    "publish": {
+      "provider": "github",
+      "releaseType": "release"
     }
+  },
+  "dependencies": {
+    "electron-updater": "^6.3.9"
   },
   "devDependencies": {
     "@types/node": "20.11.17",
