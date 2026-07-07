@@ -18,7 +18,7 @@ Ce code source est public pour garantir sa sécurité, son intégrité et partag
 
 ### 1. Inviter le bot
 
-[👉 Inviter le bot sur ton serveur Discord](#) *(lien à venir)*
+[👉 Inviter le bot sur ton serveur Discord](https://www.livechatccb.online/)
 
 ### 2. Configurer le canal
 
@@ -42,18 +42,24 @@ Le bot te donne l'URL à coller dans l'app côté serveur et l'ID de ton serveur
 
 L'app desktop affiche le livechat directement par-dessus ton jeu en borderless, sans passer par OBS.
 
-[⬇️ Télécharger LiveChatCCB Desktop](#) *(lien à venir)*
+[⬇️ Télécharger LiveChatCCB Desktop](https://github.com/Jeremie-pires/livechat-overlay/releases/latest)
 
 Dans l'onglet **Serveur** de l'app :
 - **URL du backend** : l'URL fournie par `/client`
 - **ID de la Guild Discord** : l'ID fourni par `/client`
+
+### A propos du bot hébergé
+
+Le bot est hébergé par mes soins pour en faire profiter le plus de monde possible, des bugs peuvent se produire, si c'est le cas n'hésitez pas à me contacter.
+L'objectif est d'en faire un projet communautaire qui évolue, je prends en compte les requêtes et idées de tous.
 
 ### Commandes disponibles
 
 | Commande | Description |
 |---|---|
 | `/dispo` | Vérifie si le bot répond |
-| `/client` | Donne l'URL OBS et l'ID de la guild |
+| `/setup` | Setup le channel dans lequel le bot va écouter |
+| `/client` | Donne l'URL et l'ID de la guild |
 | `/msg` | Envoie un contenu sur le stream (lien, image, texte) |
 | `/cmsg` | Même chose, mais discret (pas de confirmation visible) |
 | `/dire` | Fait lire un texte par une voix de synthèse |
