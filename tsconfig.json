@@ -16,6 +16,7 @@
     "outDir": "dist",
     "rootDir": "./src",
     "skipLibCheck": true,
+    "ignoreDeprecations": "6.0",
     "lib":["ES2021"]
   },
   "include": ["src/**/*", "src/types/module.d.ts"],
