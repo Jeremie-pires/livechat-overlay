@@ -44,6 +44,8 @@ L'app desktop affiche le livechat directement par-dessus ton jeu en borderless, 
 
 [⬇️ Télécharger LiveChatCCB Desktop](https://github.com/Jeremie-pires/livechat-overlay/releases/latest)
 
+Si une popup Windows s'ouvre, il faut faire **Informations complémentaires** et **Exécuter quand même**.
+
 Dans l'onglet **Serveur** de l'app :
 - **URL du backend** : l'URL fournie par `/client`
 - **ID de la Guild Discord** : l'ID fourni par `/client`
