@@ -9,7 +9,7 @@
     "lint": "eslint src --ext .ts --fix",
     "prepare": "husky install",
     "generate": "prisma generate",
-    "migration:up": "prisma migrate deploy",
+    "migration:up": "prisma db push",
     "migration:make": "prisma migrate dev"
   },
   "author": "qlaffont",

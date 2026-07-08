@@ -1,6 +1,17 @@
 import { addMilliseconds, addSeconds } from 'date-fns';
+import { QueueType } from '../../services/prisma/loadPrisma';
 
 const MESSAGE_SYNC_LEAD_TIME_MS = 1200;
+
+type MediaType = 'image' | 'video' | 'audio' | 'link' | 'text';
+
+const getMediaType = (type: string, content: { url?: string; mediaContentType?: string }): MediaType => {
+  if (type === QueueType.VOCAL || content.mediaContentType?.startsWith('audio/')) return 'audio';
+  if (content.mediaContentType?.startsWith('video/')) return 'video';
+  if (content.mediaContentType?.startsWith('image/')) return 'image';
+  if (content.url) return 'link';
+  return 'text';
+};
 
 export const executeMessagesWorker = async (fastify: FastifyCustomInstance) => {
   //Get last message
@@ -69,6 +80,15 @@ export const executeMessagesWorker = async (fastify: FastifyCustomInstance) => {
   await prisma.queue.delete({ where: { id: lastMessage.id } });
 
   const content = JSON.parse(lastMessage.content);
+
+  const mediaType = getMediaType(lastMessage.type, content);
+  const countField = `${mediaType}Count` as const;
+  await prisma.stats.upsert({
+    where: { id: 'singleton' },
+    create: { id: 'singleton', totalSent: 1, [countField]: 1 },
+    update: { totalSent: { increment: 1 }, [countField]: { increment: 1 } },
+  });
+
   return content.mediaDuration * 1000 || 5000;
 };
 

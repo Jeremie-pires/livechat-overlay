@@ -32,3 +32,13 @@ model Guild {
   displayMediaFull Boolean   @default(false)
   channelId        String?
 }
+
+model Stats {
+  id         String @id @default("singleton")
+  totalSent  Int    @default(0)
+  imageCount Int    @default(0)
+  videoCount Int    @default(0)
+  audioCount Int    @default(0)
+  linkCount  Int    @default(0)
+  textCount  Int    @default(0)
+}
