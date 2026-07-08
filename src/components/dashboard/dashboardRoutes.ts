@@ -19,7 +19,10 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
     main { padding: 2rem; max-width: 860px; margin: 0 auto; }
     .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(175px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
     .card { background: #1a1d2e; border: 1px solid #2d3748; border-radius: 10px; padding: 1.25rem; }
+    .card.clickable { cursor: pointer; transition: border-color 0.15s, background 0.15s; }
+    .card.clickable:hover { border-color: #7289da; background: #1e2235; }
     .card-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: #718096; margin-bottom: 0.4rem; }
+    .card-hint { font-size: 0.65rem; color: #4a5568; margin-top: 0.3rem; }
     .card-value { font-size: 2rem; font-weight: 700; color: #7289da; }
     .section { background: #1a1d2e; border: 1px solid #2d3748; border-radius: 10px; padding: 1.25rem; }
     .section-title { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: #718096; margin-bottom: 1.25rem; }
@@ -35,6 +38,21 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
     .bar-link  { background: #d69e2e; }
     .bar-text  { background: #805ad5; }
     .footer { font-size: 0.72rem; color: #4a5568; margin-top: 1rem; text-align: right; }
+    /* Modal */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; align-items: center; justify-content: center; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: #1a1d2e; border: 1px solid #2d3748; border-radius: 12px; width: 100%; max-width: 420px; max-height: 80vh; display: flex; flex-direction: column; margin: 1rem; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.25rem; border-bottom: 1px solid #2d3748; flex-shrink: 0; }
+    .modal-title { font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #718096; }
+    .modal-close { background: none; border: none; color: #718096; font-size: 1.2rem; cursor: pointer; line-height: 1; padding: 0.1rem 0.3rem; border-radius: 4px; }
+    .modal-close:hover { color: #e2e8f0; background: #2d3748; }
+    .modal-body { overflow-y: auto; padding: 0.75rem; }
+    .guild-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.6rem 0.5rem; border-radius: 8px; }
+    .guild-item:hover { background: #0f1117; }
+    .guild-icon { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+    .guild-icon-placeholder { width: 40px; height: 40px; border-radius: 50%; background: #2d3748; display: flex; align-items: center; justify-content: center; font-size: 0.9rem; font-weight: 700; color: #a0aec0; flex-shrink: 0; }
+    .guild-name { font-size: 0.9rem; font-weight: 600; }
+    .guild-members { font-size: 0.72rem; color: #718096; margin-top: 0.1rem; }
   </style>
 </head>
 <body>
@@ -44,9 +62,10 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
   </header>
   <main>
     <div class="cards">
-      <div class="card">
+      <div class="card clickable" id="card-servers" onclick="openModal()">
         <div class="card-label">Serveurs</div>
         <div class="card-value" id="servers">—</div>
+        <div class="card-hint">Voir la liste →</div>
       </div>
       <div class="card">
         <div class="card-label">Médias envoyés</div>
@@ -91,12 +110,42 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
     </div>
     <p class="footer" id="lastRefresh"></p>
   </main>
+
+  <div class="modal-overlay" id="modal-overlay" onclick="handleOverlayClick(event)">
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title">Serveurs</span>
+        <button class="modal-close" onclick="closeModal()">✕</button>
+      </div>
+      <div class="modal-body" id="modal-guild-list"></div>
+    </div>
+  </div>
+
   <script>
     const fmt = (n) => Number(n).toLocaleString('fr-FR');
     const fmtUptime = (s) => {
       const d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60);
       return d > 0 ? d + 'j ' + h + 'h' : h > 0 ? h + 'h ' + m + 'm' : m + 'm';
     };
+
+    let cachedGuilds = [];
+
+    function renderGuildList() {
+      document.getElementById('modal-guild-list').innerHTML = cachedGuilds
+        .sort((a, b) => b.memberCount - a.memberCount)
+        .map(g => {
+          const icon = g.icon
+            ? '<img class="guild-icon" src="' + g.icon + '" alt="">'
+            : '<div class="guild-icon-placeholder">' + g.name.charAt(0).toUpperCase() + '</div>';
+          return '<div class="guild-item">' + icon + '<div><div class="guild-name">' + g.name + '</div><div class="guild-members">' + fmt(g.memberCount) + ' membres</div></div></div>';
+        }).join('');
+    }
+
+    function openModal() { document.getElementById('modal-overlay').classList.add('open'); }
+    function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); }
+    function handleOverlayClick(e) { if (e.target === document.getElementById('modal-overlay')) closeModal(); }
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+
     async function refresh() {
       try {
         const res = await fetch('/api/stats');
@@ -112,6 +161,8 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
           document.getElementById('count-' + t).textContent = fmt(count);
           document.getElementById('bar-' + t).style.width = Math.round((count / total) * 100) + '%';
         }
+        cachedGuilds = d.guilds || [];
+        renderGuildList();
         document.getElementById('lastRefresh').textContent = 'Mis à jour à ' + new Date().toLocaleTimeString('fr-FR');
       } catch (e) { console.error(e); }
     }

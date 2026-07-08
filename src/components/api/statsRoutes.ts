@@ -14,6 +14,13 @@ export const StatsRoutes = () =>
         prisma.queue.count(),
       ]);
 
+      const guilds = discordClient.guilds.cache.map((g) => ({
+        id: g.id,
+        name: g.name,
+        memberCount: g.memberCount,
+        icon: g.iconURL({ size: 64 }) ?? null,
+      }));
+
       return reply.send({
         servers: guildCount,
         queuePending: queueCount,
@@ -26,6 +33,7 @@ export const StatsRoutes = () =>
           link: stats?.linkCount ?? 0,
           text: stats?.textCount ?? 0,
         },
+        guilds,
       });
     });
   };
