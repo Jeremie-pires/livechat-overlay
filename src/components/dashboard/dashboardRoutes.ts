@@ -123,11 +123,6 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
 
 export const DashboardRoutes = () =>
   async function (fastify: FastifyCustomInstance) {
-    if (!env.DISCORD_CLIENT_SECRET) {
-      logger.warn('[DASHBOARD] DISCORD_CLIENT_SECRET not set — dashboard disabled');
-      return;
-    }
-
     const redirectUri = `${env.API_URL}/auth/callback`;
     const oauthUrl =
       `https://discord.com/oauth2/authorize` +
@@ -144,6 +139,9 @@ export const DashboardRoutes = () =>
     });
 
     fastify.get('/auth/callback', async (req, reply) => {
+      if (!env.DISCORD_CLIENT_SECRET) {
+        return reply.status(503).send('DISCORD_CLIENT_SECRET not configured');
+      }
       const { code } = req.query as { code?: string };
       if (!code) return reply.status(400).send('Missing code');
 
