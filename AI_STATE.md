@@ -19,8 +19,8 @@ Stable. Système de logging BDD + DMs owner + nettoyage dead code déployé.
 - `src/components/discord/` — commandes slash : dispo, client, setup, help, info, config-defaut, config-max, announce, maintenance
 - `src/components/messages/` — send/cmsg/dire/cdire/stop + messagesWorker
 - `src/components/client/` — player navigateur HTML/JS/CSS (vidstack)
-- `src/components/api/statsRoutes.ts` — GET /api/stats (auth requise) — inclut les BotEvents
-- `src/components/dashboard/dashboardRoutes.ts` — dashboard glassmorphism + OAuth Discord + onglet Journal
+- `src/components/api/statsRoutes.ts` — GET /api/stats (auth requise) — inclut BotEvents + champ `isSetup` par guild (lookup Prisma via `Set<string>`)
+- `src/components/dashboard/dashboardRoutes.ts` — dashboard glassmorphism + OAuth Discord + onglet Journal + badge setup par serveur
 
 ### Services
 - `src/services/env.ts` — variables d'env validées par Zod
@@ -51,6 +51,7 @@ Seul `env.DISCORD_OWNER_ID` est autorisé.
 Discord command → `messagesWorker` déqueue → Socket.IO emit → browser client (vidstack)
 
 ## Ce qui vient d'être fait (dernière session)
+- **Badge isSetup sur les serveurs** : `statsRoutes.ts` — ajout de `prisma.guild.findMany({ select: { id: true } })` dans le `Promise.all` existant, construction d'un `Set<string>` des IDs configurés, champ `isSetup: boolean` ajouté à chaque guild dans la réponse. Dashboard `renderServers()` — badge `<span class="badge green">Configuré</span>` ou `<span class="badge yellow">Non configuré</span>` affiché sous le nombre de membres dans chaque server-card. Réutilise les classes `.badge.green` / `.badge.yellow` déjà présentes dans le CSS du dashboard.
 - **Démarrer minimisé** : `startMinimized: boolean` ajouté à `AppSettings` dans `main.ts` et `preload.ts` (défaut `false`). `normalizeSettings` mis à jour. `createControlWindow` passe désormais `show: false` (élimine le flash blanc) + handler `ready-to-show` : si `startMinimized`, `showInactive()` puis `minimize()` (fenêtre visible en barre des tâches sans prise de focus) ; sinon `show()` normal. Checkbox "Démarrer minimisé" ajoutée dans l'onglet Serveur (`index.html`). `renderer.js` mis à jour : `elements`, `readFormValues`, `refreshUi`, `onSettingsChanged`.
 - **infoCommand.ts** : ajout lien site LiveChat, renommage lien site perso.
 - **Système de présence (Rooms) — sécurité renforcée** : `ClientSession` (Prisma) stocke `tokenHash String @id` (SHA-256 du token en clair, jamais le token lui-même) + `@@unique([discordUserId, guildId])`. `/client` Discord génère un UUID via `randomUUID()`, le hache avec `createHash('sha256')`, insère via `$transaction([deleteMany, create])` — le token en clair est affiché une seule fois dans un embed éphémère. `socketLoader.ts` et `dashboardRoutes.ts` hachent le token reçu avant le lookup Prisma (`findUnique({ where: { tokenHash } })`). Electron `safeStorage` : le token est chiffré avec l'API OS (DPAPI Windows / Keychain macOS) avant écriture dans `settings.json` (préfixe `enc1:`) et déchiffré au chargement ; fallback gracieux en clair si `isEncryptionAvailable()` retourne false. Input `type="password"` dans l'UI pour masquage visuel. `presenceStore.ts` (RAM) : `Map<guildId, Map<socketId, {displayName, connectedAt}>>`. Dashboard : badge de présence par serveur, route `/api/presence/:guildId` auth par session ou tokenHash. Desktop : summary grid 2×2 avec "Connectés", polling 15 s.

@@ -461,7 +461,10 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       const presenceBadge = clients.length > 0
         ? '<span class="server-presence" title="'+clients.map(c=>c.displayName).join(', ')+'">'+clients.length+' client'+(clients.length>1?'s':'')+' en ligne</span>'
         : '';
-      return '<div class="server-card">'+av+'<div class="server-info"><div class="server-name">'+g.name+'</div><div class="server-members">'+fmt(g.memberCount)+' membres</div></div>'+presenceBadge+'</div>';
+      const setupBadge = g.isSetup
+        ? '<span class="badge green">Configuré</span>'
+        : '<span class="badge yellow">Non configuré</span>';
+      return '<div class="server-card">'+av+'<div class="server-info"><div class="server-name">'+g.name+'</div><div class="server-members">'+fmt(g.memberCount)+' membres</div><div style="margin-top:0.35rem">'+setupBadge+'</div></div>'+presenceBadge+'</div>';
     }).join('');
   }
 

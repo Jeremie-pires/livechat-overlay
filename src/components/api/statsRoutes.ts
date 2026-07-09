@@ -11,19 +11,23 @@ export const StatsRoutes = () =>
         return reply.status(401).send({ error: 'Unauthorized' });
       }
 
-      const [stats, guildCount, queueCount, latencySamples, botEvents] = await Promise.all([
+      const [stats, guildCount, queueCount, latencySamples, botEvents, setupGuilds] = await Promise.all([
         prisma.stats.findUnique({ where: { id: 'singleton' } }),
         prisma.guild.count(),
         prisma.queue.count(),
         prisma.latencySample.findMany({ orderBy: { id: 'desc' }, take: 50 }),
         prisma.botEvent.findMany({ orderBy: { id: 'desc' }, take: 100 }),
+        prisma.guild.findMany({ select: { id: true } }),
       ]);
+
+      const setupIds = new Set(setupGuilds.map((g) => g.id));
 
       const guilds = discordClient.guilds.cache.map((g) => ({
         id: g.id,
         name: g.name,
         memberCount: g.memberCount,
         icon: g.iconURL({ size: 64 }) ?? null,
+        isSetup: setupIds.has(g.id),
       }));
 
       const latencyCount = stats?.latencyCount ?? 0;
