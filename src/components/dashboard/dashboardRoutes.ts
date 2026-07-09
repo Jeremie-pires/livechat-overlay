@@ -3,6 +3,7 @@ import fetch from 'node-fetch';
 import { createSession, getSessionToken, isValidSession } from '../../services/session';
 import { broadcastToAllGuilds } from '../../services/broadcast';
 import { presenceStore } from '../../services/presenceStore';
+import { presenceSse } from '../../services/presenceSse';
 
 const hashToken = (t: string) => createHash('sha256').update(t).digest('hex');
 
@@ -231,8 +232,14 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
             <div class="card-value" id="h-servers">—</div>
             <div class="card-hint">Voir la liste →</div>
           </div>
+          <div class="card clickable" onclick="navigate('servers')">
+            <div class="card-icon green"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg></div>
+            <div class="card-label">Clients connectés</div>
+            <div class="card-value" id="h-clients">—</div>
+            <div class="card-hint">En temps réel →</div>
+          </div>
           <div class="card clickable" onclick="navigate('messages')">
-            <div class="card-icon green"><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+            <div class="card-icon yellow"><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
             <div class="card-label">Médias envoyés</div>
             <div class="card-value" id="h-totalSent">—</div>
             <div class="card-hint">Voir les stats →</div>
@@ -454,7 +461,10 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
     document.getElementById('spark-max').textContent = 'max '+fmtMs(mx);
   }
 
+  var cachedGuilds = null;
+
   function renderServers(guilds, presence) {
+    cachedGuilds = guilds;
     const sorted=(guilds||[]).sort((a,b)=>b.memberCount-a.memberCount);
     const configured = sorted.filter(g => g.isSetup).length;
     document.getElementById('s-subtitle').textContent = sorted.length+' serveur'+(sorted.length>1?'s':'')+' connecté'+(sorted.length>1?'s':'')+' / '+configured+' configuré'+(configured>1?'s':'');
@@ -467,8 +477,32 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       const setupBadge = g.isSetup
         ? '<span class="badge green">Configuré</span>'
         : '<span class="badge yellow">Non configuré</span>';
-      return '<div class="server-card"><div class="server-top">'+av+'<div class="server-info"><div class="server-name">'+g.name+'</div><div class="server-members">'+fmt(g.memberCount)+' membres</div></div></div><div class="server-badges">'+setupBadge+presenceBadge+'</div></div>';
+      return '<div class="server-card" data-guild-id="'+g.id+'"><div class="server-top">'+av+'<div class="server-info"><div class="server-name">'+g.name+'</div><div class="server-members">'+fmt(g.memberCount)+' membres</div></div></div><div class="server-badges">'+setupBadge+presenceBadge+'</div></div>';
     }).join('');
+  }
+
+  function updatePresenceLive(presence) {
+    const total = Object.values(presence).reduce((sum, arr) => sum + arr.length, 0);
+    const el = document.getElementById('h-clients');
+    if (el) el.textContent = fmt(total);
+
+    // Update presence badges on server cards without full re-render
+    const cards = document.querySelectorAll('[data-guild-id]');
+    for (const card of cards) {
+      const guildId = card.getAttribute('data-guild-id');
+      const badgesEl = card.querySelector('.server-badges');
+      if (!badgesEl) continue;
+      const guild = cachedGuilds && cachedGuilds.find(g => g.id === guildId);
+      if (!guild) continue;
+      const clients = (presence && presence[guildId]) || [];
+      const presenceBadge = clients.length > 0
+        ? '<span class="server-presence" title="'+clients.map(c=>c.displayName).join(', ')+'">'+clients.length+' client'+(clients.length>1?'s':'')+' en ligne</span>'
+        : '';
+      const setupBadge = guild.isSetup
+        ? '<span class="badge green">Configuré</span>'
+        : '<span class="badge yellow">Non configuré</span>';
+      badgesEl.innerHTML = setupBadge + presenceBadge;
+    }
   }
 
   function renderJournal(events) {
@@ -503,6 +537,8 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       document.getElementById('h-cpu').textContent = (sys.cpuPercent ?? 0) + '%';
       document.getElementById('h-mem').textContent = fmtBytes((sys.memRssMB ?? 0) * 1048576);
       document.getElementById('h-refresh').textContent = now;
+      const totalClients = Object.values(d.presence || {}).reduce((sum, arr) => sum + arr.length, 0);
+      document.getElementById('h-clients').textContent = fmt(totalClients);
 
       // Messages
       document.getElementById('m-total').textContent = fmt(d.totalSent);
@@ -558,6 +594,21 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
 
   refresh();
   setInterval(refresh, 30000);
+
+  // Real-time presence updates via SSE
+  (function initPresenceSse() {
+    function connect() {
+      const sse = new EventSource('/api/presence-events');
+      sse.addEventListener('presence', function(e) {
+        try { updatePresenceLive(JSON.parse(e.data)); } catch {}
+      });
+      sse.onerror = function() {
+        sse.close();
+        setTimeout(connect, 5000);
+      };
+    }
+    connect();
+  })();
 </script>
 </body>
 </html>`;
@@ -646,6 +697,32 @@ async function dashboardPlugin(fastify: FastifyCustomInstance) {
     }
 
     return reply.send({ silentMode });
+  });
+
+  fastify.get('/api/presence-events', (req, reply) => {
+    const token = getSessionToken(req.headers.cookie);
+    if (!isValidSession(token)) {
+      return reply.status(401).send({ error: 'Unauthorized' });
+    }
+
+    reply.hijack();
+
+    const raw = reply.raw;
+    raw.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+      'X-Accel-Buffering': 'no',
+    });
+    raw.write(': connected\n\n');
+
+    presenceSse.register(raw);
+
+    const keepAlive = setInterval(() => {
+      try { raw.write(': ping\n\n'); } catch { clearInterval(keepAlive); }
+    }, 25000);
+
+    req.raw.on('close', () => clearInterval(keepAlive));
   });
 
   fastify.get('/api/presence/:guildId', async (req, reply) => {

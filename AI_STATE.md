@@ -28,7 +28,8 @@ Stable. Système de logging BDD + DMs owner + nettoyage dead code déployé.
 - `src/services/cpuSampler.ts` — échantillonnage CPU/RAM
 - `src/services/botLogger.ts` — `logBotEvent(type, message)` + `notifyOwner(type, message)` (DM Discord owner)
 - `src/services/broadcast.ts` — `broadcastToAllGuilds(title, description, color)` partagée entre DiscordLoader, maintenanceCommand et dashboardRoutes
-- `src/services/presenceStore.ts` — `PresenceEntry { displayName, connectedAt, avatarUrl }` — avatarUrl ajouté
+- `src/services/presenceStore.ts` — `PresenceEntry { displayName, connectedAt, avatarUrl }` — déduplique par `discordUserId` via `userSocketMap`
+- `src/services/presenceSse.ts` — SSE broadcaster : `register(res)` + `push(presence)` → notifie le dashboard en temps réel
 - `src/services/prisma/loadPrisma.ts` — initialisation Prisma
 - `src/services/i18n/` — loader + FR/EN
 - `src/services/utils.ts` — `getDurationFromGuildId` uniquement
@@ -42,12 +43,13 @@ Stable. Système de logging BDD + DMs owner + nettoyage dead code déployé.
 - `Stats.silentMode` — booléen global (singleton) pour couper les annonces de redémarrage
 - `ClientSession` — tokenHash (SHA-256) + discordUserId + displayName + guildId
 
-### Client desktop (v1.2.1)
+### Client desktop (v1.2.1 → v1.3.0-next)
 - Electron wrapper dans `desktop-client/`
 - Trois onglets : Contrôle / Serveur / Utilisateurs
 - Onglet "Utilisateurs" : liste verticale des clients connectés avec avatar Discord (ou initiale), pseudo, durée de connexion
-- `input[type="password"]` (token) stylisé identiquement aux autres inputs
-- Polling présence toutes les 15 s alimente aussi la liste de l'onglet Utilisateurs
+- **Tray** : l'app démarre dans le tray (si `startMinimized` activé), fermer la fenêtre → tray, clic tray toggle la fenêtre, menu contextuel "Ouvrir / Quitter"
+- **Présence temps réel** : `overlay-preload.ts` bridge les events `presence:update` du socket vers IPC main → control window. Polling fallback 60 s. Plus de doublons (presenceStore filtre par discordUserId).
+- `extraResources` dans package.json : `build/icon.ico` copié dans `resources/icon.ico` pour le tray packagé
 
 ## Environnements Prod & Staging
 
@@ -71,12 +73,11 @@ Seul `env.DISCORD_OWNER_ID` est autorisé.
 Discord command → `messagesWorker` déqueue → Socket.IO emit → browser client (vidstack)
 
 ## Ce qui vient d'être fait (dernière session)
-- **Release v1.2.1** : CSS `input[type="password"]` uniformisé avec les autres inputs ; onglet "Utilisateurs" dans l'app desktop (liste avatar + pseudo + durée) ; `presenceStore` étendu avec `avatarUrl` ; socketLoader fetch l'avatar Discord au join-room.
-- **Dashboard refacto** : subtitle "X serveurs connectés / Y configurés" ; server-cards restructurées en colonne (server-top: avatar+nom/membres | server-badges: setupBadge+presenceBadge).
-- **Badge isSetup sur les serveurs** : `statsRoutes.ts` — `isSetup: boolean` par guild. Dashboard — badge `Configuré` / `Non configuré`.
-- **Démarrer minimisé** : `startMinimized: boolean` dans settings, `show: false` + `ready-to-show` dans createControlWindow.
-- **infoCommand.ts** : ajout lien site LiveChat, renommage lien site perso.
-- **Système de présence (Rooms)** : `ClientSession` (Prisma), token SHA-256, safeStorage Electron, `presenceStore.ts`.
+- **Tray (desktop)** : `startMinimized` → "Démarrer dans le tray" ; fenêtre cachée au lieu de quittée sur close ; tray avec menu "Ouvrir / Quitter" ; `isQuitting` flag ; `extraResources` pour l'icône packagée.
+- **Déduplication présence** : `presenceStore` trackle `discordUserId` via `userSocketMap` → quand le même user refait `/client`, l'ancienne socket est remplacée dans le store (plus de doublons).
+- **Présence dynamique (desktop)** : `overlay-preload.ts` bridge les events `presence:update` du socket vers IPC → control window. `renderer.js` reçoit via `onPresence` (temps réel) + polling fallback 60 s.
+- **Dashboard présence temps réel** : `presenceSse.ts` (SSE broadcaster) + endpoint `/api/presence-events` (session auth) + `EventSource` dans le dashboard JS → badges de présence et carte "Clients connectés" mis à jour sans attendre le poll 30 s.
+- **Release v1.2.1** (session précédente) : CSS `input[type="password"]`, onglet Utilisateurs desktop, presenceStore avatarUrl, socketLoader Discord avatar.
 
 ## Historique
 - **Crash handlers** : `uncaughtException` + `unhandledRejection` dans `index.ts`
@@ -94,7 +95,8 @@ Discord command → `messagesWorker` déqueue → Socket.IO emit → browser cli
 
 ## Points ouverts
 - 404 réguliers en paires dans les logs (origine inconnue — probablement trafic TLS terminé en amont par HAProxy). À surveiller via le Journal du dashboard.
-- Déploiement serveur en attente : `git pull && docker compose down && docker compose up -d --build` (nécessaire pour presenceStore avatarUrl + dashboard refacto + badge isSetup).
+- Déploiement serveur en attente : `git pull && docker compose down && docker compose up -d --build` (nécessaire pour presenceSse + dashboard SSE + presenceStore fix + socketLoader discordUserId).
+- Desktop client : bump version + release (v1.3.0) à planifier.
 
 ## Prochaines étapes
 En attente d'instructions.

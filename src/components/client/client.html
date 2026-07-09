@@ -602,6 +602,12 @@
           if (displayTimeout) { clearTimeout(displayTimeout); displayTimeout = null; }
           clearDisplay();
         });
+
+        socket.on('presence:update', function (data) {
+          if (window.livechatOverlay && typeof window.livechatOverlay.reportPresence === 'function') {
+            window.livechatOverlay.reportPresence(data);
+          }
+        });
       });
     </script>
   </body>

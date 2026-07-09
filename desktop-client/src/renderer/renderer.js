@@ -296,6 +296,7 @@ async function refreshUi() {
 }
 
 let presenceInterval = null;
+let presenceCleanup = null;
 
 function escapeHtml(str) {
   return str.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
@@ -328,10 +329,11 @@ function updatePresence(clients) {
 function startPresencePolling() {
   if (presenceInterval) return;
   window.livechat.getPresence().then(updatePresence);
+  // Fallback polling every 60s in case the real-time IPC bridge is unavailable
   presenceInterval = setInterval(async () => {
     const clients = await window.livechat.getPresence();
     updatePresence(clients);
-  }, 15000);
+  }, 60000);
 }
 
 function stopPresencePolling() {
@@ -344,6 +346,13 @@ function stopPresencePolling() {
     elements.presenceSummary.title = '';
   }
   renderUserList([]);
+}
+
+function setupPresenceListener() {
+  if (presenceCleanup) return;
+  presenceCleanup = window.livechat.onPresence((data) => {
+    updatePresence(data);
+  });
 }
 
 function bindEvents() {
@@ -492,6 +501,9 @@ window.livechat.onSettingsChanged((settings) => {
 });
 
 bindEvents();
+
+// Subscribe to real-time presence events from the overlay socket bridge
+setupPresenceListener();
 
 refreshUi().then(async () => {
   renderStatus({ type: 'idle', message: 'Prêt' });
