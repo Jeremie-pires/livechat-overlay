@@ -20,8 +20,9 @@ export const announceCommand = () => ({
       return;
     }
 
-    const message = interaction.options.getString('message', true);
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
+    const message = interaction.options.getString('message', true);
     const guilds = await prisma.guild.findMany({ where: { channelId: { not: null } } });
 
     let sent = 0;
@@ -44,14 +45,13 @@ export const announceCommand = () => ({
       }
     }
 
-    await interaction.reply({
+    await interaction.editReply({
       embeds: [
         new EmbedBuilder()
           .setTitle(rosetty.t('success')!)
           .setDescription(rosetty.t('announceCommandAnswer', { count: String(sent) })!)
           .setColor(0x2ecc71),
       ],
-      flags: MessageFlags.Ephemeral,
     });
   },
 });
