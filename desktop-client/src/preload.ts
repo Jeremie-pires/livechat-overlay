@@ -9,6 +9,7 @@ type AppSettings = {
   clickThrough: boolean;
   overlaySize: number;
   overlayPosition: string;
+  launchAtStartup: boolean;
 };
 
 type OverlayStatus = {

@@ -50,7 +50,10 @@ Seul `env.DISCORD_OWNER_ID` est autorisé.
 ## Flux Queue
 Discord command → `messagesWorker` déqueue → Socket.IO emit → browser client (vidstack)
 
-## Ce qui vient d'être fait
+## Ce qui vient d'être fait (dernière session)
+- **Lancer au démarrage de Windows** : `launchAtStartup: boolean` ajouté à `AppSettings` dans `main.ts` et `preload.ts`. `app.setLoginItemSettings({ openAtLogin })` appelé au démarrage (`bootstrap`) et à chaque sauvegarde (`app:save-settings`). Checkbox "Lancer au démarrage de Windows" ajoutée dans l'onglet Serveur (`index.html`). `renderer.js` mis à jour : `elements`, `readFormValues`, `refreshUi`, `onSettingsChanged`.
+
+## Historique
 - **Crash handlers** : `uncaughtException` + `unhandledRejection` dans `index.ts` — cause probable des 5 redémarrages du 09/07/2026
 - **BotEvent logging** : modèle Prisma + service `botLogger.ts` — log START/STOP/CRASH/ERROR en BDD
 - **DMs owner** : `notifyOwner()` dans `botLogger.ts` — DM Discord à l'owner sur CRASH et STOP
