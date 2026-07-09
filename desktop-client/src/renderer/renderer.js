@@ -366,15 +366,39 @@ function bindEvents() {
   });
 }
 
+function stripHtml(html) {
+  const div = document.createElement('div');
+  div.innerHTML = html;
+  return (div.textContent ?? div.innerText ?? '').trim();
+}
+
+function showUpdateModal(version, releaseNotes) {
+  const modal = document.getElementById('updateModal');
+  const title = document.getElementById('updateModalTitle');
+  const notes = document.getElementById('updateModalNotes');
+  const closeBtn = document.getElementById('updateModalClose');
+  const installBtn = document.getElementById('updateModalInstall');
+
+  if (!modal || !title || !notes || !closeBtn || !installBtn) return;
+
+  title.textContent = `v${version}`;
+  notes.textContent = releaseNotes ? stripHtml(releaseNotes) : '';
+  modal.classList.remove('hidden');
+
+  const dismiss = () => modal.classList.add('hidden');
+  closeBtn.addEventListener('click', dismiss, { once: true });
+  installBtn.addEventListener('click', () => {
+    dismiss();
+    window.livechat.installUpdate();
+  }, { once: true });
+
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) dismiss();
+  }, { once: true });
+}
+
 window.livechat.onUpdateDownloaded((info) => {
-  const banner = document.getElementById('updateBanner');
-  const text = document.getElementById('updateBannerText');
-  const btn = document.getElementById('updateInstallBtn');
-  if (banner && text && btn) {
-    text.textContent = `Mise à jour v${info.version} téléchargée — redémarre pour l'installer.`;
-    banner.classList.remove('hidden');
-    btn.addEventListener('click', () => window.livechat.installUpdate(), { once: true });
-  }
+  showUpdateModal(info.version, info.releaseNotes ?? '');
 });
 
 window.livechat.onStatus((status) => {

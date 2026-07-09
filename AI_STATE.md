@@ -52,6 +52,7 @@ Discord command → `messagesWorker` déqueue → Socket.IO emit → browser cli
 
 ## Ce qui vient d'être fait (dernière session)
 - **Lancer au démarrage de Windows** : `launchAtStartup: boolean` ajouté à `AppSettings` dans `main.ts` et `preload.ts`. `app.setLoginItemSettings({ openAtLogin })` appelé au démarrage (`bootstrap`) et à chaque sauvegarde (`app:save-settings`). Checkbox "Lancer au démarrage de Windows" ajoutée dans l'onglet Serveur (`index.html`). `renderer.js` mis à jour : `elements`, `readFormValues`, `refreshUi`, `onSettingsChanged`.
+- **Release notes dans le modal de mise à jour** : `normalizeReleaseNotes()` ajouté dans `main.ts` pour normaliser `string | ReleaseNoteInfo[] | null` en texte brut. Payload `update:downloaded` étendu avec `releaseNotes: string`. Type `preload.ts` mis à jour. Bannière `updateBanner` remplacée par un modal (`updateModal`) avec zone scrollable pour les notes, bouton "Plus tard" (dismiss) et bouton "Redémarrer maintenant". `stripHtml()` utilisé côté renderer pour nettoyer les notes HTML venant de GitHub. Styles de la bannière morte supprimés, styles du modal ajoutés dans `styles.css`.
 
 ## Historique
 - **Crash handlers** : `uncaughtException` + `unhandledRejection` dans `index.ts` — cause probable des 5 redémarrages du 09/07/2026

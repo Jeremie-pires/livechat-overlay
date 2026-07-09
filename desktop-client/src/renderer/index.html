@@ -7,9 +7,21 @@
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <div id="updateBanner" class="update-banner hidden">
-      <span id="updateBannerText"></span>
-      <button id="updateInstallBtn" class="update-btn">Redémarrer</button>
+    <div id="updateModal" class="update-modal hidden" role="dialog" aria-modal="true" aria-labelledby="updateModalTitle">
+      <div class="update-modal-card">
+        <div class="update-modal-header">
+          <span class="update-modal-icon" aria-hidden="true">🚀</span>
+          <div>
+            <p class="eyebrow">Mise à jour disponible</p>
+            <h2 id="updateModalTitle"></h2>
+          </div>
+        </div>
+        <div id="updateModalNotes" class="update-modal-notes"></div>
+        <div class="update-modal-actions">
+          <button id="updateModalClose" class="secondary">Plus tard</button>
+          <button id="updateModalInstall" class="grow">🔄 Redémarrer maintenant</button>
+        </div>
+      </div>
     </div>
     <main class="app-shell">
       <section class="hero-card">

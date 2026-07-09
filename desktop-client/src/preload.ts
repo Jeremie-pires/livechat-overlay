@@ -38,8 +38,8 @@ contextBridge.exposeInMainWorld('livechat', {
     ipcRenderer.on('overlay:settings-changed', listener);
     return () => ipcRenderer.removeListener('overlay:settings-changed', listener);
   },
-  onUpdateDownloaded: (callback: (info: { version: string }) => void) => {
-    const listener = (_event: Electron.IpcRendererEvent, info: { version: string }) => callback(info);
+  onUpdateDownloaded: (callback: (info: { version: string; releaseNotes: string }) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, info: { version: string; releaseNotes: string }) => callback(info);
     ipcRenderer.on('update:downloaded', listener);
     return () => ipcRenderer.removeListener('update:downloaded', listener);
   },
@@ -61,7 +61,7 @@ declare global {
       testSound: () => Promise<boolean>;
       onStatus: (callback: (status: OverlayStatus) => void) => () => void;
       onSettingsChanged: (callback: (settings: AppSettings) => void) => () => void;
-      onUpdateDownloaded: (callback: (info: { version: string }) => void) => () => void;
+      onUpdateDownloaded: (callback: (info: { version: string; releaseNotes: string }) => void) => () => void;
       installUpdate: () => Promise<void>;
     };
   }

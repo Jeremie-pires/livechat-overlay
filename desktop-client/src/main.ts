@@ -366,12 +366,21 @@ function registerIpc() {
   });
 }
 
+type ReleaseNote = { version: string; note: string | null };
+
+function normalizeReleaseNotes(notes: string | ReleaseNote[] | null | undefined): string {
+  if (!notes) return '';
+  if (typeof notes === 'string') return notes;
+  return notes.map((n) => `v${n.version}\n${n.note ?? ''}`).join('\n\n');
+}
+
 function setupAutoUpdater() {
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
 
   autoUpdater.on('update-downloaded', (info) => {
-    controlWindow?.webContents.send('update:downloaded', { version: info.version });
+    const releaseNotes = normalizeReleaseNotes(info.releaseNotes as string | ReleaseNote[] | null);
+    controlWindow?.webContents.send('update:downloaded', { version: info.version, releaseNotes });
   });
 
   autoUpdater.on('error', () => {
