@@ -126,7 +126,8 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
     .server-card:hover { border-color: rgba(var(--accent-rgb),0.28); background: rgba(var(--accent-rgb),0.04); box-shadow: 0 0 20px rgba(var(--accent-rgb),0.08); }
     .server-avatar { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; flex-shrink: 0; border: 1px solid var(--border); }
     .server-avatar-ph { width: 42px; height: 42px; border-radius: 50%; background: rgba(var(--accent-rgb),0.10); border: 1px solid rgba(var(--accent-rgb),0.20); display: flex; align-items: center; justify-content: center; font-size: 0.95rem; font-weight: 700; color: var(--accent); flex-shrink: 0; }
-    .server-name { font-size: 0.875rem; font-weight: 600; color: var(--text); }
+    .server-name { font-size: 0.875rem; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .server-info { min-width: 0; flex: 1; }
     .server-members { font-size: 0.7rem; color: var(--muted); margin-top: 0.15rem; }
 
     /* Badge */
@@ -387,7 +388,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
     document.getElementById('s-subtitle').textContent = sorted.length+' serveur'+(sorted.length>1?'s':'')+' connecté'+(sorted.length>1?'s':'');
     document.getElementById('server-grid').innerHTML = sorted.map(g => {
       const av = g.icon ? '<img class="server-avatar" src="'+g.icon+'" alt="">' : '<div class="server-avatar-ph">'+g.name.charAt(0).toUpperCase()+'</div>';
-      return '<div class="server-card">'+av+'<div><div class="server-name">'+g.name+'</div><div class="server-members">'+fmt(g.memberCount)+' membres</div></div></div>';
+      return '<div class="server-card">'+av+'<div class="server-info"><div class="server-name">'+g.name+'</div><div class="server-members">'+fmt(g.memberCount)+' membres</div></div></div>';
     }).join('');
   }
 
@@ -400,7 +401,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       const sys = d.system || {};
 
       // Accueil
-      document.getElementById('h-servers').textContent = fmt(d.servers);
+      document.getElementById('h-servers').textContent = fmt(d.guilds?.length ?? 0);
       document.getElementById('h-totalSent').textContent = fmt(d.totalSent);
       document.getElementById('h-uptime').textContent = fmtUptime(d.uptime);
       document.getElementById('h-latency').textContent = d.latency?.avgMs > 0 ? fmtMs(d.latency.avgMs) : '—';
