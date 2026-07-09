@@ -1,4 +1,7 @@
+import { createHash } from 'crypto';
 import { presenceStore } from '../services/presenceStore';
+
+const hashToken = (t: string) => createHash('sha256').update(t).digest('hex');
 
 type JoinRoomPayload = string | { id: string; token?: string };
 
@@ -25,7 +28,7 @@ export const loadSocket = (fastify: FastifyCustomInstance) => {
       if (token && roomId.startsWith('messages-')) {
         const guildId = roomId.slice('messages-'.length);
         try {
-          const session = await prisma.clientSession.findUnique({ where: { token } });
+          const session = await prisma.clientSession.findUnique({ where: { tokenHash: hashToken(token) } });
           if (session && session.guildId === guildId) {
             presenceStore.add(guildId, socket.id, session.displayName);
             fastify.io.to(roomId).emit('presence:update', presenceStore.get(guildId));

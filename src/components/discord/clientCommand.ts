@@ -1,4 +1,7 @@
+import { createHash, randomUUID } from 'crypto';
 import { CommandInteraction, EmbedBuilder, MessageFlags, SlashCommandBuilder } from 'discord.js';
+
+const hashToken = (t: string) => createHash('sha256').update(t).digest('hex');
 
 export const clientCommand = () => ({
   data: new SlashCommandBuilder()
@@ -13,20 +16,13 @@ export const clientCommand = () => ({
     const discordUserId = interaction.user.id;
     const displayName = interaction.user.displayName || interaction.user.username;
 
-    let session = await prisma.clientSession.findFirst({
-      where: { discordUserId, guildId },
-    });
+    const token = randomUUID();
+    const tokenHash = hashToken(token);
 
-    if (!session) {
-      session = await prisma.clientSession.create({
-        data: { discordUserId, displayName, guildId },
-      });
-    } else if (session.displayName !== displayName) {
-      session = await prisma.clientSession.update({
-        where: { token: session.token },
-        data: { displayName },
-      });
-    }
+    await prisma.$transaction([
+      prisma.clientSession.deleteMany({ where: { discordUserId, guildId } }),
+      prisma.clientSession.create({ data: { tokenHash, discordUserId, displayName, guildId } }),
+    ]);
 
     await interaction.reply({
       embeds: [
@@ -35,7 +31,11 @@ export const clientCommand = () => ({
           .addFields(
             { name: rosetty.t('clientCommandsUrlLabel')!, value: `\`${baseUrl}\``, inline: false },
             { name: rosetty.t('clientCommandsGuildIdLabel')!, value: `\`${guildId}\``, inline: false },
-            { name: '🔑 Token client', value: `\`${session.token}\`\nColle ce token dans l'app desktop (onglet Serveur).`, inline: false },
+            {
+              name: '🔑 Token client',
+              value: `\`${token}\`\nColle ce token dans l'app desktop (onglet Serveur).\n⚠️ Ce token remplace l'ancien — mets à jour l'app si déjà configurée.`,
+              inline: false,
+            },
           ),
       ],
       flags: MessageFlags.Ephemeral,

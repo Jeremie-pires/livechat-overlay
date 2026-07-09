@@ -1,7 +1,10 @@
+import { createHash } from 'crypto';
 import fetch from 'node-fetch';
 import { createSession, getSessionToken, isValidSession } from '../../services/session';
 import { broadcastToAllGuilds } from '../../services/broadcast';
 import { presenceStore } from '../../services/presenceStore';
+
+const hashToken = (t: string) => createHash('sha256').update(t).digest('hex');
 
 const DISCORD_API = 'https://discord.com/api/v10';
 
@@ -648,7 +651,7 @@ async function dashboardPlugin(fastify: FastifyCustomInstance) {
 
     if (!hasDashboardSession) {
       if (!token) return reply.status(401).send({ error: 'Unauthorized' });
-      const session = await prisma.clientSession.findUnique({ where: { token } });
+      const session = await prisma.clientSession.findUnique({ where: { tokenHash: hashToken(token) } });
       if (!session || session.guildId !== guildId) return reply.status(401).send({ error: 'Unauthorized' });
     }
 

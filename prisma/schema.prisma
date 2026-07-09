@@ -63,7 +63,7 @@ model BotEvent {
 }
 
 model ClientSession {
-  token         String   @id @default(uuid())
+  tokenHash     String   @id
   discordUserId String
   displayName   String
   guildId       String

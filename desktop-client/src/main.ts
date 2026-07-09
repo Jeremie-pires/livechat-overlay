@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, screen } from 'electron';
+import { app, BrowserWindow, ipcMain, safeStorage, screen } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import fs from 'fs/promises';
 import path from 'path';
@@ -73,6 +73,30 @@ function applyLoginItemSettings(): void {
   app.setLoginItemSettings({ openAtLogin: settings.launchAtStartup });
 }
 
+const ENCRYPTED_PREFIX = 'enc1:';
+
+function encryptToken(plainText: string): string {
+  if (!plainText) return '';
+  if (!safeStorage.isEncryptionAvailable()) return plainText;
+  try {
+    return ENCRYPTED_PREFIX + safeStorage.encryptString(plainText).toString('base64');
+  } catch {
+    return plainText;
+  }
+}
+
+function decryptToken(stored: string): string {
+  if (!stored) return '';
+  if (!stored.startsWith(ENCRYPTED_PREFIX)) return stored;
+  if (!safeStorage.isEncryptionAvailable()) return '';
+  try {
+    const buf = Buffer.from(stored.slice(ENCRYPTED_PREFIX.length), 'base64');
+    return safeStorage.decryptString(buf);
+  } catch {
+    return '';
+  }
+}
+
 function getDisplayList(): DisplayInfo[] {
   return screen.getAllDisplays().map((display) => ({
     id: display.id,
@@ -113,6 +137,9 @@ async function loadSettingsFromDisk() {
   try {
     const content = await fs.readFile(getSettingsPath(), 'utf-8');
     const parsed = JSON.parse(content) as Partial<AppSettings>;
+    if (parsed.clientToken) {
+      parsed.clientToken = decryptToken(parsed.clientToken);
+    }
     settings = normalizeSettings(parsed);
   } catch {
     settings = { ...DEFAULT_SETTINGS };
@@ -121,7 +148,8 @@ async function loadSettingsFromDisk() {
 
 async function saveSettingsToDisk() {
   await fs.mkdir(path.dirname(getSettingsPath()), { recursive: true });
-  await fs.writeFile(getSettingsPath(), `${JSON.stringify(settings, null, 2)}\n`, 'utf-8');
+  const toWrite = { ...settings, clientToken: encryptToken(settings.clientToken) };
+  await fs.writeFile(getSettingsPath(), `${JSON.stringify(toWrite, null, 2)}\n`, 'utf-8');
 }
 
 function applyOverlayPlacement() {
