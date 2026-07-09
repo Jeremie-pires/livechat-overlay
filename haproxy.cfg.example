@@ -11,22 +11,49 @@ defaults
     timeout server  60s
     timeout tunnel  1h
 
+# ─── HTTP → HTTPS redirect ────────────────────────────────────────────────────
+
 frontend livechat_http
     bind *:80
     mode http
-    option httplog
     redirect scheme https code 301 if !{ ssl_fc }
 
+# ─── HTTPS frontend avec routage conditionnel Prod / Staging ──────────────────
+#
+# Deux approches pour les certificats SSL :
+#   A) Wildcard  : bind *:443 ssl crt /etc/haproxy/certs/wildcard.pem
+#   B) Séparés   : mettre les .pem dans un dossier, HAProxy les chargera tous :
+#                  bind *:443 ssl crt /etc/haproxy/certs/
+#
+# Remplacer "livechat.ton-domaine.fr" et "dev-livechat.ton-domaine.fr"
+# par vos vrais domaines.
+
 frontend livechat_https
-    bind *:443 ssl crt /etc/haproxy/certs/livechat.pem
+    bind *:443 ssl crt /etc/haproxy/certs/
     mode http
     option httplog
     option forwardfor
-    default_backend livechat_backend
 
-backend livechat_backend
+    # ACL : détecte le sous-domaine de staging
+    acl is_dev hdr(host) -i dev-livechat.ton-domaine.fr
+
+    use_backend livechat_dev_backend  if is_dev
+    default_backend livechat_prod_backend
+
+# ─── Backend Production (port 3000) ───────────────────────────────────────────
+
+backend livechat_prod_backend
     mode http
     balance roundrobin
     option httpchk GET /client
     http-check expect status 200
-    server livechat_server 127.0.0.1:3000 check
+    server livechat_prod 127.0.0.1:3000 check
+
+# ─── Backend Staging (port 3001) ──────────────────────────────────────────────
+
+backend livechat_dev_backend
+    mode http
+    balance roundrobin
+    option httpchk GET /client
+    http-check expect status 200
+    server livechat_dev 127.0.0.1:3001 check
