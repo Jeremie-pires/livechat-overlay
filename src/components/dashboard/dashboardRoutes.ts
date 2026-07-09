@@ -8,100 +8,112 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LiveChat CCB</title>
+  <title>LiveChat CCB — Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
-      --bg: #0b0d12;
-      --sidebar: #0e1017;
-      --card: #13161f;
-      --border: #1c2032;
+      --bg: #030303;
+      --border: rgba(255,255,255,0.08);
+      --border-strong: rgba(255,255,255,0.14);
+      --glass: rgba(8,8,8,0.65);
+      --glass-hover: rgba(12,12,12,0.80);
+      --overlay: rgba(255,255,255,0.03);
+      --text: #ededed;
+      --muted: rgba(255,255,255,0.50);
       --accent: #5865f2;
-      --accent-dim: rgba(88,101,242,0.12);
-      --text: #e4e6f0;
-      --muted: #6b7480;
+      --accent-rgb: 88,101,242;
       --green: #10b981;
       --red: #ef4444;
       --yellow: #f59e0b;
+      --purple: #a855f7;
     }
-    body { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+    body { font-family: 'Geist', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; -webkit-font-smoothing: antialiased; }
     .app { display: grid; grid-template-columns: 220px 1fr; min-height: 100vh; }
 
     /* Sidebar */
-    .sidebar { background: var(--sidebar); border-right: 1px solid var(--border); display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; width: 220px; }
+    .sidebar { background: rgba(4,4,4,0.90); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-right: 1px solid var(--border); display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; width: 220px; z-index: 10; }
     .sidebar-logo { padding: 1.4rem 1.25rem 1.1rem; display: flex; align-items: center; gap: 0.7rem; border-bottom: 1px solid var(--border); }
-    .logo-icon { width: 34px; height: 34px; background: var(--accent); border-radius: 9px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-    .logo-icon svg { width: 16px; height: 16px; stroke: white; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-    .logo-text { font-size: 0.88rem; font-weight: 700; line-height: 1.2; }
-    .logo-sub { font-size: 0.63rem; color: var(--muted); }
+    .logo-icon { width: 34px; height: 34px; background: rgba(var(--accent-rgb),0.12); border: 1px solid rgba(var(--accent-rgb),0.22); border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .logo-icon svg { width: 15px; height: 15px; stroke: var(--accent); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .logo-text { font-size: 0.875rem; font-weight: 600; color: var(--text); }
+    .logo-sub { font-size: 0.62rem; color: var(--muted); margin-top: 1px; }
     nav { padding: 0.75rem; flex: 1; overflow-y: auto; }
-    .nav-section { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); padding: 0.7rem 0.5rem 0.3rem; margin-top: 0.25rem; }
-    .nav-item { display: flex; align-items: center; gap: 0.65rem; padding: 0.55rem 0.75rem; border-radius: 8px; font-size: 0.855rem; color: var(--muted); cursor: pointer; text-decoration: none; transition: background 0.12s, color 0.12s; margin-bottom: 2px; user-select: none; }
-    .nav-item:hover { background: rgba(255,255,255,0.05); color: var(--text); }
-    .nav-item.active { background: var(--accent-dim); color: var(--accent); font-weight: 600; }
+    .nav-section { font-size: 0.58rem; text-transform: uppercase; letter-spacing: 0.1em; color: rgba(255,255,255,0.28); padding: 0.7rem 0.5rem 0.3rem; margin-top: 0.25rem; }
+    .nav-item { display: flex; align-items: center; gap: 0.65rem; padding: 0.55rem 0.75rem; border-radius: 10px; font-size: 0.84rem; color: var(--muted); cursor: pointer; text-decoration: none; transition: background 0.2s, color 0.2s, border-color 0.2s; margin-bottom: 2px; user-select: none; border: 1px solid transparent; }
+    .nav-item:hover { background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.80); border-color: var(--border); }
+    .nav-item.active { background: rgba(var(--accent-rgb),0.10); color: var(--accent); font-weight: 600; border-color: rgba(var(--accent-rgb),0.18); }
     .nav-item svg { width: 15px; height: 15px; flex-shrink: 0; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
     .sidebar-footer { padding: 1rem 1.25rem; border-top: 1px solid var(--border); }
-    .logout-btn { display: block; text-align: center; font-size: 0.78rem; color: var(--muted); text-decoration: none; padding: 0.4rem; border-radius: 6px; transition: color 0.12s; }
-    .logout-btn:hover { color: var(--red); }
+    .logout-btn { display: block; text-align: center; font-size: 0.78rem; color: var(--muted); text-decoration: none; padding: 0.45rem; border-radius: 8px; transition: color 0.2s, background 0.2s, border-color 0.2s; border: 1px solid transparent; }
+    .logout-btn:hover { color: var(--red); border-color: rgba(239,68,68,0.18); background: rgba(239,68,68,0.06); }
 
     /* Content */
-    .content { margin-left: 220px; padding: 2rem 2.25rem; }
+    .content { margin-left: 220px; min-height: 100vh; position: relative; overflow: hidden; }
+    .page-glow { position: absolute; top: -80px; left: 50%; transform: translateX(-50%); width: 100%; height: 320px; background: radial-gradient(ellipse 70% 50% at 50% 0%, rgba(120,119,198,0.16), transparent 70%); pointer-events: none; z-index: 0; }
+    .content-inner { padding: 2rem 2.25rem; position: relative; z-index: 1; }
+
     .page { display: none; }
-    .page.active { display: block; }
-    .page-header { margin-bottom: 1.75rem; }
-    .page-title { font-size: 1.35rem; font-weight: 700; }
-    .page-subtitle { font-size: 0.78rem; color: var(--muted); margin-top: 0.2rem; }
+    .page.active { display: block; animation: fade-in-up 0.45s cubic-bezier(0.16,1,0.3,1) both; }
+    @keyframes fade-in-up { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+    .page-header { margin-bottom: 2rem; }
+    .page-title { font-size: 1.4rem; font-weight: 600; color: var(--text); letter-spacing: -0.01em; }
+    .page-subtitle { font-size: 0.78rem; color: var(--muted); margin-top: 0.3rem; }
 
     /* Cards */
-    .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(175px, 1fr)); gap: 1rem; margin-bottom: 1.25rem; }
-    .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 1.2rem; position: relative; overflow: hidden; transition: border-color 0.15s, transform 0.1s; }
+    .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(175px, 1fr)); gap: 0.875rem; margin-bottom: 1.25rem; }
+    .card { background: var(--glass); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid var(--border); border-radius: 16px; padding: 1.25rem; position: relative; overflow: hidden; transition: border-color 0.3s, box-shadow 0.3s, background 0.3s; }
     .card.clickable { cursor: pointer; }
-    .card.clickable:hover { border-color: var(--accent); transform: translateY(-1px); }
-    .card-icon { width: 34px; height: 34px; border-radius: 9px; display: flex; align-items: center; justify-content: center; margin-bottom: 0.85rem; }
-    .card-icon svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-    .card-icon.blue { background: rgba(88,101,242,0.15); color: var(--accent); }
-    .card-icon.green { background: rgba(16,185,129,0.15); color: var(--green); }
-    .card-icon.yellow { background: rgba(245,158,11,0.15); color: var(--yellow); }
-    .card-icon.red { background: rgba(239,68,68,0.15); color: var(--red); }
-    .card-icon.purple { background: rgba(168,85,247,0.15); color: #a855f7; }
-    .card-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); margin-bottom: 0.25rem; }
-    .card-value { font-size: 1.85rem; font-weight: 700; line-height: 1; }
-    .card-hint { font-size: 0.65rem; color: var(--accent); margin-top: 0.4rem; }
+    .card.clickable:hover { border-color: var(--border-strong); background: var(--glass-hover); box-shadow: 0 0 24px rgba(120,119,198,0.10); }
+    .card-icon { width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-bottom: 1rem; border: 1px solid; }
+    .card-icon svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .card-icon.blue { background: rgba(88,101,242,0.10); border-color: rgba(88,101,242,0.20); color: var(--accent); }
+    .card-icon.green { background: rgba(16,185,129,0.10); border-color: rgba(16,185,129,0.20); color: var(--green); }
+    .card-icon.yellow { background: rgba(245,158,11,0.10); border-color: rgba(245,158,11,0.20); color: var(--yellow); }
+    .card-icon.red { background: rgba(239,68,68,0.10); border-color: rgba(239,68,68,0.20); color: var(--red); }
+    .card-icon.purple { background: rgba(168,85,247,0.10); border-color: rgba(168,85,247,0.20); color: var(--purple); }
+    .card-label { font-size: 0.64rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 0.3rem; font-weight: 500; }
+    .card-value { font-size: 1.9rem; font-weight: 700; line-height: 1; color: var(--text); letter-spacing: -0.02em; }
+    .card-hint { font-size: 0.64rem; color: rgba(var(--accent-rgb),0.65); margin-top: 0.5rem; font-weight: 500; transition: color 0.2s; }
+    .card.clickable:hover .card-hint { color: var(--accent); }
 
     /* Section */
-    .section { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; margin-bottom: 1.25rem; }
-    .section-title { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 1.25rem; }
-    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-bottom: 1.25rem; }
+    .section { background: var(--glass); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem; margin-bottom: 1.25rem; }
+    .section-title { font-size: 0.62rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.10em; color: rgba(255,255,255,0.32); margin-bottom: 1.25rem; }
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem; }
     @media (max-width: 860px) { .two-col { grid-template-columns: 1fr; } }
 
     /* Type bars */
-    .type-row { display: flex; align-items: center; gap: 0.7rem; margin-bottom: 0.8rem; }
+    .type-row { display: flex; align-items: center; gap: 0.8rem; margin-bottom: 0.9rem; }
     .type-row:last-child { margin-bottom: 0; }
-    .type-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
-    .type-label { width: 50px; font-size: 0.8rem; color: var(--muted); }
-    .bar-wrap { flex: 1; height: 5px; background: rgba(255,255,255,0.06); border-radius: 99px; overflow: hidden; }
-    .bar { height: 100%; border-radius: 99px; width: 0%; transition: width 0.55s cubic-bezier(0.4,0,0.2,1); }
-    .type-pct { width: 34px; text-align: right; font-size: 0.72rem; color: var(--muted); }
-    .type-count { width: 46px; text-align: right; font-size: 0.8rem; font-weight: 600; }
+    .type-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    .type-label { width: 48px; font-size: 0.78rem; color: var(--muted); font-weight: 500; }
+    .bar-wrap { flex: 1; height: 4px; background: rgba(255,255,255,0.06); border-radius: 99px; overflow: hidden; }
+    .bar { height: 100%; border-radius: 99px; width: 0%; transition: width 0.6s cubic-bezier(0.4,0,0.2,1); }
+    .type-pct { width: 34px; text-align: right; font-size: 0.7rem; color: var(--muted); }
+    .type-count { width: 46px; text-align: right; font-size: 0.8rem; font-weight: 600; color: var(--text); }
     .bar-image, .dot-image { background: #3b82f6; }
     .bar-video, .dot-video { background: var(--red); }
     .bar-audio, .dot-audio { background: var(--green); }
-    .bar-link,  .dot-link  { background: var(--yellow); }
-    .bar-text,  .dot-text  { background: #a855f7; }
+    .bar-link, .dot-link { background: var(--yellow); }
+    .bar-text, .dot-text { background: var(--purple); }
 
     /* Sparkline */
     .sparkline-svg { width: 100%; height: 72px; display: block; }
     .spark-line { fill: none; stroke: var(--accent); stroke-width: 1.5; }
     .spark-area { fill: url(#spark-grad); }
-    .spark-meta { display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--muted); margin-top: 0.5rem; }
+    .spark-meta { display: flex; justify-content: space-between; font-size: 0.68rem; color: var(--muted); margin-top: 0.6rem; font-weight: 500; }
 
     /* System bars */
-    .sys-row { margin-bottom: 0.9rem; }
+    .sys-row { margin-bottom: 1rem; }
     .sys-row:last-child { margin-bottom: 0; }
-    .sys-row-head { display: flex; justify-content: space-between; margin-bottom: 0.35rem; }
-    .sys-label { font-size: 0.8rem; color: var(--muted); }
-    .sys-value { font-size: 0.8rem; font-weight: 600; }
-    .sys-bar-wrap { height: 5px; background: rgba(255,255,255,0.06); border-radius: 99px; overflow: hidden; }
+    .sys-row-head { display: flex; justify-content: space-between; margin-bottom: 0.4rem; }
+    .sys-label { font-size: 0.78rem; color: var(--muted); }
+    .sys-value { font-size: 0.78rem; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
+    .sys-bar-wrap { height: 4px; background: rgba(255,255,255,0.06); border-radius: 99px; overflow: hidden; }
     .sys-bar { height: 100%; border-radius: 99px; transition: width 0.5s ease, background 0.3s; }
     .sys-bar.accent { background: var(--accent); }
     .sys-bar.green { background: var(--green); }
@@ -109,26 +121,27 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
     .sys-bar.red { background: var(--red); }
 
     /* Server grid */
-    .server-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 0.7rem; }
-    .server-card { background: rgba(255,255,255,0.025); border: 1px solid var(--border); border-radius: 10px; padding: 0.8rem 1rem; display: flex; align-items: center; gap: 0.8rem; transition: border-color 0.15s; }
-    .server-card:hover { border-color: rgba(88,101,242,0.35); }
-    .server-avatar { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
-    .server-avatar-ph { width: 42px; height: 42px; border-radius: 50%; background: var(--accent-dim); border: 1px solid rgba(88,101,242,0.25); display: flex; align-items: center; justify-content: center; font-size: 0.95rem; font-weight: 700; color: var(--accent); flex-shrink: 0; }
-    .server-name { font-size: 0.875rem; font-weight: 600; }
-    .server-members { font-size: 0.7rem; color: var(--muted); margin-top: 0.1rem; }
+    .server-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 0.75rem; }
+    .server-card { background: var(--overlay); border: 1px solid var(--border); border-radius: 14px; padding: 0.9rem 1rem; display: flex; align-items: center; gap: 0.875rem; transition: border-color 0.3s, background 0.3s, box-shadow 0.3s; }
+    .server-card:hover { border-color: rgba(var(--accent-rgb),0.28); background: rgba(var(--accent-rgb),0.04); box-shadow: 0 0 20px rgba(var(--accent-rgb),0.08); }
+    .server-avatar { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; flex-shrink: 0; border: 1px solid var(--border); }
+    .server-avatar-ph { width: 42px; height: 42px; border-radius: 50%; background: rgba(var(--accent-rgb),0.10); border: 1px solid rgba(var(--accent-rgb),0.20); display: flex; align-items: center; justify-content: center; font-size: 0.95rem; font-weight: 700; color: var(--accent); flex-shrink: 0; }
+    .server-name { font-size: 0.875rem; font-weight: 600; color: var(--text); }
+    .server-members { font-size: 0.7rem; color: var(--muted); margin-top: 0.15rem; }
 
     /* Badge */
-    .badge { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.7rem; padding: 0.18rem 0.5rem; border-radius: 99px; font-weight: 500; }
-    .badge::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
-    .badge.green { background: rgba(16,185,129,0.12); color: var(--green); }
+    .badge { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.67rem; padding: 0.2rem 0.65rem; border-radius: 99px; font-weight: 500; border: 1px solid; }
+    .badge::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+    .badge.green { background: rgba(16,185,129,0.08); color: var(--green); border-color: rgba(16,185,129,0.18); }
 
-    .refresh-row { display: flex; justify-content: space-between; align-items: center; margin-top: 1.5rem; font-size: 0.7rem; color: var(--muted); }
+    .refresh-row { display: flex; justify-content: space-between; align-items: center; margin-top: 1.5rem; font-size: 0.67rem; color: rgba(255,255,255,0.28); }
 
-    /* stat sub-cards inside section */
+    /* Stat mini */
     .stat-mini { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; }
-    .stat-mini-item { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); border-radius: 8px; padding: 0.75rem; }
-    .stat-mini-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-bottom: 0.25rem; }
-    .stat-mini-value { font-size: 1.2rem; font-weight: 700; }
+    .stat-mini-item { background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 12px; padding: 0.9rem; transition: border-color 0.2s; }
+    .stat-mini-item:hover { border-color: var(--border-strong); }
+    .stat-mini-label { font-size: 0.61rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 0.35rem; font-weight: 500; }
+    .stat-mini-value { font-size: 1.2rem; font-weight: 700; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
   </style>
 </head>
 <body>
@@ -168,175 +181,178 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
   </aside>
 
   <main class="content">
+    <div class="page-glow"></div>
+    <div class="content-inner">
 
-    <!-- ACCUEIL -->
-    <div class="page active" id="page-home">
-      <div class="page-header">
-        <div class="page-title">Vue d'ensemble</div>
-        <div class="page-subtitle">Statistiques globales du bot en temps réel</div>
-      </div>
-      <div class="cards-grid">
-        <div class="card clickable" onclick="navigate('servers')">
-          <div class="card-icon blue"><svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg></div>
-          <div class="card-label">Serveurs</div>
-          <div class="card-value" id="h-servers">—</div>
-          <div class="card-hint">Voir la liste →</div>
+      <!-- ACCUEIL -->
+      <div class="page active" id="page-home">
+        <div class="page-header">
+          <div class="page-title">Vue d'ensemble</div>
+          <div class="page-subtitle">Statistiques globales du bot en temps réel</div>
         </div>
-        <div class="card clickable" onclick="navigate('messages')">
-          <div class="card-icon green"><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
-          <div class="card-label">Médias envoyés</div>
-          <div class="card-value" id="h-totalSent">—</div>
-          <div class="card-hint">Voir les stats →</div>
-        </div>
-        <div class="card">
-          <div class="card-icon yellow"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
-          <div class="card-label">Uptime</div>
-          <div class="card-value" id="h-uptime">—</div>
-        </div>
-        <div class="card clickable" onclick="navigate('messages')">
-          <div class="card-icon purple"><svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg></div>
-          <div class="card-label">Latence moy.</div>
-          <div class="card-value" id="h-latency">—</div>
-          <div class="card-hint">Voir le graphe →</div>
-        </div>
-        <div class="card clickable" onclick="navigate('network')">
-          <div class="card-icon red"><svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div>
-          <div class="card-label">CPU système</div>
-          <div class="card-value" id="h-cpu">—</div>
-          <div class="card-hint">Voir le détail →</div>
-        </div>
-        <div class="card clickable" onclick="navigate('network')">
-          <div class="card-icon blue"><svg viewBox="0 0 24 24"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><circle cx="12" cy="20" r="1" fill="currentColor"/></svg></div>
-          <div class="card-label">RAM (RSS)</div>
-          <div class="card-value" id="h-mem">—</div>
-          <div class="card-hint">Voir le détail →</div>
-        </div>
-      </div>
-      <div class="refresh-row">
-        <span class="badge green">En ligne</span>
-        <span id="h-refresh">—</span>
-      </div>
-    </div>
-
-    <!-- SERVEURS -->
-    <div class="page" id="page-servers">
-      <div class="page-header">
-        <div class="page-title">Serveurs</div>
-        <div class="page-subtitle" id="s-subtitle">Chargement...</div>
-      </div>
-      <div class="server-grid" id="server-grid"></div>
-    </div>
-
-    <!-- MESSAGES -->
-    <div class="page" id="page-messages">
-      <div class="page-header">
-        <div class="page-title">Messages & Médias</div>
-        <div class="page-subtitle">Analyse des contenus envoyés via le bot</div>
-      </div>
-      <div class="cards-grid" style="grid-template-columns: repeat(auto-fill, minmax(160px, 1fr))">
-        <div class="card">
-          <div class="card-label">Total envoyés</div>
-          <div class="card-value" id="m-total">—</div>
-        </div>
-        <div class="card">
-          <div class="card-label">Latence moy.</div>
-          <div class="card-value" id="m-latency">—</div>
-        </div>
-        <div class="card">
-          <div class="card-label">Queue en attente</div>
-          <div class="card-value" id="m-queue">—</div>
-        </div>
-      </div>
-      <div class="two-col">
-        <div class="section">
-          <div class="section-title">Répartition par type</div>
-          <div class="type-row"><span class="type-dot dot-image"></span><span class="type-label">Image</span><div class="bar-wrap"><div class="bar bar-image" id="bar-image"></div></div><span class="type-pct" id="pct-image">0%</span><span class="type-count" id="count-image">0</span></div>
-          <div class="type-row"><span class="type-dot dot-video"></span><span class="type-label">Vidéo</span><div class="bar-wrap"><div class="bar bar-video" id="bar-video"></div></div><span class="type-pct" id="pct-video">0%</span><span class="type-count" id="count-video">0</span></div>
-          <div class="type-row"><span class="type-dot dot-audio"></span><span class="type-label">Audio</span><div class="bar-wrap"><div class="bar bar-audio" id="bar-audio"></div></div><span class="type-pct" id="pct-audio">0%</span><span class="type-count" id="count-audio">0</span></div>
-          <div class="type-row"><span class="type-dot dot-link"></span><span class="type-label">Lien</span><div class="bar-wrap"><div class="bar bar-link" id="bar-link"></div></div><span class="type-pct" id="pct-link">0%</span><span class="type-count" id="count-link">0</span></div>
-          <div class="type-row"><span class="type-dot dot-text"></span><span class="type-label">Texte</span><div class="bar-wrap"><div class="bar bar-text" id="bar-text"></div></div><span class="type-pct" id="pct-text">0%</span><span class="type-count" id="count-text">0</span></div>
-        </div>
-        <div class="section">
-          <div class="section-title">Latence — 50 derniers envois</div>
-          <svg class="sparkline-svg" id="sparkline" viewBox="0 0 400 72" preserveAspectRatio="none">
-            <defs>
-              <linearGradient id="spark-grad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stop-color="#5865f2" stop-opacity="0.35"/>
-                <stop offset="100%" stop-color="#5865f2" stop-opacity="0"/>
-              </linearGradient>
-            </defs>
-            <path class="spark-area" id="spark-area" d=""/>
-            <path class="spark-line" id="spark-line" d=""/>
-          </svg>
-          <div class="spark-meta">
-            <span id="spark-min">min —</span>
-            <span id="spark-avg">moy —</span>
-            <span id="spark-max">max —</span>
+        <div class="cards-grid">
+          <div class="card clickable" onclick="navigate('servers')">
+            <div class="card-icon blue"><svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg></div>
+            <div class="card-label">Serveurs</div>
+            <div class="card-value" id="h-servers">—</div>
+            <div class="card-hint">Voir la liste →</div>
+          </div>
+          <div class="card clickable" onclick="navigate('messages')">
+            <div class="card-icon green"><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+            <div class="card-label">Médias envoyés</div>
+            <div class="card-value" id="h-totalSent">—</div>
+            <div class="card-hint">Voir les stats →</div>
+          </div>
+          <div class="card">
+            <div class="card-icon yellow"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+            <div class="card-label">Uptime</div>
+            <div class="card-value" id="h-uptime">—</div>
+          </div>
+          <div class="card clickable" onclick="navigate('messages')">
+            <div class="card-icon purple"><svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg></div>
+            <div class="card-label">Latence moy.</div>
+            <div class="card-value" id="h-latency">—</div>
+            <div class="card-hint">Voir le graphe →</div>
+          </div>
+          <div class="card clickable" onclick="navigate('network')">
+            <div class="card-icon red"><svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div>
+            <div class="card-label">CPU système</div>
+            <div class="card-value" id="h-cpu">—</div>
+            <div class="card-hint">Voir le détail →</div>
+          </div>
+          <div class="card clickable" onclick="navigate('network')">
+            <div class="card-icon blue"><svg viewBox="0 0 24 24"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><circle cx="12" cy="20" r="1" fill="currentColor"/></svg></div>
+            <div class="card-label">RAM (RSS)</div>
+            <div class="card-value" id="h-mem">—</div>
+            <div class="card-hint">Voir le détail →</div>
           </div>
         </div>
+        <div class="refresh-row">
+          <span class="badge green">En ligne</span>
+          <span id="h-refresh">—</span>
+        </div>
       </div>
-    </div>
 
-    <!-- RESEAU -->
-    <div class="page" id="page-network">
-      <div class="page-header">
-        <div class="page-title">Réseau & Système</div>
-        <div class="page-subtitle">Consommation des ressources du processus bot</div>
+      <!-- SERVEURS -->
+      <div class="page" id="page-servers">
+        <div class="page-header">
+          <div class="page-title">Serveurs</div>
+          <div class="page-subtitle" id="s-subtitle">Chargement...</div>
+        </div>
+        <div class="server-grid" id="server-grid"></div>
       </div>
-      <div class="two-col">
-        <div class="section">
-          <div class="section-title">CPU & Charge</div>
-          <div class="sys-row">
-            <div class="sys-row-head"><span class="sys-label">CPU (système global)</span><span class="sys-value" id="n-cpu">—</span></div>
-            <div class="sys-bar-wrap"><div class="sys-bar accent" id="n-cpu-bar" style="width:0%"></div></div>
+
+      <!-- MESSAGES -->
+      <div class="page" id="page-messages">
+        <div class="page-header">
+          <div class="page-title">Messages & Médias</div>
+          <div class="page-subtitle">Analyse des contenus envoyés via le bot</div>
+        </div>
+        <div class="cards-grid" style="grid-template-columns: repeat(auto-fill, minmax(160px, 1fr))">
+          <div class="card">
+            <div class="card-label">Total envoyés</div>
+            <div class="card-value" id="m-total">—</div>
           </div>
-          <div style="margin-top:1.1rem">
-            <div class="sys-row">
-              <div class="sys-row-head"><span class="sys-label">Load avg 1 min</span><span class="sys-value" id="n-load1">—</span></div>
-            </div>
-            <div class="sys-row">
-              <div class="sys-row-head"><span class="sys-label">Load avg 5 min</span><span class="sys-value" id="n-load5">—</span></div>
-            </div>
-            <div class="sys-row">
-              <div class="sys-row-head"><span class="sys-label">Load avg 15 min</span><span class="sys-value" id="n-load15">—</span></div>
+          <div class="card">
+            <div class="card-label">Latence moy.</div>
+            <div class="card-value" id="m-latency">—</div>
+          </div>
+          <div class="card">
+            <div class="card-label">Queue en attente</div>
+            <div class="card-value" id="m-queue">—</div>
+          </div>
+        </div>
+        <div class="two-col">
+          <div class="section">
+            <div class="section-title">Répartition par type</div>
+            <div class="type-row"><span class="type-dot dot-image"></span><span class="type-label">Image</span><div class="bar-wrap"><div class="bar bar-image" id="bar-image"></div></div><span class="type-pct" id="pct-image">0%</span><span class="type-count" id="count-image">0</span></div>
+            <div class="type-row"><span class="type-dot dot-video"></span><span class="type-label">Vidéo</span><div class="bar-wrap"><div class="bar bar-video" id="bar-video"></div></div><span class="type-pct" id="pct-video">0%</span><span class="type-count" id="count-video">0</span></div>
+            <div class="type-row"><span class="type-dot dot-audio"></span><span class="type-label">Audio</span><div class="bar-wrap"><div class="bar bar-audio" id="bar-audio"></div></div><span class="type-pct" id="pct-audio">0%</span><span class="type-count" id="count-audio">0</span></div>
+            <div class="type-row"><span class="type-dot dot-link"></span><span class="type-label">Lien</span><div class="bar-wrap"><div class="bar bar-link" id="bar-link"></div></div><span class="type-pct" id="pct-link">0%</span><span class="type-count" id="count-link">0</span></div>
+            <div class="type-row"><span class="type-dot dot-text"></span><span class="type-label">Texte</span><div class="bar-wrap"><div class="bar bar-text" id="bar-text"></div></div><span class="type-pct" id="pct-text">0%</span><span class="type-count" id="count-text">0</span></div>
+          </div>
+          <div class="section">
+            <div class="section-title">Latence — 50 derniers envois</div>
+            <svg class="sparkline-svg" id="sparkline" viewBox="0 0 400 72" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="spark-grad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#5865f2" stop-opacity="0.22"/>
+                  <stop offset="100%" stop-color="#5865f2" stop-opacity="0"/>
+                </linearGradient>
+              </defs>
+              <path class="spark-area" id="spark-area" d=""/>
+              <path class="spark-line" id="spark-line" d=""/>
+            </svg>
+            <div class="spark-meta">
+              <span id="spark-min">min —</span>
+              <span id="spark-avg">moy —</span>
+              <span id="spark-max">max —</span>
             </div>
           </div>
         </div>
-        <div class="section">
-          <div class="section-title">Mémoire</div>
-          <div class="sys-row">
-            <div class="sys-row-head"><span class="sys-label">RAM système (utilisée)</span><span class="sys-value" id="n-sysram">—</span></div>
-            <div class="sys-bar-wrap"><div class="sys-bar green" id="n-sysram-bar" style="width:0%"></div></div>
-          </div>
-          <div class="sys-row" style="margin-top:1rem">
-            <div class="sys-row-head"><span class="sys-label">Heap Node.js</span><span class="sys-value" id="n-heap">—</span></div>
-            <div class="sys-bar-wrap"><div class="sys-bar yellow" id="n-heap-bar" style="width:0%"></div></div>
-          </div>
-          <div class="sys-row" style="margin-top:1rem">
-            <div class="sys-row-head"><span class="sys-label">RSS processus</span><span class="sys-value" id="n-rss">—</span></div>
-          </div>
-        </div>
       </div>
-      <div class="section">
-        <div class="section-title">WebSocket — données envoyées</div>
-        <div class="stat-mini">
-          <div class="stat-mini-item">
-            <div class="stat-mini-label">Total payload</div>
-            <div class="stat-mini-value" id="n-payload">—</div>
-          </div>
-          <div class="stat-mini-item">
-            <div class="stat-mini-label">Messages traités</div>
-            <div class="stat-mini-value" id="n-total">—</div>
-          </div>
-          <div class="stat-mini-item">
-            <div class="stat-mini-label">Taille moy. / msg</div>
-            <div class="stat-mini-value" id="n-avg-payload">—</div>
-          </div>
-        </div>
-      </div>
-      <div class="refresh-row"><span></span><span id="n-refresh">—</span></div>
-    </div>
 
+      <!-- RESEAU -->
+      <div class="page" id="page-network">
+        <div class="page-header">
+          <div class="page-title">Réseau & Système</div>
+          <div class="page-subtitle">Consommation des ressources du processus bot</div>
+        </div>
+        <div class="two-col">
+          <div class="section">
+            <div class="section-title">CPU & Charge</div>
+            <div class="sys-row">
+              <div class="sys-row-head"><span class="sys-label">CPU (système global)</span><span class="sys-value" id="n-cpu">—</span></div>
+              <div class="sys-bar-wrap"><div class="sys-bar accent" id="n-cpu-bar" style="width:0%"></div></div>
+            </div>
+            <div style="margin-top:1.25rem">
+              <div class="sys-row">
+                <div class="sys-row-head"><span class="sys-label">Load avg 1 min</span><span class="sys-value" id="n-load1">—</span></div>
+              </div>
+              <div class="sys-row">
+                <div class="sys-row-head"><span class="sys-label">Load avg 5 min</span><span class="sys-value" id="n-load5">—</span></div>
+              </div>
+              <div class="sys-row">
+                <div class="sys-row-head"><span class="sys-label">Load avg 15 min</span><span class="sys-value" id="n-load15">—</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="section">
+            <div class="section-title">Mémoire</div>
+            <div class="sys-row">
+              <div class="sys-row-head"><span class="sys-label">RAM système (utilisée)</span><span class="sys-value" id="n-sysram">—</span></div>
+              <div class="sys-bar-wrap"><div class="sys-bar green" id="n-sysram-bar" style="width:0%"></div></div>
+            </div>
+            <div class="sys-row" style="margin-top:1rem">
+              <div class="sys-row-head"><span class="sys-label">Heap Node.js</span><span class="sys-value" id="n-heap">—</span></div>
+              <div class="sys-bar-wrap"><div class="sys-bar yellow" id="n-heap-bar" style="width:0%"></div></div>
+            </div>
+            <div class="sys-row" style="margin-top:1rem">
+              <div class="sys-row-head"><span class="sys-label">RSS processus</span><span class="sys-value" id="n-rss">—</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="section">
+          <div class="section-title">WebSocket — données envoyées</div>
+          <div class="stat-mini">
+            <div class="stat-mini-item">
+              <div class="stat-mini-label">Total payload</div>
+              <div class="stat-mini-value" id="n-payload">—</div>
+            </div>
+            <div class="stat-mini-item">
+              <div class="stat-mini-label">Messages traités</div>
+              <div class="stat-mini-value" id="n-total">—</div>
+            </div>
+            <div class="stat-mini-item">
+              <div class="stat-mini-label">Taille moy. / msg</div>
+              <div class="stat-mini-value" id="n-avg-payload">—</div>
+            </div>
+          </div>
+        </div>
+        <div class="refresh-row"><span></span><span id="n-refresh">—</span></div>
+      </div>
+
+    </div>
   </main>
 </div>
 <script>
