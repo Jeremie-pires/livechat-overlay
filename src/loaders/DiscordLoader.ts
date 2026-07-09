@@ -217,26 +217,30 @@ const loadDiscordCommandsHandler = () => {
     } catch (error) {
       logger.error(error);
 
-      if (interaction.replied || interaction.deferred) {
-        await interaction.followUp({
-          embeds: [
-            new EmbedBuilder()
-              .setTitle(rosetty.t('error')!)
-              .setDescription(rosetty.t('commandError')!)
-              .setColor(0xe74c3c),
-          ],
-          flags: MessageFlags.Ephemeral,
-        });
-      } else {
-        await interaction.reply({
-          embeds: [
-            new EmbedBuilder()
-              .setTitle(rosetty.t('error')!)
-              .setDescription(rosetty.t('commandError')!)
-              .setColor(0xe74c3c),
-          ],
-          flags: MessageFlags.Ephemeral,
-        });
+      try {
+        if (interaction.replied || interaction.deferred) {
+          await interaction.followUp({
+            embeds: [
+              new EmbedBuilder()
+                .setTitle(rosetty.t('error')!)
+                .setDescription(rosetty.t('commandError')!)
+                .setColor(0xe74c3c),
+            ],
+            flags: MessageFlags.Ephemeral,
+          });
+        } else {
+          await interaction.reply({
+            embeds: [
+              new EmbedBuilder()
+                .setTitle(rosetty.t('error')!)
+                .setDescription(rosetty.t('commandError')!)
+                .setColor(0xe74c3c),
+            ],
+            flags: MessageFlags.Ephemeral,
+          });
+        }
+      } catch {
+        // Interaction token expired — swallow silently
       }
     }
   });
