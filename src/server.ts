@@ -10,6 +10,7 @@ import { isProductionEnv, isPreProductionEnv } from './services/env';
 import { loadDiscord } from './loaders/DiscordLoader';
 import { loadRosetty } from './services/i18n/loader';
 import { loadPrismaClient } from './services/prisma/loadPrisma';
+import './services/cpuSampler';
 
 export const runServer = async () => {
   const logLevel = env.LOG || 'info';

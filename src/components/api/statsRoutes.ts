@@ -1,4 +1,6 @@
+import os from 'os';
 import { getSessionToken, isValidSession } from '../../services/session';
+import { getCpuPercent } from '../../services/cpuSampler';
 
 export const StatsRoutes = () =>
   async function (fastify: FastifyCustomInstance) {
@@ -43,6 +45,15 @@ export const StatsRoutes = () =>
           samples: latencySamples.reverse().map((s) => s.latencyMs),
         },
         guilds,
+        system: {
+          cpuPercent: getCpuPercent(),
+          loadAvg: os.loadavg(),
+          memTotalMB: Math.round(os.totalmem() / 1024 / 1024),
+          memFreeMB: Math.round(os.freemem() / 1024 / 1024),
+          memRssMB: Math.round(process.memoryUsage().rss / 1024 / 1024),
+          memHeapUsedMB: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+          memHeapTotalMB: Math.round(process.memoryUsage().heapTotal / 1024 / 1024),
+        },
       });
     });
   };
