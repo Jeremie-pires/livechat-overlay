@@ -34,6 +34,7 @@ const elements = {
   backendUrl: document.getElementById('backendUrl'),
   guildId: document.getElementById('guildId'),
   autoConnect: document.getElementById('autoConnect'),
+  launchAtStartup: document.getElementById('launchAtStartup'),
   testConnBtn: document.getElementById('testConnBtn'),
   saveConfigBtn: document.getElementById('saveConfigBtn'),
   testResultBox: document.getElementById('testResultBox'),
@@ -150,6 +151,7 @@ function readFormValues() {
     overlaySize: Number(elements.overlaySize.value),
     overlayPosition: elements.overlayPosition.value,
     autoConnect: elements.autoConnect.checked,
+    launchAtStartup: elements.launchAtStartup.checked,
     clickThrough: true, // Click-through is now forced to true for user convenience
   };
 }
@@ -263,6 +265,7 @@ async function refreshUi() {
   elements.backendUrl.value = settings.backendUrl;
   elements.guildId.value = settings.guildId;
   elements.autoConnect.checked = settings.autoConnect;
+  elements.launchAtStartup.checked = settings.launchAtStartup;
 
   // Load control values
   elements.screenId.value = String(settings.screenId || displays.find((display) => display.primary)?.id || displays[0]?.id || 0);
@@ -383,6 +386,7 @@ window.livechat.onSettingsChanged((settings) => {
   elements.backendUrl.value = settings.backendUrl;
   elements.guildId.value = settings.guildId;
   elements.autoConnect.checked = settings.autoConnect;
+  elements.launchAtStartup.checked = settings.launchAtStartup;
   elements.screenId.value = String(settings.screenId);
   elements.volume.value = String(settings.volume);
   elements.overlaySize.value = String(settings.overlaySize);

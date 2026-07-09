@@ -14,6 +14,7 @@ type AppSettings = {
   clickThrough: boolean;
   overlaySize: number;
   overlayPosition: string;
+  launchAtStartup: boolean;
 };
 
 type DisplayInfo = {
@@ -34,6 +35,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   clickThrough: true,
   overlaySize: 960,
   overlayPosition: 'center',
+  launchAtStartup: false,
 };
 
 let controlWindow: BrowserWindow | null = null;
@@ -60,7 +62,12 @@ function normalizeSettings(candidate: Partial<AppSettings> | undefined): AppSett
     clickThrough: true, // Always true to prevent desktop locks
     overlaySize: Number.isFinite(candidate?.overlaySize as number) ? Number(candidate?.overlaySize) : DEFAULT_SETTINGS.overlaySize,
     overlayPosition: candidate?.overlayPosition?.trim() || DEFAULT_SETTINGS.overlayPosition,
+    launchAtStartup: Boolean(candidate?.launchAtStartup ?? DEFAULT_SETTINGS.launchAtStartup),
   };
+}
+
+function applyLoginItemSettings(): void {
+  app.setLoginItemSettings({ openAtLogin: settings.launchAtStartup });
 }
 
 function getDisplayList(): DisplayInfo[] {
@@ -276,6 +283,7 @@ function registerIpc() {
   ipcMain.handle('app:save-settings', async (_event, nextSettings: Partial<AppSettings>) => {
     settings = normalizeSettings(nextSettings);
     await saveSettingsToDisk();
+    applyLoginItemSettings();
     applyOverlayPlacement();
     if (overlayWindow) {
       if (settings.volume >= 0) {
@@ -381,6 +389,7 @@ function setupAutoUpdater() {
 
 async function bootstrap() {
   await loadSettingsFromDisk();
+  applyLoginItemSettings();
   registerIpc();
   createControlWindow();
   updateStatus('idle', statusMessage);
