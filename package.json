@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "pnpm migration:up && tsx ./src/index.ts | pnpm pino-pretty",
+    "docker:start": "pnpm migration:up && tsx ./src/index.ts",
     "start": "node ./dist/src/index.js",
     "lint": "eslint src --ext .ts --fix",
     "prepare": "husky install",

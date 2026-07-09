@@ -30,4 +30,4 @@ RUN pnpm generate
 EXPOSE $PORT
 
 # Command to run the app
-CMD ["pnpm", "run", "dev"]
+CMD ["pnpm", "run", "docker:start"]
