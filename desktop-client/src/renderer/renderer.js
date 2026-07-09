@@ -12,8 +12,10 @@ const elements = {
   // Navigation Tabs
   btnTabControl: document.getElementById('btnTabControl'),
   btnTabConfig: document.getElementById('btnTabConfig'),
+  btnTabUsers: document.getElementById('btnTabUsers'),
   contentControl: document.getElementById('contentControl'),
   contentConfig: document.getElementById('contentConfig'),
+  contentUsers: document.getElementById('contentUsers'),
 
   // Control Tab Fields
   toggleOverlayBtn: document.getElementById('toggleOverlayBtn'),
@@ -41,6 +43,7 @@ const elements = {
 
   // Presence
   presenceSummary: document.getElementById('presenceSummary'),
+  userList: document.getElementById('userList'),
   saveConfigBtn: document.getElementById('saveConfigBtn'),
   testResultBox: document.getElementById('testResultBox'),
   testResultIcon: document.getElementById('testResultIcon'),
@@ -56,17 +59,15 @@ const elements = {
 
 // Toggle viewable tabs
 function switchTab(activeTab) {
-  if (activeTab === 'control') {
-    elements.btnTabControl.classList.add('active');
-    elements.btnTabConfig.classList.remove('active');
-    elements.contentControl.classList.remove('hidden');
-    elements.contentConfig.classList.add('hidden');
-  } else {
-    elements.btnTabControl.classList.remove('active');
-    elements.btnTabConfig.classList.add('active');
-    elements.contentControl.classList.add('hidden');
-    elements.contentConfig.classList.remove('hidden');
-  }
+  const tabs = ['control', 'config', 'users'];
+  const btns = [elements.btnTabControl, elements.btnTabConfig, elements.btnTabUsers];
+  const panels = [elements.contentControl, elements.contentConfig, elements.contentUsers];
+
+  tabs.forEach((tab, i) => {
+    const isActive = tab === activeTab;
+    btns[i].classList.toggle('active', isActive);
+    panels[i].classList.toggle('hidden', !isActive);
+  });
 }
 
 function renderStatus(status) {
@@ -296,18 +297,40 @@ async function refreshUi() {
 
 let presenceInterval = null;
 
+function escapeHtml(str) {
+  return str.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+}
+
+function renderUserList(clients) {
+  if (!elements.userList) return;
+  if (clients.length === 0) {
+    elements.userList.innerHTML = '<div class="user-list-empty">Personne n\'est connecté.</div>';
+    return;
+  }
+  elements.userList.innerHTML = clients.map((c) => {
+    const avatarHtml = c.avatarUrl
+      ? `<img class="user-avatar" src="${c.avatarUrl}" alt="" />`
+      : `<div class="user-avatar user-avatar-initial">${escapeHtml(c.displayName.charAt(0).toUpperCase())}</div>`;
+    const mins = Math.floor((Date.now() - c.connectedAt) / 60000);
+    const since = mins < 1 ? 'À l\'instant' : `il y a ${mins} min`;
+    return `<div class="user-item">${avatarHtml}<div class="user-info"><span class="user-name">${escapeHtml(c.displayName)}</span><span class="user-since">${since}</span></div></div>`;
+  }).join('');
+}
+
+function updatePresence(clients) {
+  if (elements.presenceSummary) {
+    elements.presenceSummary.textContent = clients.length === 0 ? '0' : String(clients.length);
+    elements.presenceSummary.title = clients.map((c) => c.displayName).join(', ');
+  }
+  renderUserList(clients);
+}
+
 function startPresencePolling() {
   if (presenceInterval) return;
+  window.livechat.getPresence().then(updatePresence);
   presenceInterval = setInterval(async () => {
     const clients = await window.livechat.getPresence();
-    if (!elements.presenceSummary) return;
-    if (clients.length === 0) {
-      elements.presenceSummary.textContent = '0';
-      elements.presenceSummary.title = '';
-    } else {
-      elements.presenceSummary.textContent = String(clients.length);
-      elements.presenceSummary.title = clients.map(c => c.displayName).join(', ');
-    }
+    updatePresence(clients);
   }, 15000);
 }
 
@@ -320,12 +343,14 @@ function stopPresencePolling() {
     elements.presenceSummary.textContent = '—';
     elements.presenceSummary.title = '';
   }
+  renderUserList([]);
 }
 
 function bindEvents() {
   // Tabs Navigation
   elements.btnTabControl.addEventListener('click', () => switchTab('control'));
   elements.btnTabConfig.addEventListener('click', () => switchTab('config'));
+  elements.btnTabUsers.addEventListener('click', () => switchTab('users'));
 
   // Activation Toggle
   elements.toggleOverlayBtn.addEventListener('click', toggleOverlay);

@@ -30,7 +30,15 @@ export const loadSocket = (fastify: FastifyCustomInstance) => {
         try {
           const session = await prisma.clientSession.findUnique({ where: { tokenHash: hashToken(token) } });
           if (session && session.guildId === guildId) {
-            presenceStore.add(guildId, socket.id, session.displayName);
+            let avatarUrl: string | null = null;
+            try {
+              const user = discordClient.users.cache.get(session.discordUserId)
+                ?? await discordClient.users.fetch(session.discordUserId);
+              avatarUrl = user.avatarURL({ size: 64 }) ?? null;
+            } catch {
+              // avatar unavailable — fall back to null
+            }
+            presenceStore.add(guildId, socket.id, session.displayName, avatarUrl);
             fastify.io.to(roomId).emit('presence:update', presenceStore.get(guildId));
           }
         } catch (err) {

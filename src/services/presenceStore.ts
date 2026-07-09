@@ -1,11 +1,11 @@
-type PresenceEntry = { displayName: string; connectedAt: number };
+type PresenceEntry = { displayName: string; connectedAt: number; avatarUrl: string | null };
 
 const store = new Map<string, Map<string, PresenceEntry>>();
 
 export const presenceStore = {
-  add(guildId: string, socketId: string, displayName: string): void {
+  add(guildId: string, socketId: string, displayName: string, avatarUrl: string | null): void {
     if (!store.has(guildId)) store.set(guildId, new Map());
-    store.get(guildId)!.set(socketId, { displayName, connectedAt: Date.now() });
+    store.get(guildId)!.set(socketId, { displayName, connectedAt: Date.now(), avatarUrl });
   },
 
   removeSocket(socketId: string): string[] {

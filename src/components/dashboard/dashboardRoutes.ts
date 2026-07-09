@@ -127,8 +127,10 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
 
     /* Server grid */
     .server-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 0.75rem; }
-    .server-card { background: var(--overlay); border: 1px solid var(--border); border-radius: 14px; padding: 0.9rem 1rem; display: flex; align-items: center; gap: 0.875rem; transition: border-color 0.3s, background 0.3s, box-shadow 0.3s; }
+    .server-card { background: var(--overlay); border: 1px solid var(--border); border-radius: 14px; padding: 0.9rem 1rem; display: flex; flex-direction: column; align-items: stretch; transition: border-color 0.3s, background 0.3s, box-shadow 0.3s; }
     .server-card:hover { border-color: rgba(var(--accent-rgb),0.28); background: rgba(var(--accent-rgb),0.04); box-shadow: 0 0 20px rgba(var(--accent-rgb),0.08); }
+    .server-top { display: flex; align-items: center; gap: 0.875rem; }
+    .server-badges { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.65rem; flex-wrap: wrap; }
     .server-avatar { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; flex-shrink: 0; border: 1px solid var(--border); }
     .server-avatar-ph { width: 42px; height: 42px; border-radius: 50%; background: rgba(var(--accent-rgb),0.10); border: 1px solid rgba(var(--accent-rgb),0.20); display: flex; align-items: center; justify-content: center; font-size: 0.95rem; font-weight: 700; color: var(--accent); flex-shrink: 0; }
     .server-name { font-size: 0.875rem; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -454,7 +456,8 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
 
   function renderServers(guilds, presence) {
     const sorted=(guilds||[]).sort((a,b)=>b.memberCount-a.memberCount);
-    document.getElementById('s-subtitle').textContent = sorted.length+' serveur'+(sorted.length>1?'s':'')+' connecté'+(sorted.length>1?'s':'');
+    const configured = sorted.filter(g => g.isSetup).length;
+    document.getElementById('s-subtitle').textContent = sorted.length+' serveur'+(sorted.length>1?'s':'')+' connecté'+(sorted.length>1?'s':'')+' / '+configured+' configuré'+(configured>1?'s':'');
     document.getElementById('server-grid').innerHTML = sorted.map(g => {
       const av = g.icon ? '<img class="server-avatar" src="'+g.icon+'" alt="">' : '<div class="server-avatar-ph">'+g.name.charAt(0).toUpperCase()+'</div>';
       const clients = (presence && presence[g.id]) || [];
@@ -464,7 +467,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       const setupBadge = g.isSetup
         ? '<span class="badge green">Configuré</span>'
         : '<span class="badge yellow">Non configuré</span>';
-      return '<div class="server-card">'+av+'<div class="server-info"><div class="server-name">'+g.name+'</div><div class="server-members">'+fmt(g.memberCount)+' membres</div><div style="margin-top:0.35rem">'+setupBadge+'</div></div>'+presenceBadge+'</div>';
+      return '<div class="server-card"><div class="server-top">'+av+'<div class="server-info"><div class="server-name">'+g.name+'</div><div class="server-members">'+fmt(g.memberCount)+' membres</div></div></div><div class="server-badges">'+setupBadge+presenceBadge+'</div></div>';
     }).join('');
   }
 

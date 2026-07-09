@@ -242,6 +242,7 @@ button {
 }
 
 input[type="text"],
+input[type="password"],
 select {
   width: 100%;
   appearance: none;
@@ -256,6 +257,7 @@ select {
 }
 
 input[type="text"]:focus,
+input[type="password"]:focus,
 select:focus,
 input[type="range"]:focus {
   border-color: rgba(101, 217, 255, 0.5);
@@ -614,6 +616,67 @@ button:active:not(:disabled) {
 @keyframes slideUp {
   from { opacity: 0; transform: translateY(14px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* User list */
+.user-list {
+  display: grid;
+  gap: 8px;
+}
+
+.user-list-empty {
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.88rem;
+  padding: 28px 0;
+}
+
+.user-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.user-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.user-avatar-initial {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+  color: #08111f;
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.user-info {
+  display: grid;
+  gap: 2px;
+  overflow: hidden;
+}
+
+.user-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.user-since {
+  font-size: 0.74rem;
+  color: var(--muted);
 }
 
 .small-btn.active-test {

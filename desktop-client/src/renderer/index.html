@@ -42,6 +42,7 @@
       <nav class="tab-bar">
         <button class="tab-btn active" id="btnTabControl">Contrôle</button>
         <button class="tab-btn" id="btnTabConfig">Serveur</button>
+        <button class="tab-btn" id="btnTabUsers">Utilisateurs</button>
       </nav>
 
       <!-- View 1: Control panel -->
@@ -181,6 +182,15 @@
         </div>
       </section>
     </main>
+
+      <!-- View 3: Connected users -->
+      <section class="panel tab-content hidden" id="contentUsers">
+        <div class="panel-title">
+          <h2>Utilisateurs connectés</h2>
+          <p>Clients actuellement connectés à la salle.</p>
+        </div>
+        <div id="userList" class="user-list"></div>
+      </section>
 
     <script src="./renderer.js"></script>
   </body>

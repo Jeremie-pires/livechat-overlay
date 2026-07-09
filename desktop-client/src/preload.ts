@@ -14,7 +14,7 @@ type AppSettings = {
   clientToken: string;
 };
 
-type PresenceEntry = { displayName: string; connectedAt: number };
+type PresenceEntry = { displayName: string; connectedAt: number; avatarUrl: string | null };
 
 type OverlayStatus = {
   type: 'idle' | 'loading' | 'connected' | 'error';

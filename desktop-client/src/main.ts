@@ -398,7 +398,7 @@ function registerIpc() {
       const res = await fetch(url, { signal: controller.signal });
       clearTimeout(id);
       if (!res.ok) return [];
-      return (await res.json()) as Array<{ displayName: string; connectedAt: number }>;
+      return (await res.json()) as Array<{ displayName: string; connectedAt: number; avatarUrl: string | null }>;
     } catch {
       return [];
     }
