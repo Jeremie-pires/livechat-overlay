@@ -8,6 +8,7 @@ import {
   ChannelType,
   PermissionFlagsBits,
   IntentsBitField,
+  TextChannel,
 } from 'discord.js';
 import { aliveCommand } from '../components/discord/aliveCommand';
 import { sendCommand } from '../components/messages/sendCommand';
@@ -25,6 +26,37 @@ import { stopCommand } from '../components/messages/stopCommand';
 import { setupCommand } from '../components/discord/setupCommand';
 import { announceCommand } from '../components/discord/announceCommand';
 
+const broadcastToAllGuilds = async (title: string, description: string, color: number) => {
+  try {
+    const guilds = await prisma.guild.findMany({ where: { channelId: { not: null } } });
+    await Promise.allSettled(
+      guilds.map(async (guild) => {
+        try {
+          const channel = await discordClient.channels.fetch(guild.channelId!);
+          if (channel?.isTextBased()) {
+            await (channel as TextChannel).send({
+              embeds: [new EmbedBuilder().setTitle(title).setDescription(description).setColor(color)],
+            });
+          }
+        } catch {}
+      }),
+    );
+  } catch {}
+};
+
+const handleShutdown = async () => {
+  logger.info('[DISCORD] Shutdown signal received — sending announcement...');
+  await Promise.race([
+    broadcastToAllGuilds(
+      '🔴 Maintenance en cours',
+      'Le bot va s\'éteindre quelques minutes pour maintenance. Il sera bientôt de retour !',
+      0xe74c3c,
+    ),
+    new Promise((resolve) => setTimeout(resolve, 5000)),
+  ]);
+  process.exit(0);
+};
+
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export const loadDiscord = async (fastify: FastifyCustomInstance) => {
   const rest = new REST({ version: '10' }).setToken(env.DISCORD_TOKEN);
@@ -38,14 +70,22 @@ export const loadDiscord = async (fastify: FastifyCustomInstance) => {
   loadDiscordCommandsHandler();
   loadMessagesWorker(fastify);
 
-  client.once(Events.ClientReady, (readyClient) => {
+  client.once(Events.ClientReady, async (readyClient) => {
     logger.info(`[DISCORD] ${rosetty.t('discordBotReady', { username: readyClient.user.tag })}`);
     logger.info(
       `[DISCORD] ${rosetty.t('discordInvite', {
         link: `https://discord.com/oauth2/authorize?client_id=${env.DISCORD_CLIENT_ID}&scope=bot%20applications.commands`,
       })}`,
     );
+    await broadcastToAllGuilds(
+      '🟢 En ligne !',
+      'Le bot est de retour et prêt à recevoir du contenu !',
+      0x2ecc71,
+    );
   });
+
+  process.once('SIGTERM', handleShutdown);
+  process.once('SIGINT', handleShutdown);
 
   client.on(Events.GuildCreate, (g) => {
     const channel = g.channels.cache.find(
