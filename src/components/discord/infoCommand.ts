@@ -7,8 +7,9 @@ export const infoCommand = () => ({
     await interaction.reply({
       embeds: [
         new EmbedBuilder().setTitle(`Developed by Jerezouz - ${new Date().getFullYear()}`).setDescription(`
+          [Site du Livechat](https://livechatccb.online)
           [GitHub](https://github.com/Jeremie-pires)
-          [Personal Website](https://lewebnantais.fr)
+          [Mon site de création de sites web](https://lewebnantais.fr)
           `),
       ],
       flags: MessageFlags.Ephemeral,

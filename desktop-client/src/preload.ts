@@ -10,6 +10,7 @@ type AppSettings = {
   overlaySize: number;
   overlayPosition: string;
   launchAtStartup: boolean;
+  startMinimized: boolean;
   clientToken: string;
 };
 

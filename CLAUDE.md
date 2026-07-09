@@ -72,6 +72,12 @@ Discord command → `messagesWorker` dequeues → emits via Socket.IO to the bro
 
 ---
 
+## 🚀 Release du client desktop
+
+- **Déclencheur :** Quand je dis "on envoie une nouvelle version" (ou formulation similaire), tu dois **d'abord me demander** quel texte je veux afficher aux utilisateurs dans le modal de mise à jour (les release notes), avant de faire quoi que ce soit.
+- Le texte choisi sera utilisé comme description de la GitHub Release (récupéré automatiquement par `electron-updater` et affiché dans le modal de l'app).
+- Workflow de release : bumper la version dans `desktop-client/package.json`, puis `npm run release` dans `desktop-client/`.
+
 ## 🧠 Mémoire et Contexte
 
 - **Lecture obligatoire :** Si je te demande "On reprend" ou "Où en est-on ?", commence par lire `AI_STATE.md` pour récupérer le contexte.

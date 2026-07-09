@@ -36,6 +36,7 @@ const elements = {
   clientToken: document.getElementById('clientToken'),
   autoConnect: document.getElementById('autoConnect'),
   launchAtStartup: document.getElementById('launchAtStartup'),
+  startMinimized: document.getElementById('startMinimized'),
   testConnBtn: document.getElementById('testConnBtn'),
 
   // Presence
@@ -163,6 +164,7 @@ function readFormValues() {
     overlayPosition: elements.overlayPosition.value,
     autoConnect: elements.autoConnect.checked,
     launchAtStartup: elements.launchAtStartup.checked,
+    startMinimized: elements.startMinimized.checked,
     clickThrough: true, // Click-through is now forced to true for user convenience
   };
 }
@@ -278,6 +280,7 @@ async function refreshUi() {
   elements.clientToken.value = settings.clientToken;
   elements.autoConnect.checked = settings.autoConnect;
   elements.launchAtStartup.checked = settings.launchAtStartup;
+  elements.startMinimized.checked = settings.startMinimized;
 
   // Load control values
   elements.screenId.value = String(settings.screenId || displays.find((display) => display.primary)?.id || displays[0]?.id || 0);
@@ -452,6 +455,7 @@ window.livechat.onSettingsChanged((settings) => {
   elements.clientToken.value = settings.clientToken;
   elements.autoConnect.checked = settings.autoConnect;
   elements.launchAtStartup.checked = settings.launchAtStartup;
+  elements.startMinimized.checked = settings.startMinimized;
   elements.screenId.value = String(settings.screenId);
   elements.volume.value = String(settings.volume);
   elements.overlaySize.value = String(settings.overlaySize);

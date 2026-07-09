@@ -30,13 +30,18 @@ Sur ton serveur, dans le canal où tu veux que le bot écoute les commandes, tap
 
 Seul un **administrateur** du serveur peut faire cette commande.
 
-### 3. Récupérer l'URL
+### 3. Récupérer l'URL et ton token
 
 ```
 /client
 ```
 
-Le bot te donne l'URL à coller dans l'app côté serveur et l'ID de ton serveur Discord.
+Le bot te répond en privé (message éphémère) avec :
+- **L'URL du backend** à coller dans l'app
+- **L'ID de ta Guild Discord**
+- **Ton token client** — un identifiant unique qui permet à l'app d'apparaître dans la liste des clients connectés
+
+> Le token est régénéré à chaque `/client`. Si tu en génères un nouveau, mets à jour l'app.
 
 ### 4. App desktop (overlay Windows)
 
@@ -49,6 +54,7 @@ Si une popup Windows s'ouvre, il faut faire **Informations complémentaires** et
 Dans l'onglet **Serveur** de l'app :
 - **URL du backend** : l'URL fournie par `/client`
 - **ID de la Guild Discord** : l'ID fourni par `/client`
+- **Token client** : le token fourni par `/client` — colle-le dans ce champ pour apparaître dans la liste des connectés. Il est chiffré localement par Windows avant d'être sauvegardé.
 
 ### A propos du bot hébergé
 
@@ -60,7 +66,7 @@ L'objectif est d'en faire un projet communautaire qui évolue, je prends en comp
 | Commande | Description |
 |---|---|
 | `/dispo` | Vérifie si le bot répond |
-| `/client` | Donne l'URL et l'ID de la guild |
+| `/client` | Donne l'URL, l'ID de la guild et ton token client (éphémère) |
 | `/setup` | Setup le channel dans lequel le bot va écouter |
 | `/msg` | Envoie un contenu sur le livechat (lien, image, texte) |
 | `/cmsg` | Même chose, mais discret (pas de confirmation visible) |

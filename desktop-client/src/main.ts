@@ -15,6 +15,7 @@ type AppSettings = {
   overlaySize: number;
   overlayPosition: string;
   launchAtStartup: boolean;
+  startMinimized: boolean;
   clientToken: string;
 };
 
@@ -37,6 +38,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   overlaySize: 960,
   overlayPosition: 'center',
   launchAtStartup: false,
+  startMinimized: false,
   clientToken: '',
 };
 
@@ -65,6 +67,7 @@ function normalizeSettings(candidate: Partial<AppSettings> | undefined): AppSett
     overlaySize: Number.isFinite(candidate?.overlaySize as number) ? Number(candidate?.overlaySize) : DEFAULT_SETTINGS.overlaySize,
     overlayPosition: candidate?.overlayPosition?.trim() || DEFAULT_SETTINGS.overlayPosition,
     launchAtStartup: Boolean(candidate?.launchAtStartup ?? DEFAULT_SETTINGS.launchAtStartup),
+    startMinimized: Boolean(candidate?.startMinimized ?? DEFAULT_SETTINGS.startMinimized),
     clientToken: candidate?.clientToken?.trim() || '',
   };
 }
@@ -193,6 +196,7 @@ function createControlWindow() {
     title: 'LiveChatCCB Desktop',
     backgroundColor: '#0b1020',
     autoHideMenuBar: true,
+    show: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -201,6 +205,16 @@ function createControlWindow() {
   });
 
   controlWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
+
+  controlWindow.once('ready-to-show', () => {
+    if (settings.startMinimized) {
+      controlWindow?.showInactive();
+      controlWindow?.minimize();
+    } else {
+      controlWindow?.show();
+    }
+  });
+
   controlWindow.on('closed', () => {
     controlWindow = null;
     destroyOverlayWindow();
