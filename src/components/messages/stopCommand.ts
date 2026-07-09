@@ -1,4 +1,4 @@
-import { CommandInteraction, EmbedBuilder, SlashCommandBuilder } from 'discord.js';
+import { CommandInteraction, EmbedBuilder, MessageFlags, SlashCommandBuilder } from 'discord.js';
 
 export const stopCommand = (fastify: FastifyCustomInstance) => ({
   data: new SlashCommandBuilder()
@@ -23,7 +23,7 @@ export const stopCommand = (fastify: FastifyCustomInstance) => ({
           .setDescription(rosetty.t('stopCommandAnswer')!)
           .setColor(0x2ecc71),
       ],
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
   },
 });

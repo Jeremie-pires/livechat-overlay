@@ -60,14 +60,17 @@ L'objectif est d'en faire un projet communautaire qui évolue, je prends en comp
 | Commande | Description |
 |---|---|
 | `/dispo` | Vérifie si le bot répond |
-| `/setup` | Setup le channel dans lequel le bot va écouter |
 | `/client` | Donne l'URL et l'ID de la guild |
-| `/msg` | Envoie un contenu sur le stream (lien, image, texte) |
+| `/setup` | Setup le channel dans lequel le bot va écouter |
+| `/msg` | Envoie un contenu sur le livechat (lien, image, texte) |
 | `/cmsg` | Même chose, mais discret (pas de confirmation visible) |
 | `/dire` | Fait lire un texte par une voix de synthèse |
 | `/cdire` | Même chose, mais discret |
 | `/stop` | Interrompt le contenu en cours |
+| `/config-defaut` | Défini le temps par défaut d'un média |
+| `/config-max` | Défini le temps maximum d'un média |
 | `/help` | Liste toutes les commandes |
+| `/info` | Donne des infos sur le bot et son créateur |
 
 ---
 
@@ -103,7 +106,7 @@ services:
       DATABASE_URL: file:/data/sqlite.db
       DISCORD_TOKEN: ${DISCORD_TOKEN}
       DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID}
-      DISCORD_OWNER_ID: ${DISCORD_OWNER_ID}   # optionnel, pour /announce
+      DISCORD_OWNER_ID: ${DISCORD_OWNER_ID}   # optionnel, pour /announce et les DMs de crash
       API_URL: ${API_URL}
       DEFAULT_DURATION: ${DEFAULT_DURATION:-5}
       HIDE_COMMANDS_DISABLED: ${HIDE_COMMANDS_DISABLED:-false}
@@ -127,7 +130,7 @@ docker compose up -d --build
 | `API_URL` | URL publique du backend (ex: `https://livechat.ton-domaine.fr`) |
 | `DISCORD_TOKEN` | Token du bot Discord |
 | `DISCORD_CLIENT_ID` | ID de l'application Discord |
-| `DISCORD_OWNER_ID` | Ton ID Discord — permet d'utiliser `/announce` |
+| `DISCORD_OWNER_ID` | Ton ID Discord — permet d'utiliser `/announce` et de recevoir les DMs de crash |
 | `DEFAULT_DURATION` | Durée d'affichage par défaut en secondes (défaut: `5`) |
 | `HIDE_COMMANDS_DISABLED` | Désactiver `/cmsg` et `/cdire` (`true`/`false`) |
 

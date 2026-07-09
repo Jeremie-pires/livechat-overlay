@@ -6,10 +6,12 @@ import {
   Routes,
   EmbedBuilder,
   ChannelType,
+  MessageFlags,
   PermissionFlagsBits,
   IntentsBitField,
   TextChannel,
 } from 'discord.js';
+import { logBotEvent, notifyOwner } from '../services/botLogger';
 import { aliveCommand } from '../components/discord/aliveCommand';
 import { sendCommand } from '../components/messages/sendCommand';
 import { hideSendCommand } from '../components/messages/hidesendCommand';
@@ -20,7 +22,6 @@ import { clientCommand } from '../components/discord/clientCommand';
 import { helpCommand } from '../components/discord/helpCommand';
 import { infoCommand } from '../components/discord/infoCommand';
 import { setDefaultTimeCommand } from '../components/discord/setDefaultTimeCommand';
-import { setDisplayMediaFullCommand } from '../components/discord/setDisplayFullCommand';
 import { setMaxTimeCommand } from '../components/discord/setMaxTimeCommand';
 import { stopCommand } from '../components/messages/stopCommand';
 import { setupCommand } from '../components/discord/setupCommand';
@@ -47,11 +48,15 @@ const broadcastToAllGuilds = async (title: string, description: string, color: n
 const handleShutdown = async () => {
   logger.info('[DISCORD] Shutdown signal received — sending announcement...');
   await Promise.race([
-    broadcastToAllGuilds(
-      '🔴 Maintenance en cours',
-      'Le bot va s\'éteindre quelques minutes pour maintenance. Il sera bientôt de retour !',
-      0xe74c3c,
-    ),
+    Promise.all([
+      logBotEvent('STOP', 'Arrêt propre via SIGTERM/SIGINT'),
+      notifyOwner('STOP', "Le bot s’éteint proprement (SIGTERM/SIGINT)."),
+      broadcastToAllGuilds(
+        '🔴 Maintenance en cours',
+        "Le bot va s’éteindre quelques minutes pour maintenance. Il sera bientôt de retour !",
+        0xe74c3c,
+      ),
+    ]),
     new Promise((resolve) => setTimeout(resolve, 5000)),
   ]);
   process.exit(0);
@@ -83,11 +88,14 @@ export const loadDiscord = async (fastify: FastifyCustomInstance) => {
         link: `https://discord.com/oauth2/authorize?client_id=${env.DISCORD_CLIENT_ID}&scope=bot%20applications.commands`,
       })}`,
     );
-    await broadcastToAllGuilds(
-      '🟢 En ligne !',
-      'Le bot est de retour et prêt à recevoir du contenu !',
-      0x2ecc71,
-    );
+    await Promise.all([
+      logBotEvent('START', `Bot connecté en tant que ${readyClient.user.tag}`),
+      broadcastToAllGuilds(
+        '🟢 En ligne !',
+        'Le bot est de retour et prêt à recevoir du contenu !',
+        0x2ecc71,
+      ),
+    ]);
   });
 
   process.once('SIGTERM', handleShutdown);
@@ -132,7 +140,6 @@ const loadDiscordCommands = async (fastify: FastifyCustomInstance) => {
       helpCommand(),
       infoCommand(),
       setDefaultTimeCommand(),
-      setDisplayMediaFullCommand(),
       setMaxTimeCommand(),
       stopCommand(fastify),
       setupCommand(),
@@ -185,7 +192,7 @@ const loadDiscordCommandsHandler = () => {
               .setDescription(rosetty.t('noChannelConfigured')!)
               .setColor(0xe74c3c),
           ],
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
         return;
       }
@@ -199,7 +206,7 @@ const loadDiscordCommandsHandler = () => {
               .setDescription(`Use this bot only in ${channelMention}.`)
               .setColor(0xe74c3c),
           ],
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
         return;
       }
@@ -218,7 +225,7 @@ const loadDiscordCommandsHandler = () => {
               .setDescription(rosetty.t('commandError')!)
               .setColor(0xe74c3c),
           ],
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       } else {
         await interaction.reply({
@@ -228,7 +235,7 @@ const loadDiscordCommandsHandler = () => {
               .setDescription(rosetty.t('commandError')!)
               .setColor(0xe74c3c),
           ],
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
     }

@@ -1,4 +1,4 @@
-import { Client, ChatInputCommandInteraction, EmbedBuilder, PermissionFlagsBits, SlashCommandBuilder } from 'discord.js';
+import { Client, ChatInputCommandInteraction, EmbedBuilder, MessageFlags, PermissionFlagsBits, SlashCommandBuilder } from 'discord.js';
 
 export const setMaxTimeCommand = () => ({
   data: new SlashCommandBuilder()
@@ -21,7 +21,7 @@ export const setMaxTimeCommand = () => ({
     if (!guildMember.permissions.has(PermissionFlagsBits.Administrator)) {
       await interaction.reply({
         embeds: [new EmbedBuilder().setTitle(rosetty.t('notAllowed')!).setColor(0xe74c3c)],
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
 
       return;
@@ -47,7 +47,7 @@ export const setMaxTimeCommand = () => ({
           .setDescription(rosetty.t('setMaxTimeCommandAnswer')!)
           .setColor(0x2ecc71),
       ],
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
   },
 });

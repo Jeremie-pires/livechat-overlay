@@ -1,7 +1,7 @@
 import { ChatInputCommandInteraction, EmbedBuilder, SlashCommandBuilder } from 'discord.js';
 import { QueueType } from '../../services/prisma/loadPrisma';
 import { getContentInformationsFromUrl } from '../../services/content-utils';
-import { getDisplayMediaFullFromGuildId, getDurationFromGuildId } from '../../services/utils';
+import { getDurationFromGuildId } from '../../services/utils';
 
 export const sendCommand = () => ({
   data: new SlashCommandBuilder()
@@ -85,7 +85,6 @@ export const sendCommand = () => ({
             finalDuration !== undefined ? Math.ceil(finalDuration) : undefined,
             interaction.guildId!,
           ),
-          displayFull: await getDisplayMediaFullFromGuildId(interaction.guildId!),
           mediaIsShort,
         }),
         type: QueueType.MESSAGE,

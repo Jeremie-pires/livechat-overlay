@@ -1,4 +1,4 @@
-import { CommandInteraction, EmbedBuilder, SlashCommandBuilder } from 'discord.js';
+import { CommandInteraction, EmbedBuilder, MessageFlags, SlashCommandBuilder } from 'discord.js';
 
 export const helpCommand = () => ({
   data: new SlashCommandBuilder().setName('help').setDescription('List of Commands'),
@@ -10,7 +10,7 @@ export const helpCommand = () => ({
           .setTitle('Commands :')
           .setDescription(global.commandsLoaded.map((v) => `\`/${v}\``).join(', ')),
       ],
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
   },
 });

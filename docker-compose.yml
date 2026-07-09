@@ -13,6 +13,7 @@ services:
       API_URL: ${API_URL:-http://localhost:3000}
       DEFAULT_DURATION: ${DEFAULT_DURATION:-5}
       HIDE_COMMANDS_DISABLED: ${HIDE_COMMANDS_DISABLED:-false}
+      TZ: Europe/Paris
     volumes:
       - livechat_data:/data
 

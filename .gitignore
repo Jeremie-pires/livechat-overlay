@@ -80,3 +80,7 @@ sqlite.db*
 
 ytdl.json
 package-lock.json
+
+# Force-track project memory files
+!CLAUDE.md
+!AI_STATE.md

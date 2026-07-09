@@ -1,4 +1,4 @@
-import { ChatInputCommandInteraction, EmbedBuilder, SlashCommandBuilder, TextChannel } from 'discord.js';
+import { ChatInputCommandInteraction, EmbedBuilder, MessageFlags, SlashCommandBuilder, TextChannel } from 'discord.js';
 
 export const announceCommand = () => ({
   data: new SlashCommandBuilder()
@@ -15,7 +15,7 @@ export const announceCommand = () => ({
     if (!env.DISCORD_OWNER_ID || interaction.user.id !== env.DISCORD_OWNER_ID) {
       await interaction.reply({
         embeds: [new EmbedBuilder().setTitle(rosetty.t('notAllowed')!).setColor(0xe74c3c)],
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
       return;
     }
@@ -51,7 +51,7 @@ export const announceCommand = () => ({
           .setDescription(rosetty.t('announceCommandAnswer', { count: String(sent) })!)
           .setColor(0x2ecc71),
       ],
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
   },
 });

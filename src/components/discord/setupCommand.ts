@@ -1,4 +1,4 @@
-import { ChannelType, ChatInputCommandInteraction, Client, EmbedBuilder, PermissionFlagsBits, SlashCommandBuilder } from 'discord.js';
+import { ChannelType, ChatInputCommandInteraction, Client, EmbedBuilder, MessageFlags, PermissionFlagsBits, SlashCommandBuilder } from 'discord.js';
 
 export const setupCommand = () => ({
   data: new SlashCommandBuilder()
@@ -21,7 +21,7 @@ export const setupCommand = () => ({
     if (!guildMember.permissions.has(PermissionFlagsBits.Administrator)) {
       await interaction.reply({
         embeds: [new EmbedBuilder().setTitle(rosetty.t('notAllowed')!).setColor(0xe74c3c)],
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
       return;
     }
@@ -41,7 +41,7 @@ export const setupCommand = () => ({
           .setDescription(rosetty.t('setupCommandAnswer', { channel: `<#${channel.id}>` })!)
           .setColor(0x2ecc71),
       ],
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
   },
 });

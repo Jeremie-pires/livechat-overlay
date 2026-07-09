@@ -51,3 +51,12 @@ model LatencySample {
   latencyMs Int
   sentAt    DateTime @default(now())
 }
+
+model BotEvent {
+  id        Int      @id @default(autoincrement())
+  type      String
+  message   String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}

@@ -1,4 +1,4 @@
-import { CommandInteraction, EmbedBuilder, SlashCommandBuilder } from 'discord.js';
+import { CommandInteraction, EmbedBuilder, MessageFlags, SlashCommandBuilder } from 'discord.js';
 
 export const infoCommand = () => ({
   data: new SlashCommandBuilder().setName('info').setDescription('Bot Informations'),
@@ -11,7 +11,7 @@ export const infoCommand = () => ({
           [Personal Website](https://lewebnantais.fr)
           `),
       ],
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
   },
 });

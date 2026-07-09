@@ -143,6 +143,20 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
     .stat-mini-item:hover { border-color: var(--border-strong); }
     .stat-mini-label { font-size: 0.61rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 0.35rem; font-weight: 500; }
     .stat-mini-value { font-size: 1.2rem; font-weight: 700; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+
+    /* Journal */
+    .event-list { display: flex; flex-direction: column; gap: 0.5rem; }
+    .event-item { display: flex; align-items: flex-start; gap: 0.875rem; padding: 0.75rem 1rem; background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: 12px; transition: border-color 0.2s; }
+    .event-item:hover { border-color: var(--border-strong); }
+    .event-badge { flex-shrink: 0; font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; padding: 0.18rem 0.55rem; border-radius: 99px; border: 1px solid; }
+    .event-badge.START { background: rgba(16,185,129,0.10); color: var(--green); border-color: rgba(16,185,129,0.22); }
+    .event-badge.STOP { background: rgba(245,158,11,0.10); color: var(--yellow); border-color: rgba(245,158,11,0.22); }
+    .event-badge.CRASH { background: rgba(239,68,68,0.10); color: var(--red); border-color: rgba(239,68,68,0.22); }
+    .event-badge.ERROR { background: rgba(239,68,68,0.10); color: var(--red); border-color: rgba(239,68,68,0.22); }
+    .event-body { flex: 1; min-width: 0; }
+    .event-msg { font-size: 0.82rem; color: var(--text); word-break: break-word; }
+    .event-time { font-size: 0.67rem; color: var(--muted); margin-top: 0.2rem; font-variant-numeric: tabular-nums; }
+    .event-empty { text-align: center; color: var(--muted); font-size: 0.82rem; padding: 2rem 0; }
   </style>
 </head>
 <body>
@@ -174,6 +188,10 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       <a class="nav-item" onclick="navigate('network')" data-page="network">
         <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
         Réseau & Système
+      </a>
+      <a class="nav-item" onclick="navigate('journal')" data-page="journal">
+        <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
+        Journal
       </a>
     </nav>
     <div class="sidebar-footer">
@@ -353,6 +371,19 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
         <div class="refresh-row"><span></span><span id="n-refresh">—</span></div>
       </div>
 
+      <!-- JOURNAL -->
+      <div class="page" id="page-journal">
+        <div class="page-header">
+          <div class="page-title">Journal des événements</div>
+          <div class="page-subtitle">Démarrages, arrêts, crashs et erreurs du bot — 100 derniers événements</div>
+        </div>
+        <div class="section">
+          <div id="journal-list" class="event-list">
+            <div class="event-empty">Chargement...</div>
+          </div>
+        </div>
+      </div>
+
     </div>
   </main>
 </div>
@@ -392,6 +423,20 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
     }).join('');
   }
 
+  function renderJournal(events) {
+    const el = document.getElementById('journal-list');
+    if (!events || events.length === 0) {
+      el.innerHTML = '<div class="event-empty">Aucun événement enregistré.</div>';
+      return;
+    }
+    el.innerHTML = events.map(e => {
+      const d = new Date(e.createdAt);
+      const abs = d.toLocaleDateString('fr-FR')+' '+d.toLocaleTimeString('fr-FR');
+      const msg = e.message ? '<div class="event-msg">'+e.message.replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</div>' : '';
+      return '<div class="event-item"><span class="event-badge '+e.type+'">'+e.type+'</span><div class="event-body">'+msg+'<div class="event-time">'+abs+'</div></div></div>';
+    }).join('');
+  }
+
   async function refresh() {
     try {
       const res = await fetch('/api/stats');
@@ -425,6 +470,9 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
 
       // Serveurs
       renderServers(d.guilds);
+
+      // Journal
+      renderJournal(d.events);
 
       // Réseau
       const cpuPct = sys.cpuPercent ?? 0;
@@ -527,12 +575,12 @@ async function dashboardPlugin(fastify: FastifyCustomInstance) {
       'Set-Cookie',
       `session=${sessionToken}; HttpOnly; Path=/; SameSite=Lax; Max-Age=604800`,
     );
-    return reply.redirect(302, '/dashboard');
+    return reply.redirect('/dashboard', 302);
   });
 
   fastify.get('/auth/logout', async (_req, reply) => {
     reply.header('Set-Cookie', 'session=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0');
-    return reply.redirect(302, '/dashboard');
+    return reply.redirect('/dashboard', 302);
   });
 }
 

@@ -1,4 +1,4 @@
-import { ChatInputCommandInteraction, EmbedBuilder, SlashCommandBuilder } from 'discord.js';
+import { ChatInputCommandInteraction, EmbedBuilder, MessageFlags, SlashCommandBuilder } from 'discord.js';
 import { QueueType } from '../../services/prisma/loadPrisma';
 import { getContentInformationsFromUrl } from '../../services/content-utils';
 import { deleteGtts, promisedGtts, readGttsAsStream } from '../../services/gtts';
@@ -35,7 +35,7 @@ export const hideTalkCommand = () => ({
           .setColor(0x2ecc71),
       ],
       files: [fileStream],
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
 
     const message = await interactionReply.fetch();
