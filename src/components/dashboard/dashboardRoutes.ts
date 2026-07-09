@@ -394,7 +394,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
   async function refresh() {
     try {
       const res = await fetch('/api/stats');
-      if (res.status === 401) { location.href = '/dashboard'; return; }
+      if (res.status === 401) { window.top.location.href = '/dashboard'; return; }
       const d = await res.json();
       const now = 'Mis à jour à ' + new Date().toLocaleTimeString('fr-FR');
       const sys = d.system || {};
@@ -463,74 +463,76 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
 </body>
 </html>`;
 
-export const DashboardRoutes = () =>
-  async function (fastify: FastifyCustomInstance) {
-    const redirectUri = `${env.API_URL}/auth/callback`;
-    const oauthUrl =
-      `https://discord.com/oauth2/authorize` +
-      `?client_id=${env.DISCORD_CLIENT_ID}` +
-      `&redirect_uri=${encodeURIComponent(redirectUri)}` +
-      `&response_type=code&scope=identify`;
+async function dashboardPlugin(fastify: FastifyCustomInstance) {
+  const redirectUri = `${env.API_URL}/auth/callback`;
+  const oauthUrl =
+    `https://discord.com/oauth2/authorize` +
+    `?client_id=${env.DISCORD_CLIENT_ID}` +
+    `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+    `&response_type=code&scope=identify`;
 
-    fastify.get('/dashboard', async (req, reply) => {
-      const token = getSessionToken(req.headers.cookie);
-      if (!isValidSession(token)) {
-        return reply.redirect(302, oauthUrl);
-      }
-      return reply.type('text/html').send(DASHBOARD_HTML);
+  fastify.get('/dashboard', async (req, reply) => {
+    const token = getSessionToken(req.headers.cookie);
+    if (!isValidSession(token)) {
+      const redirectPage = `<!DOCTYPE html><html><head><meta charset="UTF-8"><script>window.top.location.href=${JSON.stringify(oauthUrl)};</script></head><body></body></html>`;
+      return reply.type('text/html').send(redirectPage);
+    }
+    return reply.type('text/html').send(DASHBOARD_HTML);
+  });
+
+  fastify.get('/auth/callback', async (req, reply) => {
+    if (!env.DISCORD_CLIENT_SECRET) {
+      return reply.status(503).send('DISCORD_CLIENT_SECRET not configured');
+    }
+    const { code } = req.query as { code?: string };
+    if (!code) return reply.status(400).send('Missing code');
+
+    const tokenRes = await fetch(`${DISCORD_API}/oauth2/token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: env.DISCORD_CLIENT_ID,
+        client_secret: env.DISCORD_CLIENT_SECRET!,
+        grant_type: 'authorization_code',
+        code,
+        redirect_uri: redirectUri,
+      }),
     });
 
-    fastify.get('/auth/callback', async (req, reply) => {
-      if (!env.DISCORD_CLIENT_SECRET) {
-        return reply.status(503).send('DISCORD_CLIENT_SECRET not configured');
-      }
-      const { code } = req.query as { code?: string };
-      if (!code) return reply.status(400).send('Missing code');
+    if (!tokenRes.ok) {
+      logger.error('[DASHBOARD] OAuth token exchange failed');
+      return reply.status(401).send('Authentication failed');
+    }
 
-      const tokenRes = await fetch(`${DISCORD_API}/oauth2/token`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({
-          client_id: env.DISCORD_CLIENT_ID,
-          client_secret: env.DISCORD_CLIENT_SECRET!,
-          grant_type: 'authorization_code',
-          code,
-          redirect_uri: redirectUri,
-        }),
-      });
+    const tokenData = (await tokenRes.json()) as { access_token: string };
 
-      if (!tokenRes.ok) {
-        logger.error('[DASHBOARD] OAuth token exchange failed');
-        return reply.status(401).send('Authentication failed');
-      }
-
-      const tokenData = (await tokenRes.json()) as { access_token: string };
-
-      const userRes = await fetch(`${DISCORD_API}/users/@me`, {
-        headers: { Authorization: `Bearer ${tokenData.access_token}` },
-      });
-
-      if (!userRes.ok) {
-        return reply.status(401).send('Failed to get user info');
-      }
-
-      const user = (await userRes.json()) as { id: string };
-
-      if (!env.DISCORD_OWNER_ID || user.id !== env.DISCORD_OWNER_ID) {
-        logger.warn(`[DASHBOARD] Unauthorized access attempt by Discord user ${user.id}`);
-        return reply.status(403).send('Access denied');
-      }
-
-      const sessionToken = createSession();
-      reply.header(
-        'Set-Cookie',
-        `session=${sessionToken}; HttpOnly; Path=/; SameSite=Lax; Max-Age=604800`,
-      );
-      return reply.redirect(302, '/dashboard');
+    const userRes = await fetch(`${DISCORD_API}/users/@me`, {
+      headers: { Authorization: `Bearer ${tokenData.access_token}` },
     });
 
-    fastify.get('/auth/logout', async (_req, reply) => {
-      reply.header('Set-Cookie', 'session=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0');
-      return reply.redirect(302, '/dashboard');
-    });
-  };
+    if (!userRes.ok) {
+      return reply.status(401).send('Failed to get user info');
+    }
+
+    const user = (await userRes.json()) as { id: string };
+
+    if (!env.DISCORD_OWNER_ID || user.id !== env.DISCORD_OWNER_ID) {
+      logger.warn(`[DASHBOARD] Unauthorized access attempt by Discord user ${user.id}`);
+      return reply.status(403).send('Access denied');
+    }
+
+    const sessionToken = createSession();
+    reply.header(
+      'Set-Cookie',
+      `session=${sessionToken}; HttpOnly; Path=/; SameSite=Lax; Max-Age=604800`,
+    );
+    return reply.redirect(302, '/dashboard');
+  });
+
+  fastify.get('/auth/logout', async (_req, reply) => {
+    reply.header('Set-Cookie', 'session=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0');
+    return reply.redirect(302, '/dashboard');
+  });
+}
+
+export const DashboardRoutes = () => dashboardPlugin;
