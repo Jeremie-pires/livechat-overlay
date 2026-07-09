@@ -38,6 +38,12 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
     .bar-link  { background: #d69e2e; }
     .bar-text  { background: #805ad5; }
     .footer { font-size: 0.72rem; color: #4a5568; margin-top: 1rem; text-align: right; }
+    .sparkline-wrap { margin-top: 1rem; }
+    .sparkline-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: #718096; margin-bottom: 0.5rem; }
+    .sparkline-svg { width: 100%; height: 60px; display: block; }
+    .spark-line { fill: none; stroke: #7289da; stroke-width: 1.5; }
+    .spark-area { fill: url(#spark-grad); }
+    .spark-meta { display: flex; justify-content: space-between; font-size: 0.72rem; color: #4a5568; margin-top: 0.25rem; }
     /* Modal */
     .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; align-items: center; justify-content: center; }
     .modal-overlay.open { display: flex; }
@@ -79,6 +85,14 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
         <div class="card-label">Uptime</div>
         <div class="card-value" id="uptime">—</div>
       </div>
+      <div class="card">
+        <div class="card-label">Latence moy.</div>
+        <div class="card-value" id="avgLatency">—</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Données WS</div>
+        <div class="card-value" id="totalPayload">—</div>
+      </div>
     </div>
     <div class="section">
       <div class="section-title">Répartition par type</div>
@@ -108,6 +122,23 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
         <span class="type-count" id="count-text">0</span>
       </div>
     </div>
+    <div class="section" style="margin-top:1.5rem">
+      <div class="section-title">Latence (50 derniers envois)</div>
+      <svg class="sparkline-svg" id="sparkline" viewBox="0 0 400 60" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="spark-grad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#7289da" stop-opacity="0.3"/>
+            <stop offset="100%" stop-color="#7289da" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        <path class="spark-area" id="spark-area" d=""/>
+        <path class="spark-line" id="spark-line" d=""/>
+      </svg>
+      <div class="spark-meta">
+        <span id="spark-min">min —</span>
+        <span id="spark-max">max —</span>
+      </div>
+    </div>
     <p class="footer" id="lastRefresh"></p>
   </main>
 
@@ -127,6 +158,27 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       const d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60);
       return d > 0 ? d + 'j ' + h + 'h' : h > 0 ? h + 'h ' + m + 'm' : m + 'm';
     };
+
+    const fmtBytes = (b) => b >= 1048576 ? (b/1048576).toFixed(1) + ' MB' : b >= 1024 ? (b/1024).toFixed(1) + ' KB' : b + ' B';
+    const fmtMs = (ms) => ms >= 1000 ? (ms/1000).toFixed(1) + 's' : ms + 'ms';
+
+    function renderSparkline(samples) {
+      if (!samples || samples.length < 2) return;
+      const W = 400, H = 60, pad = 4;
+      const min = Math.min(...samples), max = Math.max(...samples);
+      const range = max - min || 1;
+      const pts = samples.map((v, i) => {
+        const x = (i / (samples.length - 1)) * W;
+        const y = H - pad - ((v - min) / range) * (H - pad * 2);
+        return [x, y];
+      });
+      const line = pts.map((p, i) => (i === 0 ? 'M' : 'L') + p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
+      const area = line + ' L' + pts[pts.length-1][0].toFixed(1) + ',' + H + ' L0,' + H + ' Z';
+      document.getElementById('spark-line').setAttribute('d', line);
+      document.getElementById('spark-area').setAttribute('d', area);
+      document.getElementById('spark-min').textContent = 'min ' + fmtMs(min);
+      document.getElementById('spark-max').textContent = 'max ' + fmtMs(max);
+    }
 
     let cachedGuilds = [];
 
@@ -161,6 +213,9 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
           document.getElementById('count-' + t).textContent = fmt(count);
           document.getElementById('bar-' + t).style.width = Math.round((count / total) * 100) + '%';
         }
+        document.getElementById('avgLatency').textContent = d.latency?.avgMs > 0 ? fmtMs(d.latency.avgMs) : '—';
+        document.getElementById('totalPayload').textContent = fmtBytes(d.latency?.totalPayloadBytes ?? 0);
+        renderSparkline(d.latency?.samples);
         cachedGuilds = d.guilds || [];
         renderGuildList();
         document.getElementById('lastRefresh').textContent = 'Mis à jour à ' + new Date().toLocaleTimeString('fr-FR');

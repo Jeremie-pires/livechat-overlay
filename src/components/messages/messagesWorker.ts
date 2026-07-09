@@ -80,14 +80,32 @@ export const executeMessagesWorker = async (fastify: FastifyCustomInstance) => {
   await prisma.queue.delete({ where: { id: lastMessage.id } });
 
   const content = JSON.parse(lastMessage.content);
+  const latencyMs = Date.now() - lastMessage.submissionDate.getTime();
+  const payloadBytes = Buffer.byteLength(lastMessage.content, 'utf8');
 
   const mediaType = getMediaType(lastMessage.type, content);
   const countField = `${mediaType}Count` as const;
-  await prisma.stats.upsert({
-    where: { id: 'singleton' },
-    create: { id: 'singleton', totalSent: 1, [countField]: 1 },
-    update: { totalSent: { increment: 1 }, [countField]: { increment: 1 } },
-  });
+  await Promise.all([
+    prisma.stats.upsert({
+      where: { id: 'singleton' },
+      create: {
+        id: 'singleton',
+        totalSent: 1,
+        [countField]: 1,
+        totalLatencyMs: latencyMs,
+        latencyCount: 1,
+        totalPayloadBytes: payloadBytes,
+      },
+      update: {
+        totalSent: { increment: 1 },
+        [countField]: { increment: 1 },
+        totalLatencyMs: { increment: latencyMs },
+        latencyCount: { increment: 1 },
+        totalPayloadBytes: { increment: payloadBytes },
+      },
+    }),
+    prisma.latencySample.create({ data: { latencyMs } }),
+  ]);
 
   return content.mediaDuration * 1000 || 5000;
 };

@@ -65,6 +65,12 @@ export const loadDiscord = async (fastify: FastifyCustomInstance) => {
   const client = new Client({ intents: [IntentsBitField.Flags.Guilds] });
   global.discordClient = client;
 
+  // Clear stale queue entries from before the restart
+  const deleted = await prisma.queue.deleteMany({});
+  if (deleted.count > 0) {
+    logger.info(`[QUEUE] Cleared ${deleted.count} stale item(s) from queue on startup`);
+  }
+
   // Load all discord commands
   await loadDiscordCommands(fastify);
   loadDiscordCommandsHandler();
