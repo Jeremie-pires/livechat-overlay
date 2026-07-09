@@ -1,0 +1,17 @@
+services:
+  livechatccb-dev:
+    build: .
+    image: livechatccb-dev:latest
+    restart: unless-stopped
+    ports:
+      - '3001:3000'
+    env_file:
+      - .env.dev
+    environment:
+      DATABASE_URL: file:/data/sqlite-dev.db
+      TZ: Europe/Paris
+    volumes:
+      - livechat_dev_data:/data
+
+volumes:
+  livechat_dev_data:

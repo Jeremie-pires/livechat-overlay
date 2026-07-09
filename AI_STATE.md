@@ -49,6 +49,20 @@ Stable. Système de logging BDD + DMs owner + nettoyage dead code déployé.
 - `input[type="password"]` (token) stylisé identiquement aux autres inputs
 - Polling présence toutes les 15 s alimente aussi la liste de l'onglet Utilisateurs
 
+## Environnements Prod & Staging
+
+| Env        | Branche | Port | Volume Docker        | Base SQLite      | Domaine                       |
+|------------|---------|------|----------------------|------------------|-------------------------------|
+| Production | `main`  | 3000 | `livechat_data`      | `sqlite.db`      | `livechat.ton-domaine.fr`     |
+| Staging    | `develop`| 3001| `livechat_dev_data`  | `sqlite-dev.db`  | `dev-livechat.ton-domaine.fr` |
+
+- **`docker-compose.yml`** — prod, lit `.env`
+- **`docker-compose.dev.yml`** — staging, lit `.env.dev`, port 3001, volume séparé
+- **`haproxy.cfg.example`** — routage ACL par sous-domaine (prod → 3000, staging → 3001)
+- **`STAGING_SETUP.md`** — guide complet de mise en place (bot Discord dev, DNS, certificats SSL, HAProxy, workflow Git)
+- Lancement staging : `docker compose -f docker-compose.dev.yml up -d --build`
+- Chaque env a son propre bot Discord pour éviter les conflits de commandes slash
+
 ## Auth Dashboard
 OAuth2 Discord → `/dashboard` → `/auth/callback` → cookie `session=…`
 Seul `env.DISCORD_OWNER_ID` est autorisé.
