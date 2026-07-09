@@ -61,3 +61,13 @@ model BotEvent {
 
   @@index([createdAt])
 }
+
+model ClientSession {
+  token         String   @id @default(uuid())
+  discordUserId String
+  displayName   String
+  guildId       String
+  createdAt     DateTime @default(now())
+
+  @@unique([discordUserId, guildId])
+}

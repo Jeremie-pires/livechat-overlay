@@ -1,3 +1,7 @@
+import { presenceStore } from '../services/presenceStore';
+
+type JoinRoomPayload = string | { id: string; token?: string };
+
 export const loadSocket = (fastify: FastifyCustomInstance) => {
   logger.info(`[Socket] Socket loaded`);
   fastify.io.on('connection', (socket) => {
@@ -5,11 +9,31 @@ export const loadSocket = (fastify: FastifyCustomInstance) => {
 
     socket.on('disconnecting', () => {
       logger.debug(`New disconnection to socketIO :  ${socket.id}`);
+      const affected = presenceStore.removeSocket(socket.id);
+      for (const guildId of affected) {
+        fastify.io.to(`messages-${guildId}`).emit('presence:update', presenceStore.get(guildId));
+      }
     });
 
-    socket.on('join-room', (id) => {
-      logger.debug(`Join room :  ${socket.id} -> ${id}`);
-      socket.join(id);
+    socket.on('join-room', async (payload: JoinRoomPayload) => {
+      const roomId = typeof payload === 'string' ? payload : payload.id;
+      const token = typeof payload === 'string' ? null : (payload.token ?? null);
+
+      logger.debug(`Join room :  ${socket.id} -> ${roomId}`);
+      socket.join(roomId);
+
+      if (token && roomId.startsWith('messages-')) {
+        const guildId = roomId.slice('messages-'.length);
+        try {
+          const session = await prisma.clientSession.findUnique({ where: { token } });
+          if (session && session.guildId === guildId) {
+            presenceStore.add(guildId, socket.id, session.displayName);
+            fastify.io.to(roomId).emit('presence:update', presenceStore.get(guildId));
+          }
+        } catch (err) {
+          logger.error(err, '[Socket] Failed to resolve client session for presence');
+        }
+      }
     });
 
     socket.on('ping', () => {
