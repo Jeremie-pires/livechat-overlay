@@ -29,6 +29,7 @@ export const StatsRoutes = () =>
       const avgLatencyMs = latencyCount > 0 ? Math.round((stats?.totalLatencyMs ?? 0) / latencyCount) : 0;
 
       return reply.send({
+        silentMode: stats?.silentMode ?? false,
         servers: guildCount,
         queuePending: queueCount,
         uptime: Math.floor(process.uptime()),

@@ -112,7 +112,11 @@ export const executeMessagesWorker = async (fastify: FastifyCustomInstance) => {
 
 //INFO : Optimization - Can be executed into a dedicated worker ?
 export const loadMessagesWorker = async (fastify: FastifyCustomInstance) => {
-  await executeMessagesWorker(fastify);
+  try {
+    await executeMessagesWorker(fastify);
+  } catch (error) {
+    logger.error(error, '[WORKER] executeMessagesWorker failed — skipping tick');
+  }
 
   setTimeout(() => {
     loadMessagesWorker(fastify);

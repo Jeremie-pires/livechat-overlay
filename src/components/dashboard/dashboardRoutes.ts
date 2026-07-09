@@ -1,5 +1,6 @@
 import fetch from 'node-fetch';
 import { createSession, getSessionToken, isValidSession } from '../../services/session';
+import { broadcastToAllGuilds } from '../../services/broadcast';
 
 const DISCORD_API = 'https://discord.com/api/v10';
 
@@ -134,6 +135,12 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
     .badge { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.67rem; padding: 0.2rem 0.65rem; border-radius: 99px; font-weight: 500; border: 1px solid; }
     .badge::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
     .badge.green { background: rgba(16,185,129,0.08); color: var(--green); border-color: rgba(16,185,129,0.18); }
+    .badge.yellow { background: rgba(245,158,11,0.08); color: var(--yellow); border-color: rgba(245,158,11,0.18); }
+    .maint-btn { font-size: 0.68rem; padding: 0.22rem 0.65rem; border-radius: 99px; border: 1px solid rgba(245,158,11,0.22); background: rgba(245,158,11,0.06); color: var(--yellow); cursor: pointer; font-family: inherit; font-weight: 500; transition: background 0.2s, color 0.2s, border-color 0.2s; }
+    .maint-btn:hover { background: rgba(245,158,11,0.14); }
+    .maint-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .maint-btn.off { border-color: rgba(16,185,129,0.22); background: rgba(16,185,129,0.06); color: var(--green); }
+    .maint-btn.off:hover { background: rgba(16,185,129,0.14); }
 
     .refresh-row { display: flex; justify-content: space-between; align-items: center; margin-top: 1.5rem; font-size: 0.67rem; color: rgba(255,255,255,0.28); }
 
@@ -247,7 +254,10 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
           </div>
         </div>
         <div class="refresh-row">
-          <span class="badge green">En ligne</span>
+          <div style="display:flex;align-items:center;gap:0.6rem">
+            <span class="badge green" id="status-badge">En ligne</span>
+            <button class="maint-btn" id="maint-btn" onclick="toggleMaintenance()">🔧 Maintenance</button>
+          </div>
           <span id="h-refresh">—</span>
         </div>
       </div>
@@ -388,6 +398,28 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
   </main>
 </div>
 <script>
+  function updateMaintenanceUI(silentMode) {
+    const badge = document.getElementById('status-badge');
+    const btn = document.getElementById('maint-btn');
+    if (silentMode) {
+      badge.className = 'badge yellow'; badge.textContent = 'Maintenance';
+      btn.className = 'maint-btn off'; btn.textContent = '🟢 Reprendre';
+    } else {
+      badge.className = 'badge green'; badge.textContent = 'En ligne';
+      btn.className = 'maint-btn'; btn.textContent = '🔧 Maintenance';
+    }
+  }
+
+  async function toggleMaintenance() {
+    const btn = document.getElementById('maint-btn');
+    btn.disabled = true;
+    try {
+      const res = await fetch('/api/maintenance/toggle', { method: 'POST' });
+      if (res.ok) { const d = await res.json(); updateMaintenanceUI(d.silentMode); }
+    } catch(e) { console.error(e); }
+    finally { btn.disabled = false; }
+  }
+
   function navigate(page) {
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
@@ -444,6 +476,8 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       const d = await res.json();
       const now = 'Mis à jour à ' + new Date().toLocaleTimeString('fr-FR');
       const sys = d.system || {};
+
+      updateMaintenanceUI(d.silentMode ?? false);
 
       // Accueil
       document.getElementById('h-servers').textContent = fmt(d.guilds?.length ?? 0);
@@ -576,6 +610,26 @@ async function dashboardPlugin(fastify: FastifyCustomInstance) {
       `session=${sessionToken}; HttpOnly; Path=/; SameSite=Lax; Max-Age=604800`,
     );
     return reply.redirect('/dashboard', 302);
+  });
+
+  fastify.post('/api/maintenance/toggle', async (req, reply) => {
+    const token = getSessionToken(req.headers.cookie);
+    if (!isValidSession(token)) return reply.status(401).send({ error: 'Unauthorized' });
+
+    const stats = await prisma.stats.findUnique({ where: { id: 'singleton' } });
+    const silentMode = !(stats?.silentMode ?? false);
+
+    await prisma.stats.upsert({
+      where: { id: 'singleton' },
+      create: { id: 'singleton', silentMode },
+      update: { silentMode },
+    });
+
+    if (!silentMode) {
+      await broadcastToAllGuilds('🟢 En ligne !', 'Le bot est de retour et prêt à recevoir du contenu !', 0x2ecc71);
+    }
+
+    return reply.send({ silentMode });
   });
 
   fastify.get('/auth/logout', async (_req, reply) => {

@@ -34,8 +34,9 @@ model Guild {
 }
 
 model Stats {
-  id                String @id @default("singleton")
-  totalSent         Int    @default(0)
+  id                String  @id @default("singleton")
+  silentMode        Boolean @default(false)
+  totalSent         Int     @default(0)
   imageCount        Int    @default(0)
   videoCount        Int    @default(0)
   audioCount        Int    @default(0)

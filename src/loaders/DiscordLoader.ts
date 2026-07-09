@@ -9,9 +9,9 @@ import {
   MessageFlags,
   PermissionFlagsBits,
   IntentsBitField,
-  TextChannel,
 } from 'discord.js';
 import { logBotEvent, notifyOwner } from '../services/botLogger';
+import { broadcastToAllGuilds } from '../services/broadcast';
 import { aliveCommand } from '../components/discord/aliveCommand';
 import { sendCommand } from '../components/messages/sendCommand';
 import { hideSendCommand } from '../components/messages/hidesendCommand';
@@ -26,24 +26,7 @@ import { setMaxTimeCommand } from '../components/discord/setMaxTimeCommand';
 import { stopCommand } from '../components/messages/stopCommand';
 import { setupCommand } from '../components/discord/setupCommand';
 import { announceCommand } from '../components/discord/announceCommand';
-
-const broadcastToAllGuilds = async (title: string, description: string, color: number) => {
-  try {
-    const guilds = await prisma.guild.findMany({ where: { channelId: { not: null } } });
-    await Promise.allSettled(
-      guilds.map(async (guild) => {
-        try {
-          const channel = await discordClient.channels.fetch(guild.channelId!);
-          if (channel?.isTextBased()) {
-            await (channel as TextChannel).send({
-              embeds: [new EmbedBuilder().setTitle(title).setDescription(description).setColor(color)],
-            });
-          }
-        } catch {}
-      }),
-    );
-  } catch {}
-};
+import { maintenanceCommand } from '../components/discord/maintenanceCommand';
 
 const handleShutdown = async () => {
   logger.info('[DISCORD] Shutdown signal received — sending announcement...');
@@ -88,20 +71,31 @@ export const loadDiscord = async (fastify: FastifyCustomInstance) => {
         link: `https://discord.com/oauth2/authorize?client_id=${env.DISCORD_CLIENT_ID}&scope=bot%20applications.commands`,
       })}`,
     );
+
+    // Announce only when maintenance mode is off AND the last event was a planned STOP.
+    // This prevents spamming guild users during crash-loops or active development.
+    let shouldAnnounce = true;
+    try {
+      const [lastEvent, stats] = await Promise.all([
+        prisma.botEvent.findFirst({ orderBy: { id: 'desc' } }),
+        prisma.stats.findUnique({ where: { id: 'singleton' } }),
+      ]);
+      const silentMode = stats?.silentMode ?? false;
+      shouldAnnounce = !silentMode && (!lastEvent || lastEvent.type === 'STOP');
+    } catch {}
+
     await Promise.all([
       logBotEvent('START', `Bot connecté en tant que ${readyClient.user.tag}`),
-      broadcastToAllGuilds(
-        '🟢 En ligne !',
-        'Le bot est de retour et prêt à recevoir du contenu !',
-        0x2ecc71,
-      ),
+      shouldAnnounce
+        ? broadcastToAllGuilds('🟢 En ligne !', 'Le bot est de retour et prêt à recevoir du contenu !', 0x2ecc71)
+        : Promise.resolve(),
     ]);
   });
 
   process.once('SIGTERM', handleShutdown);
   process.once('SIGINT', handleShutdown);
 
-  client.on(Events.GuildCreate, (g) => {
+  client.on(Events.GuildCreate, async (g) => {
     const channel = g.channels.cache.find(
       (channel) =>
         channel.type === ChannelType.GuildText &&
@@ -109,14 +103,16 @@ export const loadDiscord = async (fastify: FastifyCustomInstance) => {
     );
 
     if (channel && channel.isTextBased()) {
-      channel.send({
-        embeds: [
-          new EmbedBuilder()
-            .setTitle(rosetty.t('howToUseTitle')!)
-            .setDescription(rosetty.t('howToUseDescription')!)
-            .setColor(0x3498db),
-        ],
-      });
+      try {
+        await channel.send({
+          embeds: [
+            new EmbedBuilder()
+              .setTitle(rosetty.t('howToUseTitle')!)
+              .setDescription(rosetty.t('howToUseDescription')!)
+              .setColor(0x3498db),
+          ],
+        });
+      } catch {}
     }
   });
 
@@ -144,6 +140,7 @@ const loadDiscordCommands = async (fastify: FastifyCustomInstance) => {
       stopCommand(fastify),
       setupCommand(),
       announceCommand(),
+      maintenanceCommand(),
     ];
     const hideCommands = [hideSendCommand(), hideTalkCommand()];
 
