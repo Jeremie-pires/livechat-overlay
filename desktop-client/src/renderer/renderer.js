@@ -33,9 +33,13 @@ const elements = {
   // Config Tab Fields
   backendUrl: document.getElementById('backendUrl'),
   guildId: document.getElementById('guildId'),
+  clientToken: document.getElementById('clientToken'),
   autoConnect: document.getElementById('autoConnect'),
   launchAtStartup: document.getElementById('launchAtStartup'),
   testConnBtn: document.getElementById('testConnBtn'),
+
+  // Presence
+  presenceSummary: document.getElementById('presenceSummary'),
   saveConfigBtn: document.getElementById('saveConfigBtn'),
   testResultBox: document.getElementById('testResultBox'),
   testResultIcon: document.getElementById('testResultIcon'),
@@ -69,6 +73,12 @@ function renderStatus(status) {
   elements.statusText.textContent = status.message;
   elements.statusSummary.textContent = status.message;
   elements.statusDot.dataset.status = status.type;
+
+  if (status.type === 'connected') {
+    startPresencePolling();
+  } else {
+    stopPresencePolling();
+  }
 
   // Render main toggle button
   if (status.type === 'connected') {
@@ -146,6 +156,7 @@ function readFormValues() {
   return {
     backendUrl: elements.backendUrl.value.trim(),
     guildId: elements.guildId.value.trim(),
+    clientToken: elements.clientToken.value.trim(),
     screenId: Number(elements.screenId.value),
     volume: Number(elements.volume.value),
     overlaySize: Number(elements.overlaySize.value),
@@ -264,6 +275,7 @@ async function refreshUi() {
   // Load config values
   elements.backendUrl.value = settings.backendUrl;
   elements.guildId.value = settings.guildId;
+  elements.clientToken.value = settings.clientToken;
   elements.autoConnect.checked = settings.autoConnect;
   elements.launchAtStartup.checked = settings.launchAtStartup;
 
@@ -277,6 +289,34 @@ async function refreshUi() {
   renderVolume(settings.volume);
   renderSize(settings.overlaySize);
   renderScreenSummary();
+}
+
+let presenceInterval = null;
+
+function startPresencePolling() {
+  if (presenceInterval) return;
+  presenceInterval = setInterval(async () => {
+    const clients = await window.livechat.getPresence();
+    if (!elements.presenceSummary) return;
+    if (clients.length === 0) {
+      elements.presenceSummary.textContent = '0';
+      elements.presenceSummary.title = '';
+    } else {
+      elements.presenceSummary.textContent = String(clients.length);
+      elements.presenceSummary.title = clients.map(c => c.displayName).join(', ');
+    }
+  }, 15000);
+}
+
+function stopPresencePolling() {
+  if (presenceInterval) {
+    clearInterval(presenceInterval);
+    presenceInterval = null;
+  }
+  if (elements.presenceSummary) {
+    elements.presenceSummary.textContent = '—';
+    elements.presenceSummary.title = '';
+  }
 }
 
 function bindEvents() {
@@ -409,6 +449,7 @@ window.livechat.onSettingsChanged((settings) => {
   state.settings = settings;
   elements.backendUrl.value = settings.backendUrl;
   elements.guildId.value = settings.guildId;
+  elements.clientToken.value = settings.clientToken;
   elements.autoConnect.checked = settings.autoConnect;
   elements.launchAtStartup.checked = settings.launchAtStartup;
   elements.screenId.value = String(settings.screenId);

@@ -581,7 +581,10 @@
         });
 
         socket.on('connect', () => {
-          socket.emit('join-room', 'messages-' + urlParams.get('guildId'));
+          const guildId = urlParams.get('guildId');
+          const token = urlParams.get('token');
+          const roomPayload = token ? { id: 'messages-' + guildId, token } : 'messages-' + guildId;
+          socket.emit('join-room', roomPayload);
           syncServerClock(socket);
         });
 

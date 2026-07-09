@@ -10,7 +10,10 @@ type AppSettings = {
   overlaySize: number;
   overlayPosition: string;
   launchAtStartup: boolean;
+  clientToken: string;
 };
+
+type PresenceEntry = { displayName: string; connectedAt: number };
 
 type OverlayStatus = {
   type: 'idle' | 'loading' | 'connected' | 'error';
@@ -28,6 +31,7 @@ contextBridge.exposeInMainWorld('livechat', {
   testConnection: (backendUrl: string, guildId: string) => ipcRenderer.invoke('app:test-connection', { backendUrl, guildId }) as Promise<boolean>,
   triggerTestFormat: (format: string) => ipcRenderer.invoke('overlay:trigger-test-format', format) as Promise<boolean>,
   testSound: () => ipcRenderer.invoke('overlay:test-sound') as Promise<boolean>,
+  getPresence: () => ipcRenderer.invoke('app:get-presence') as Promise<PresenceEntry[]>,
   onStatus: (callback: (status: OverlayStatus) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, status: OverlayStatus) => callback(status);
     ipcRenderer.on('overlay:status', listener);
@@ -59,6 +63,7 @@ declare global {
       testConnection: (backendUrl: string, guildId: string) => Promise<boolean>;
       triggerTestFormat: (format: string) => Promise<boolean>;
       testSound: () => Promise<boolean>;
+      getPresence: () => Promise<PresenceEntry[]>;
       onStatus: (callback: (status: OverlayStatus) => void) => () => void;
       onSettingsChanged: (callback: (settings: AppSettings) => void) => () => void;
       onUpdateDownloaded: (callback: (info: { version: string; releaseNotes: string }) => void) => () => void;

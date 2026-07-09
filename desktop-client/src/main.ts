@@ -15,6 +15,7 @@ type AppSettings = {
   overlaySize: number;
   overlayPosition: string;
   launchAtStartup: boolean;
+  clientToken: string;
 };
 
 type DisplayInfo = {
@@ -36,6 +37,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   overlaySize: 960,
   overlayPosition: 'center',
   launchAtStartup: false,
+  clientToken: '',
 };
 
 let controlWindow: BrowserWindow | null = null;
@@ -63,6 +65,7 @@ function normalizeSettings(candidate: Partial<AppSettings> | undefined): AppSett
     overlaySize: Number.isFinite(candidate?.overlaySize as number) ? Number(candidate?.overlaySize) : DEFAULT_SETTINGS.overlaySize,
     overlayPosition: candidate?.overlayPosition?.trim() || DEFAULT_SETTINGS.overlayPosition,
     launchAtStartup: Boolean(candidate?.launchAtStartup ?? DEFAULT_SETTINGS.launchAtStartup),
+    clientToken: candidate?.clientToken?.trim() || '',
   };
 }
 
@@ -96,7 +99,8 @@ function getOverlayUrl() {
   const guildId = encodeURIComponent(settings.guildId);
   const size = settings.overlaySize;
   const position = encodeURIComponent(settings.overlayPosition);
-  return `${backendUrl}/client?guildId=${guildId}&client=desktop&size=${size}&position=${position}`;
+  const tokenParam = settings.clientToken ? `&token=${encodeURIComponent(settings.clientToken)}` : '';
+  return `${backendUrl}/client?guildId=${guildId}&client=desktop&size=${size}&position=${position}${tokenParam}`;
 }
 
 function updateStatus(type: OverlayStatusType, message: string) {
@@ -340,6 +344,22 @@ function registerIpc() {
   ipcMain.handle('overlay:refresh-placement', async () => {
     applyOverlayPlacement();
     return true;
+  });
+
+  ipcMain.handle('app:get-presence', async () => {
+    if (!settings.clientToken || !settings.guildId) return [];
+    try {
+      const base = settings.backendUrl.replace(/\/$/, '');
+      const url = `${base}/api/presence/${encodeURIComponent(settings.guildId)}?token=${encodeURIComponent(settings.clientToken)}`;
+      const controller = new AbortController();
+      const id = setTimeout(() => controller.abort(), 3000);
+      const res = await fetch(url, { signal: controller.signal });
+      clearTimeout(id);
+      if (!res.ok) return [];
+      return (await res.json()) as Array<{ displayName: string; connectedAt: number }>;
+    } catch {
+      return [];
+    }
   });
 
   ipcMain.handle('overlay:test-sound', async () => {

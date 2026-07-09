@@ -1,6 +1,7 @@
 import fetch from 'node-fetch';
 import { createSession, getSessionToken, isValidSession } from '../../services/session';
 import { broadcastToAllGuilds } from '../../services/broadcast';
+import { presenceStore } from '../../services/presenceStore';
 
 const DISCORD_API = 'https://discord.com/api/v10';
 
@@ -130,6 +131,8 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
     .server-name { font-size: 0.875rem; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .server-info { min-width: 0; flex: 1; }
     .server-members { font-size: 0.7rem; color: var(--muted); margin-top: 0.15rem; }
+    .server-presence { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.67rem; font-weight: 600; color: var(--green); background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.18); border-radius: 99px; padding: 0.15rem 0.55rem; white-space: nowrap; flex-shrink: 0; }
+    .server-presence::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
 
     /* Badge */
     .badge { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.67rem; padding: 0.2rem 0.65rem; border-radius: 99px; font-weight: 500; border: 1px solid; }
@@ -446,12 +449,16 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
     document.getElementById('spark-max').textContent = 'max '+fmtMs(mx);
   }
 
-  function renderServers(guilds) {
+  function renderServers(guilds, presence) {
     const sorted=(guilds||[]).sort((a,b)=>b.memberCount-a.memberCount);
     document.getElementById('s-subtitle').textContent = sorted.length+' serveur'+(sorted.length>1?'s':'')+' connecté'+(sorted.length>1?'s':'');
     document.getElementById('server-grid').innerHTML = sorted.map(g => {
       const av = g.icon ? '<img class="server-avatar" src="'+g.icon+'" alt="">' : '<div class="server-avatar-ph">'+g.name.charAt(0).toUpperCase()+'</div>';
-      return '<div class="server-card">'+av+'<div class="server-info"><div class="server-name">'+g.name+'</div><div class="server-members">'+fmt(g.memberCount)+' membres</div></div></div>';
+      const clients = (presence && presence[g.id]) || [];
+      const presenceBadge = clients.length > 0
+        ? '<span class="server-presence" title="'+clients.map(c=>c.displayName).join(', ')+'">'+clients.length+' client'+(clients.length>1?'s':'')+' en ligne</span>'
+        : '';
+      return '<div class="server-card">'+av+'<div class="server-info"><div class="server-name">'+g.name+'</div><div class="server-members">'+fmt(g.memberCount)+' membres</div></div>'+presenceBadge+'</div>';
     }).join('');
   }
 
@@ -503,7 +510,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       renderSparkline(d.latency?.samples);
 
       // Serveurs
-      renderServers(d.guilds);
+      renderServers(d.guilds, d.presence);
 
       // Journal
       renderJournal(d.events);
@@ -630,6 +637,22 @@ async function dashboardPlugin(fastify: FastifyCustomInstance) {
     }
 
     return reply.send({ silentMode });
+  });
+
+  fastify.get('/api/presence/:guildId', async (req, reply) => {
+    const { guildId } = req.params as { guildId: string };
+    const { token } = req.query as { token?: string };
+
+    const sessionToken = getSessionToken(req.headers.cookie);
+    const hasDashboardSession = isValidSession(sessionToken);
+
+    if (!hasDashboardSession) {
+      if (!token) return reply.status(401).send({ error: 'Unauthorized' });
+      const session = await prisma.clientSession.findUnique({ where: { token } });
+      if (!session || session.guildId !== guildId) return reply.status(401).send({ error: 'Unauthorized' });
+    }
+
+    return reply.send(presenceStore.get(guildId));
   });
 
   fastify.get('/auth/logout', async (_req, reply) => {

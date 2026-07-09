@@ -1,6 +1,7 @@
 import os from 'os';
 import { getSessionToken, isValidSession } from '../../services/session';
 import { getCpuPercent } from '../../services/cpuSampler';
+import { presenceStore } from '../../services/presenceStore';
 
 export const StatsRoutes = () =>
   async function (fastify: FastifyCustomInstance) {
@@ -30,6 +31,7 @@ export const StatsRoutes = () =>
 
       return reply.send({
         silentMode: stats?.silentMode ?? false,
+        presence: presenceStore.getAll(),
         servers: guildCount,
         queuePending: queueCount,
         uptime: Math.floor(process.uptime()),
