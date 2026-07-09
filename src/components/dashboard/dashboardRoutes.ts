@@ -51,7 +51,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
     .logout-btn:hover { color: var(--red); border-color: rgba(239,68,68,0.18); background: rgba(239,68,68,0.06); }
 
     /* Content */
-    .content { margin-left: 220px; min-height: 100vh; position: relative; overflow: hidden; }
+    .content { grid-column: 2; min-height: 100vh; position: relative; overflow: hidden; }
     .page-glow { position: absolute; top: -80px; left: 50%; transform: translateX(-50%); width: 100%; height: 320px; background: radial-gradient(ellipse 70% 50% at 50% 0%, rgba(120,119,198,0.16), transparent 70%); pointer-events: none; z-index: 0; }
     .content-inner { padding: 2rem 2.25rem; position: relative; z-index: 1; }
 
