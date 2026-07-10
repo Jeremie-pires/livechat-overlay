@@ -20,6 +20,8 @@ export const talkCommand = () => ({
         .setDescription(rosetty.t('talkCommandOptionTextDescription')!),
     ),
   handler: async (interaction: ChatInputCommandInteraction) => {
+    await interaction.deferReply();
+
     const text = interaction.options.get(rosetty.t('talkCommandOptionText')!)?.value;
     const voice = interaction.options.get(rosetty.t('talkCommandOptionVoice')!)?.value;
 
@@ -27,7 +29,7 @@ export const talkCommand = () => ({
 
     const fileStream = readGttsAsStream(filePath);
 
-    const interactionReply = await interaction.reply({
+    const interactionReply = await interaction.editReply({
       embeds: [
         new EmbedBuilder()
           .setTitle(rosetty.t('success')!)

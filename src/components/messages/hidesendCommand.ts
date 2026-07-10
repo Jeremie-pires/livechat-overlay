@@ -1,4 +1,4 @@
-import { ChatInputCommandInteraction, EmbedBuilder, MessageFlags, SlashCommandBuilder } from 'discord.js';
+import { ChatInputCommandInteraction, EmbedBuilder, SlashCommandBuilder } from 'discord.js';
 import { QueueType } from '../../services/prisma/loadPrisma';
 import { getContentInformationsFromUrl } from '../../services/content-utils';
 import { getDurationFromGuildId } from '../../services/utils';
@@ -30,6 +30,8 @@ export const hideSendCommand = () => ({
         .setRequired(false),
     ),
   handler: async (interaction: ChatInputCommandInteraction) => {
+    await interaction.deferReply({ ephemeral: true });
+
     const url = interaction.options.get(rosetty.t('hideSendCommandOptionURL')!)?.value;
     const text = interaction.options.get(rosetty.t('hideSendCommandOptionText')!)?.value;
     const media = interaction.options.get(rosetty.t('hideSendCommandOptionMedia')!)?.attachment?.proxyURL;
@@ -106,14 +108,13 @@ export const hideSendCommand = () => ({
       },
     });
 
-    await interaction.reply({
+    await interaction.editReply({
       embeds: [
         new EmbedBuilder()
           .setTitle(rosetty.t('success')!)
           .setDescription(rosetty.t('hideSendCommandAnswer')!)
           .setColor(0x2ecc71),
       ],
-      flags: MessageFlags.Ephemeral,
     });
   },
 });
