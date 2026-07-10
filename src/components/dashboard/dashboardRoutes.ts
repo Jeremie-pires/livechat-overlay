@@ -153,6 +153,26 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
 
     .refresh-row { display: flex; justify-content: space-between; align-items: center; margin-top: 1.5rem; font-size: 0.67rem; color: rgba(255,255,255,0.28); }
 
+    /* Guild detail */
+    .back-btn { display: inline-flex; align-items: center; gap: 0.5rem; font-size: 0.78rem; color: var(--muted); cursor: pointer; margin-bottom: 1.5rem; padding: 0.35rem 0.75rem; border-radius: 8px; border: 1px solid transparent; transition: color 0.2s, border-color 0.2s, background 0.2s; }
+    .back-btn:hover { color: var(--text); border-color: var(--border); background: rgba(255,255,255,0.04); }
+    .guild-hero { display: flex; align-items: center; gap: 1.5rem; margin-bottom: 2rem; }
+    .guild-hero-avatar { width: 72px; height: 72px; border-radius: 50%; border: 2px solid var(--border-strong); object-fit: cover; flex-shrink: 0; }
+    .guild-hero-avatar-ph { width: 72px; height: 72px; border-radius: 50%; background: rgba(var(--accent-rgb),0.10); border: 2px solid rgba(var(--accent-rgb),0.20); display: flex; align-items: center; justify-content: center; font-size: 1.8rem; font-weight: 700; color: var(--accent); flex-shrink: 0; }
+    .guild-hero-name { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; }
+    .guild-hero-id { font-size: 0.72rem; color: var(--muted); margin-top: 0.35rem; font-variant-numeric: tabular-nums; cursor: pointer; display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.2rem 0.5rem; border-radius: 6px; border: 1px solid transparent; transition: color 0.2s, border-color 0.2s, background 0.2s; }
+    .guild-hero-id:hover { color: var(--accent); border-color: rgba(var(--accent-rgb),0.22); background: rgba(var(--accent-rgb),0.06); }
+    .guild-stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(155px, 1fr)); gap: 0.75rem; margin-bottom: 1.25rem; }
+    .user-list { display: flex; flex-direction: column; gap: 0.5rem; }
+    .user-item { display: flex; align-items: center; gap: 0.875rem; padding: 0.75rem 1rem; background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: 12px; transition: border-color 0.2s; }
+    .user-item:hover { border-color: var(--border-strong); }
+    .user-avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; flex-shrink: 0; border: 1px solid var(--border); }
+    .user-avatar-ph { width: 36px; height: 36px; border-radius: 50%; background: rgba(var(--accent-rgb),0.10); border: 1px solid rgba(var(--accent-rgb),0.20); display: flex; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 700; color: var(--accent); flex-shrink: 0; }
+    .user-name { font-size: 0.875rem; font-weight: 600; color: var(--text); }
+    .user-since { font-size: 0.67rem; color: var(--muted); margin-top: 0.1rem; }
+    .user-list-empty { text-align: center; color: var(--muted); font-size: 0.82rem; padding: 2rem 0; }
+    .server-card { cursor: pointer; }
+
     /* Stat mini */
     .stat-mini { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; }
     .stat-mini-item { background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 12px; padding: 0.9rem; transition: border-color 0.2s; }
@@ -396,6 +416,38 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
         <div class="refresh-row"><span></span><span id="n-refresh">—</span></div>
       </div>
 
+      <!-- GUILD DETAIL -->
+      <div class="page" id="page-guild">
+        <div class="back-btn" onclick="navigate('servers')">← Retour aux serveurs</div>
+        <div class="guild-hero">
+          <div id="g-avatar-wrap"></div>
+          <div>
+            <div class="guild-hero-name" id="g-name"></div>
+            <div class="guild-hero-id" id="g-id" onclick="copyGuildId()" title="Cliquer pour copier l\'ID"></div>
+          </div>
+        </div>
+        <div class="guild-stats">
+          <div class="card">
+            <div class="card-label">Membres total</div>
+            <div class="card-value" id="g-members">—</div>
+          </div>
+          <div class="card">
+            <div class="card-label">Clients connectés</div>
+            <div class="card-value" id="g-connected">—</div>
+          </div>
+          <div class="card">
+            <div class="card-label">Statut</div>
+            <div class="card-value" id="g-status" style="font-size:1rem">—</div>
+          </div>
+        </div>
+        <div class="section">
+          <div class="section-title">Clients connectés dans la room</div>
+          <div id="g-user-list" class="user-list">
+            <div class="user-list-empty">Aucun client connecté.</div>
+          </div>
+        </div>
+      </div>
+
       <!-- JOURNAL -->
       <div class="page" id="page-journal">
         <div class="page-header">
@@ -439,7 +491,8 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
     document.getElementById('page-' + page).classList.add('active');
-    document.querySelector('[data-page="' + page + '"]').classList.add('active');
+    const navEl = document.querySelector('[data-page="' + page + '"]');
+    if (navEl) navEl.classList.add('active');
   }
 
   const fmt = n => Number(n).toLocaleString('fr-FR');
@@ -462,6 +515,61 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
   }
 
   var cachedGuilds = null;
+  var cachedPresence = {};
+  var currentGuildId = null;
+
+  function fmtDuration(ms) {
+    const s = Math.floor(ms / 1000), m = Math.floor(s / 60), h = Math.floor(m / 60);
+    if (h > 0) return h + 'h ' + (m % 60) + 'min';
+    if (m > 0) return m + 'min ' + (s % 60) + 's';
+    return s + 's';
+  }
+
+  function openGuild(id) {
+    currentGuildId = id;
+    const guild = cachedGuilds && cachedGuilds.find(g => g.id === id);
+    if (!guild) return;
+    const avatarWrap = document.getElementById('g-avatar-wrap');
+    avatarWrap.innerHTML = guild.icon
+      ? '<img class="guild-hero-avatar" src="' + guild.icon + '" alt="">'
+      : '<div class="guild-hero-avatar-ph">' + guild.name.charAt(0).toUpperCase() + '</div>';
+    document.getElementById('g-name').textContent = guild.name;
+    document.getElementById('g-id').textContent = '🆔 ' + id;
+    document.getElementById('g-members').textContent = fmt(guild.memberCount);
+    const statusEl = document.getElementById('g-status');
+    statusEl.textContent = guild.isSetup ? 'Configuré' : 'Non configuré';
+    statusEl.style.color = guild.isSetup ? 'var(--green)' : 'var(--yellow)';
+    renderGuildPresence(id);
+    navigate('guild');
+  }
+
+  function renderGuildPresence(guildId) {
+    const clients = (cachedPresence && cachedPresence[guildId]) || [];
+    document.getElementById('g-connected').textContent = fmt(clients.length);
+    const el = document.getElementById('g-user-list');
+    if (clients.length === 0) {
+      el.innerHTML = '<div class="user-list-empty">Aucun client connecté.</div>';
+      return;
+    }
+    const now = Date.now();
+    el.innerHTML = clients.map(c => {
+      const since = c.connectedAt ? fmtDuration(now - new Date(c.connectedAt).getTime()) : '—';
+      const av = c.avatarUrl
+        ? '<img class="user-avatar" src="' + c.avatarUrl + '" alt="">'
+        : '<div class="user-avatar-ph">' + (c.displayName || '?').charAt(0).toUpperCase() + '</div>';
+      return '<div class="user-item">' + av + '<div><div class="user-name">' + c.displayName + '</div><div class="user-since">Connecté depuis ' + since + '</div></div></div>';
+    }).join('');
+  }
+
+  function copyGuildId() {
+    if (!currentGuildId) return;
+    navigator.clipboard.writeText(currentGuildId).then(() => {
+      const el = document.getElementById('g-id');
+      const orig = el.textContent;
+      el.textContent = '✓ Copié !';
+      setTimeout(() => { el.textContent = orig; }, 1500);
+    });
+  }
 
   function renderServers(guilds, presence) {
     cachedGuilds = guilds;
@@ -477,7 +585,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       const setupBadge = g.isSetup
         ? '<span class="badge green">Configuré</span>'
         : '<span class="badge yellow">Non configuré</span>';
-      return '<div class="server-card" data-guild-id="'+g.id+'"><div class="server-top">'+av+'<div class="server-info"><div class="server-name">'+g.name+'</div><div class="server-members">'+fmt(g.memberCount)+' membres</div></div></div><div class="server-badges">'+setupBadge+presenceBadge+'</div></div>';
+      return '<div class="server-card" data-guild-id="'+g.id+'" onclick="openGuild(\''+g.id+'\')"><div class="server-top">'+av+'<div class="server-info"><div class="server-name">'+g.name+'</div><div class="server-members">'+fmt(g.memberCount)+' membres</div></div></div><div class="server-badges">'+setupBadge+presenceBadge+'</div></div>';
     }).join('');
   }
 
@@ -555,6 +663,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       renderSparkline(d.latency?.samples);
 
       // Serveurs
+      cachedPresence = d.presence || {};
       renderServers(d.guilds, d.presence);
 
       // Journal
@@ -600,7 +709,12 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
     function connect() {
       const sse = new EventSource('/api/presence-events');
       sse.addEventListener('presence', function(e) {
-        try { updatePresenceLive(JSON.parse(e.data)); } catch {}
+        try {
+          const p = JSON.parse(e.data);
+          cachedPresence = p;
+          updatePresenceLive(p);
+          if (currentGuildId) renderGuildPresence(currentGuildId);
+        } catch {}
       });
       sse.onerror = function() {
         sse.close();
