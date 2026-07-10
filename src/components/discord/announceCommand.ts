@@ -23,7 +23,7 @@ export const announceCommand = () => ({
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     const message = interaction.options.getString('message', true);
-    const guilds = await prisma.guild.findMany({ where: { channelId: { not: null } } });
+    const guilds = await prisma.guild.findMany({ where: { channelId: { not: null } }, select: { id: true, channelId: true } });
 
     let sent = 0;
     for (const guild of guilds) {

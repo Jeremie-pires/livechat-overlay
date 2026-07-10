@@ -4,6 +4,8 @@ import { getContentInformationsFromUrl } from '../../services/content-utils';
 import { deleteGtts, promisedGtts, readGttsAsStream } from '../../services/gtts';
 import { getDurationFromGuildId } from '../../services/utils';
 
+const MAX_TTS_LENGTH = 200;
+
 export const hideTalkCommand = () => ({
   data: new SlashCommandBuilder()
     .setName(rosetty.t('hideTalkCommand')!)
@@ -12,7 +14,8 @@ export const hideTalkCommand = () => ({
       option
         .setName(rosetty.t('hideTalkCommandOptionVoice')!)
         .setDescription(rosetty.t('hideTalkCommandOptionVoiceDescription')!)
-        .setRequired(true),
+        .setRequired(true)
+        .setMaxLength(MAX_TTS_LENGTH),
     )
     .addStringOption((option) =>
       option
@@ -20,11 +23,18 @@ export const hideTalkCommand = () => ({
         .setDescription(rosetty.t('hideTalkCommandOptionTextDescription')!),
     ),
   handler: async (interaction: ChatInputCommandInteraction) => {
+    const voice = interaction.options.get(rosetty.t('hideTalkCommandOptionVoice')!)?.value as string;
     const text = interaction.options.get(rosetty.t('hideTalkCommandOptionText')!)?.value;
-    const voice = interaction.options.get(rosetty.t('hideTalkCommandOptionVoice')!)?.value;
+
+    if (!voice.trim() || voice.length > MAX_TTS_LENGTH) {
+      await interaction.reply({
+        embeds: [new EmbedBuilder().setTitle(rosetty.t('error')!).setDescription(rosetty.t('ttsTextTooLong')!).setColor(0xe74c3c)],
+        flags: MessageFlags.Ephemeral,
+      });
+      return;
+    }
 
     const filePath = await promisedGtts(voice, rosetty.getCurrentLang());
-
     const fileStream = readGttsAsStream(filePath);
 
     const interactionReply = await interaction.reply({
