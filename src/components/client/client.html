@@ -412,7 +412,12 @@
             player.addEventListener('loaded-metadata', () => {
               const videoEl = player.querySelector('video');
               if (videoEl && videoEl.videoWidth && videoEl.videoHeight) {
-                player.style.setProperty('aspect-ratio', `${videoEl.videoWidth} / ${videoEl.videoHeight}`, 'important');
+                const { videoWidth, videoHeight } = videoEl;
+                player.style.setProperty('aspect-ratio', `${videoWidth} / ${videoHeight}`, 'important');
+                if (videoHeight > videoWidth) {
+                  const wrapper = document.getElementById('message-player');
+                  if (wrapper) wrapper.classList.add('is-short');
+                }
               }
             });
 

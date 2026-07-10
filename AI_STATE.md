@@ -73,11 +73,15 @@ Seul `env.DISCORD_OWNER_ID` est autorisé.
 Discord command → `messagesWorker` déqueue → Socket.IO emit → browser client (vidstack)
 
 ## Ce qui vient d'être fait (dernière session)
+- **Fix YouTube Shorts / portrait** : `content-utils.ts` — ajout de `isYouTubeShortUrl()` (détecte `/shorts/` dans le pathname pour `youtube.com` et `m.youtube.com`) → `mediaIsShort` désormais `true` pour les Shorts dès l'envoi. Côté client (`client.html`) : `loaded-metadata` détecte aussi automatiquement les vidéos portrait directes (height > width) et applique la classe `is-short`. La CSS `.is-short media-player { aspect-ratio: 9/16 }` existait déjà.
+- Suppression import `fs` inutilisé dans `content-utils.ts`.
+
+## Historique récent
 - **Tray (desktop)** : `startMinimized` → "Démarrer dans le tray" ; fenêtre cachée au lieu de quittée sur close ; tray avec menu "Ouvrir / Quitter" ; `isQuitting` flag ; `extraResources` pour l'icône packagée.
 - **Déduplication présence** : `presenceStore` trackle `discordUserId` via `userSocketMap` → quand le même user refait `/client`, l'ancienne socket est remplacée dans le store (plus de doublons).
 - **Présence dynamique (desktop)** : `overlay-preload.ts` bridge les events `presence:update` du socket vers IPC → control window. `renderer.js` reçoit via `onPresence` (temps réel) + polling fallback 60 s.
 - **Dashboard présence temps réel** : `presenceSse.ts` (SSE broadcaster) + endpoint `/api/presence-events` (session auth) + `EventSource` dans le dashboard JS → badges de présence et carte "Clients connectés" mis à jour sans attendre le poll 30 s.
-- **Release v1.2.1** (session précédente) : CSS `input[type="password"]`, onglet Utilisateurs desktop, presenceStore avatarUrl, socketLoader Discord avatar.
+- **Release v1.2.1** : CSS `input[type="password"]`, onglet Utilisateurs desktop, presenceStore avatarUrl, socketLoader Discord avatar.
 
 ## Historique
 - **Crash handlers** : `uncaughtException` + `unhandledRejection` dans `index.ts`
