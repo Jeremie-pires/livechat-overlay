@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, safeStorage, screen } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu, nativeImage, safeStorage, screen, Tray } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import fs from 'fs/promises';
 import path from 'path';
@@ -44,6 +44,8 @@ const DEFAULT_SETTINGS: AppSettings = {
 
 let controlWindow: BrowserWindow | null = null;
 let overlayWindow: BrowserWindow | null = null;
+let tray: Tray | null = null;
+let isQuitting = false;
 let statusType: OverlayStatusType = 'idle';
 let statusMessage = 'Prêt';
 let settings = { ...DEFAULT_SETTINGS };
@@ -187,6 +189,47 @@ async function applyMediaVolume() {
   await overlayWindow.webContents.executeJavaScript(script, true).catch(() => undefined);
 }
 
+function getTrayIconPath(): string {
+  return app.isPackaged
+    ? path.join(process.resourcesPath, 'icon.ico')
+    : path.join(__dirname, '..', 'build', 'icon.ico');
+}
+
+function showControlWindow() {
+  if (!controlWindow) return;
+  if (controlWindow.isMinimized()) controlWindow.restore();
+  controlWindow.show();
+  controlWindow.focus();
+}
+
+function createTray() {
+  const icon = nativeImage.createFromPath(getTrayIconPath());
+  tray = new Tray(icon);
+  tray.setToolTip('LiveChatCCB Desktop');
+
+  tray.on('click', () => {
+    if (!controlWindow) return;
+    if (controlWindow.isVisible()) {
+      controlWindow.hide();
+    } else {
+      showControlWindow();
+    }
+  });
+
+  const contextMenu = Menu.buildFromTemplate([
+    { label: 'Ouvrir', click: () => showControlWindow() },
+    { type: 'separator' },
+    {
+      label: 'Quitter',
+      click: () => {
+        isQuitting = true;
+        app.quit();
+      },
+    },
+  ]);
+  tray.setContextMenu(contextMenu);
+}
+
 function createControlWindow() {
   controlWindow = new BrowserWindow({
     width: 420,
@@ -207,18 +250,22 @@ function createControlWindow() {
   controlWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
 
   controlWindow.once('ready-to-show', () => {
-    if (settings.startMinimized) {
-      controlWindow?.showInactive();
-      controlWindow?.minimize();
-    } else {
+    if (!settings.startMinimized) {
       controlWindow?.show();
+    }
+  });
+
+  // Hide to tray on close instead of quitting
+  controlWindow.on('close', (e) => {
+    if (!isQuitting) {
+      e.preventDefault();
+      controlWindow?.hide();
     }
   });
 
   controlWindow.on('closed', () => {
     controlWindow = null;
     destroyOverlayWindow();
-    app.quit();
   });
 }
 
@@ -253,6 +300,7 @@ function createOverlayWindow() {
     alwaysOnTop: true,
     title: 'LiveChat overlay',
     webPreferences: {
+      preload: path.join(__dirname, 'overlay-preload.js'),
       backgroundThrottling: false,
       nodeIntegration: false,
       contextIsolation: true,
@@ -404,6 +452,11 @@ function registerIpc() {
     }
   });
 
+  // Forward real-time presence events from the overlay window to the control window
+  ipcMain.on('presence:update', (_event, data: unknown) => {
+    controlWindow?.webContents.send('presence:update', data);
+  });
+
   ipcMain.handle('overlay:test-sound', async () => {
     if (!overlayWindow) return false;
     const vol = settings.volume / 100;
@@ -463,6 +516,7 @@ async function bootstrap() {
   applyLoginItemSettings();
   registerIpc();
   createControlWindow();
+  createTray();
   updateStatus('idle', statusMessage);
 
   if (app.isPackaged) {
@@ -474,16 +528,22 @@ async function bootstrap() {
   }
 }
 
+app.on('before-quit', () => {
+  isQuitting = true;
+});
+
 app.whenReady().then(() => {
   void bootstrap();
 
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
+    if (controlWindow) {
+      showControlWindow();
+    } else {
       createControlWindow();
     }
   });
 });
 
 app.on('window-all-closed', () => {
-  app.quit();
+  // Do not quit — tray keeps the app alive
 });

@@ -1,17 +1,35 @@
-type PresenceEntry = { displayName: string; connectedAt: number; avatarUrl: string | null };
+type PublicPresenceEntry = { displayName: string; connectedAt: number; avatarUrl: string | null };
+type InternalPresenceEntry = PublicPresenceEntry & { discordUserId: string };
 
-const store = new Map<string, Map<string, PresenceEntry>>();
+const store = new Map<string, Map<string, InternalPresenceEntry>>();
+const userSocketMap = new Map<string, string>(); // `${guildId}:${discordUserId}` → socketId
+
+function toPublic({ displayName, connectedAt, avatarUrl }: InternalPresenceEntry): PublicPresenceEntry {
+  return { displayName, connectedAt, avatarUrl };
+}
 
 export const presenceStore = {
-  add(guildId: string, socketId: string, displayName: string, avatarUrl: string | null): void {
+  add(guildId: string, socketId: string, discordUserId: string, displayName: string, avatarUrl: string | null): void {
     if (!store.has(guildId)) store.set(guildId, new Map());
-    store.get(guildId)!.set(socketId, { displayName, connectedAt: Date.now(), avatarUrl });
+    const guildMap = store.get(guildId)!;
+
+    const userKey = `${guildId}:${discordUserId}`;
+    const oldSocketId = userSocketMap.get(userKey);
+    if (oldSocketId && oldSocketId !== socketId) {
+      guildMap.delete(oldSocketId);
+    }
+    userSocketMap.set(userKey, socketId);
+    guildMap.set(socketId, { displayName, connectedAt: Date.now(), avatarUrl, discordUserId });
   },
 
   removeSocket(socketId: string): string[] {
     const affected: string[] = [];
     for (const [guildId, sockets] of store) {
-      if (sockets.delete(socketId)) {
+      const entry = sockets.get(socketId);
+      if (entry) {
+        sockets.delete(socketId);
+        const userKey = `${guildId}:${entry.discordUserId}`;
+        if (userSocketMap.get(userKey) === socketId) userSocketMap.delete(userKey);
         affected.push(guildId);
         if (sockets.size === 0) store.delete(guildId);
       }
@@ -19,16 +37,16 @@ export const presenceStore = {
     return affected;
   },
 
-  get(guildId: string): PresenceEntry[] {
+  get(guildId: string): PublicPresenceEntry[] {
     const sockets = store.get(guildId);
     if (!sockets) return [];
-    return Array.from(sockets.values());
+    return Array.from(sockets.values()).map(toPublic);
   },
 
-  getAll(): Record<string, PresenceEntry[]> {
-    const result: Record<string, PresenceEntry[]> = {};
+  getAll(): Record<string, PublicPresenceEntry[]> {
+    const result: Record<string, PublicPresenceEntry[]> = {};
     for (const [guildId, sockets] of store) {
-      result[guildId] = Array.from(sockets.values());
+      result[guildId] = Array.from(sockets.values()).map(toPublic);
     }
     return result;
   },

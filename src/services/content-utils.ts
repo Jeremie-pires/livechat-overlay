@@ -1,20 +1,32 @@
-import fs from 'fs';
 import fetch from 'node-fetch';
 import { getVideoDurationInSeconds } from 'get-video-duration';
 import { fileTypeFromBuffer } from 'file-type';
 import mime from 'mime-types';
 
-function getFileTypeWithRegex(url) {
-  const regex = /(?:\.([^.]+))?$/; // Regular expression to capture file extension
-  //@ts-ignore
-  const extension = regex.exec(url)[1]; // Extract extension from URL
+function getFileTypeWithRegex(url: string): string {
+  const regex = /(?:\.([^.]+))?$/;
+  const extension = regex.exec(url)?.[1];
   return extension ? extension.toLowerCase() : 'No extension found';
 }
 
+function isYouTubeShortUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return (
+      (parsed.hostname === 'www.youtube.com' ||
+        parsed.hostname === 'youtube.com' ||
+        parsed.hostname === 'm.youtube.com') &&
+      parsed.pathname.startsWith('/shorts/')
+    );
+  } catch {
+    return false;
+  }
+}
+
 export const getContentInformationsFromUrl = async (url: string) => {
-  let contentType;
-  let mediaDuration;
-  let mediaIsShort;
+  let contentType: string | undefined;
+  let mediaDuration: number | undefined;
+  const mediaIsShort = isYouTubeShortUrl(url);
   // First try to get it with URL
   try {
     const fileExt = getFileTypeWithRegex(url);
@@ -47,5 +59,5 @@ export const getContentInformationsFromUrl = async (url: string) => {
     mediaDuration = await getVideoDurationInSeconds(url, 'ffprobe');
   } catch (error) {}
 
-  return { contentType, mediaDuration, mediaIsShort };
+  return { contentType, mediaDuration, mediaIsShort: mediaIsShort ?? false };
 };

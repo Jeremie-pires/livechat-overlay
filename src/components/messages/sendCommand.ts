@@ -28,6 +28,8 @@ export const sendCommand = () => ({
         .setRequired(false),
     ),
   handler: async (interaction: ChatInputCommandInteraction) => {
+    await interaction.deferReply();
+
     const url = interaction.options.get(rosetty.t('sendCommandOptionURL')!)?.value;
     const text = interaction.options.get(rosetty.t('sendCommandOptionText')!)?.value;
     const media = interaction.options.get(rosetty.t('sendCommandOptionMedia')!)?.attachment?.proxyURL;
@@ -98,7 +100,7 @@ export const sendCommand = () => ({
       },
     });
 
-    await interaction.reply({
+    await interaction.editReply({
       embeds: [
         new EmbedBuilder()
           .setTitle(rosetty.t('success')!)

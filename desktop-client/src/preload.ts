@@ -48,6 +48,11 @@ contextBridge.exposeInMainWorld('livechat', {
     ipcRenderer.on('update:downloaded', listener);
     return () => ipcRenderer.removeListener('update:downloaded', listener);
   },
+  onPresence: (callback: (data: PresenceEntry[]) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, data: PresenceEntry[]) => callback(data);
+    ipcRenderer.on('presence:update', listener);
+    return () => ipcRenderer.removeListener('presence:update', listener);
+  },
   installUpdate: () => ipcRenderer.invoke('update:install'),
 });
 
@@ -68,6 +73,7 @@ declare global {
       onStatus: (callback: (status: OverlayStatus) => void) => () => void;
       onSettingsChanged: (callback: (settings: AppSettings) => void) => () => void;
       onUpdateDownloaded: (callback: (info: { version: string; releaseNotes: string }) => void) => () => void;
+      onPresence: (callback: (data: PresenceEntry[]) => void) => () => void;
       installUpdate: () => Promise<void>;
     };
   }
