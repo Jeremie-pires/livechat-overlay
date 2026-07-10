@@ -84,3 +84,6 @@ package-lock.json
 # Force-track project memory files
 !CLAUDE.md
 !AI_STATE.md
+
+#Pipeline multi agents workflow files
+.pipeline/
