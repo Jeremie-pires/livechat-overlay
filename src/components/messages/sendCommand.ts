@@ -1,7 +1,18 @@
-import { ChatInputCommandInteraction, EmbedBuilder, SlashCommandBuilder } from 'discord.js';
+import { ChatInputCommandInteraction, EmbedBuilder, MessageFlags, SlashCommandBuilder } from 'discord.js';
 import { QueueType } from '../../services/prisma/loadPrisma';
 import { getContentInformationsFromUrl } from '../../services/content-utils';
 import { getDurationFromGuildId } from '../../services/utils';
+
+const MAX_DURATION_SECONDS = 3600;
+
+function isValidUrl(value: string): boolean {
+  try {
+    new URL(value);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 export const sendCommand = () => ({
   data: new SlashCommandBuilder()
@@ -30,13 +41,45 @@ export const sendCommand = () => ({
   handler: async (interaction: ChatInputCommandInteraction) => {
     await interaction.deferReply();
 
-    const url = interaction.options.get(rosetty.t('sendCommandOptionURL')!)?.value;
-    const text = interaction.options.get(rosetty.t('sendCommandOptionText')!)?.value;
+    const url = interaction.options.get(rosetty.t('sendCommandOptionURL')!)?.value as string | undefined;
+    const text = interaction.options.get(rosetty.t('sendCommandOptionText')!)?.value as string | undefined;
     const media = interaction.options.get(rosetty.t('sendCommandOptionMedia')!)?.attachment?.proxyURL;
     const customDurationString = interaction.options.get(rosetty.t('sendCommandOptionDuration')!)?.value as string | undefined;
     let mediaContentType = interaction.options.get(rosetty.t('sendCommandOptionMedia')!)?.attachment?.contentType;
     let mediaDuration = interaction.options.get(rosetty.t('sendCommandOptionMedia')!)?.attachment?.duration;
     let mediaIsShort = false;
+
+    if (!url && !media && !text) {
+      await interaction.editReply({
+        embeds: [new EmbedBuilder().setTitle(rosetty.t('error')!).setDescription(rosetty.t('noContentProvided')!).setColor(0xe74c3c)],
+      });
+      return;
+    }
+
+    if (url && !isValidUrl(url)) {
+      await interaction.editReply({
+        embeds: [new EmbedBuilder().setTitle(rosetty.t('error')!).setDescription(rosetty.t('invalidUrl')!).setColor(0xe74c3c)],
+      });
+      return;
+    }
+
+    let finalDuration: number | undefined = undefined;
+
+    if (customDurationString) {
+      const trimmed = customDurationString.trim().toLowerCase();
+      if (trimmed === 'full') {
+        finalDuration = mediaDuration ? Math.ceil(mediaDuration) : 0;
+      } else {
+        const parsed = parseInt(trimmed, 10);
+        if (isNaN(parsed) || parsed < 1 || parsed > MAX_DURATION_SECONDS) {
+          await interaction.editReply({
+            embeds: [new EmbedBuilder().setTitle(rosetty.t('error')!).setDescription(rosetty.t('invalidDuration')!).setColor(0xe74c3c)],
+          });
+          return;
+        }
+        finalDuration = parsed;
+      }
+    }
 
     let additionalContent;
     if ((!mediaContentType || !mediaDuration) && (media || url)) {
@@ -55,25 +98,10 @@ export const sendCommand = () => ({
       mediaIsShort = additionalContent.mediaIsShort || false;
     }
 
-    let finalDuration: number | undefined = undefined;
     const isVideo = mediaContentType?.startsWith('video/') || mediaContentType?.startsWith('audio/');
 
-    if (customDurationString) {
-      const trimmed = customDurationString.trim().toLowerCase();
-      if (trimmed === 'full') {
-        finalDuration = mediaDuration ? Math.ceil(mediaDuration) : 0;
-      } else {
-        const parsed = parseInt(trimmed, 10);
-        if (!isNaN(parsed) && parsed > 0) {
-          finalDuration = parsed;
-        }
-      }
-    }
-
-    if (finalDuration === undefined) {
-      if (isVideo) {
-        finalDuration = mediaDuration ? Math.ceil(mediaDuration) : 0;
-      }
+    if (finalDuration === undefined && isVideo) {
+      finalDuration = mediaDuration ? Math.ceil(mediaDuration) : 0;
     }
 
     await prisma.queue.create({

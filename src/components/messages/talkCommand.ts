@@ -4,6 +4,8 @@ import { getContentInformationsFromUrl } from '../../services/content-utils';
 import { deleteGtts, promisedGtts, readGttsAsStream } from '../../services/gtts';
 import { getDurationFromGuildId } from '../../services/utils';
 
+const MAX_TTS_LENGTH = 200;
+
 export const talkCommand = () => ({
   data: new SlashCommandBuilder()
     .setName(rosetty.t('talkCommand')!)
@@ -12,7 +14,8 @@ export const talkCommand = () => ({
       option
         .setName(rosetty.t('talkCommandOptionVoice')!)
         .setDescription(rosetty.t('talkCommandOptionVoiceDescription')!)
-        .setRequired(true),
+        .setRequired(true)
+        .setMaxLength(MAX_TTS_LENGTH),
     )
     .addStringOption((option) =>
       option
@@ -22,11 +25,17 @@ export const talkCommand = () => ({
   handler: async (interaction: ChatInputCommandInteraction) => {
     await interaction.deferReply();
 
+    const voice = interaction.options.get(rosetty.t('talkCommandOptionVoice')!)?.value as string;
     const text = interaction.options.get(rosetty.t('talkCommandOptionText')!)?.value;
-    const voice = interaction.options.get(rosetty.t('talkCommandOptionVoice')!)?.value;
+
+    if (!voice.trim() || voice.length > MAX_TTS_LENGTH) {
+      await interaction.editReply({
+        embeds: [new EmbedBuilder().setTitle(rosetty.t('error')!).setDescription(rosetty.t('ttsTextTooLong')!).setColor(0xe74c3c)],
+      });
+      return;
+    }
 
     const filePath = await promisedGtts(voice, rosetty.getCurrentLang());
-
     const fileStream = readGttsAsStream(filePath);
 
     const interactionReply = await interaction.editReply({

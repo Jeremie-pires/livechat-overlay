@@ -26,6 +26,7 @@ import { setMaxTimeCommand } from '../components/discord/setMaxTimeCommand';
 import { stopCommand } from '../components/messages/stopCommand';
 import { setupCommand } from '../components/discord/setupCommand';
 import { announceCommand } from '../components/discord/announceCommand';
+import { announceGuildCommand } from '../components/discord/announceGuildCommand';
 import { maintenanceCommand } from '../components/discord/maintenanceCommand';
 
 const handleShutdown = async () => {
@@ -140,6 +141,7 @@ const loadDiscordCommands = async (fastify: FastifyCustomInstance) => {
       stopCommand(fastify),
       setupCommand(),
       announceCommand(),
+      announceGuildCommand(),
       maintenanceCommand(),
     ];
     const hideCommands = [hideSendCommand(), hideTalkCommand()];
@@ -179,7 +181,7 @@ const loadDiscordCommandsHandler = () => {
     }
 
     if (!command.bypassChannelCheck) {
-      const guild = await prisma.guild.findFirst({ where: { id: interaction.guildId! } });
+      const guild = await prisma.guild.findFirst({ where: { id: interaction.guildId! }, select: { channelId: true } });
 
       if (!guild?.channelId) {
         await interaction.reply({

@@ -102,4 +102,11 @@ export const frLang: typeof enLang = {
   announceCommandOptionDescription: 'Message à diffuser',
   announceCommandTitle: '📢 Annonce',
   announceCommandAnswer: 'Message envoyé à {{count}} serveur(s).',
+  announceGuildCommandDescription: 'Envoyer une annonce à un serveur précis (propriétaire du bot uniquement)',
+  announceGuildCommandOptionGuildId: 'ID du serveur cible',
+
+  invalidDuration: 'La durée doit être comprise entre 1 et 3600 secondes.',
+  invalidUrl: 'Le lien fourni est invalide.',
+  noContentProvided: 'Tu dois fournir au moins un lien, un média ou un texte.',
+  ttsTextTooLong: 'Le texte est trop long (200 caractères maximum).',
 };

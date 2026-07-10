@@ -99,4 +99,11 @@ export const enLang = {
   announceCommandOptionDescription: 'Message to broadcast',
   announceCommandTitle: '📢 Announcement',
   announceCommandAnswer: 'Message sent to {{count}} server(s).',
+  announceGuildCommandDescription: 'Send an announcement to a specific server (bot owner only)',
+  announceGuildCommandOptionGuildId: 'Target server ID',
+
+  invalidDuration: 'Duration must be between 1 and 3600 seconds.',
+  invalidUrl: 'The provided URL is invalid.',
+  noContentProvided: 'You must provide at least a URL, a media, or a text.',
+  ttsTextTooLong: 'The text is too long (200 characters max).',
 };
