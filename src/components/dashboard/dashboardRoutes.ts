@@ -251,7 +251,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
           </div>
           <div class="card clickable" onclick="navigate('messages')">
             <div class="card-icon purple"><svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg></div>
-            <div class="card-label">Latence moy.</div>
+            <div class="card-label">Attente file moy.</div>
             <div class="card-value" id="h-latency">—</div>
             <div class="card-hint">Voir le graphe →</div>
           </div>
@@ -298,7 +298,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
             <div class="card-value" id="m-total">—</div>
           </div>
           <div class="card">
-            <div class="card-label">Latence moy.</div>
+            <div class="card-label">Attente file moy.</div>
             <div class="card-value" id="m-latency">—</div>
           </div>
           <div class="card">
@@ -316,7 +316,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
             <div class="type-row"><span class="type-dot dot-text"></span><span class="type-label">Texte</span><div class="bar-wrap"><div class="bar bar-text" id="bar-text"></div></div><span class="type-pct" id="pct-text">0%</span><span class="type-count" id="count-text">0</span></div>
           </div>
           <div class="section">
-            <div class="section-title">Latence — 50 derniers envois</div>
+            <div class="section-title">Attente en file — 50 derniers envois</div>
             <svg class="sparkline-svg" id="sparkline" viewBox="0 0 400 72" preserveAspectRatio="none">
               <defs>
                 <linearGradient id="spark-grad" x1="0" y1="0" x2="0" y2="1">
