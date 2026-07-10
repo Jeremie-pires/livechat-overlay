@@ -41,7 +41,7 @@ export const hideSendCommand = () => ({
         .setRequired(false),
     ),
   handler: async (interaction: ChatInputCommandInteraction) => {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     const url = interaction.options.get(rosetty.t('hideSendCommandOptionURL')!)?.value as string | undefined;
     const text = interaction.options.get(rosetty.t('hideSendCommandOptionText')!)?.value as string | undefined;
