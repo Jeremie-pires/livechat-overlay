@@ -1,5 +1,6 @@
 import { createHash } from 'crypto';
 import { presenceStore } from '../services/presenceStore';
+import { presenceSse } from '../services/presenceSse';
 
 const hashToken = (t: string) => createHash('sha256').update(t).digest('hex');
 
@@ -14,7 +15,9 @@ export const loadSocket = (fastify: FastifyCustomInstance) => {
       logger.debug(`New disconnection to socketIO :  ${socket.id}`);
       const affected = presenceStore.removeSocket(socket.id);
       for (const guildId of affected) {
-        fastify.io.to(`messages-${guildId}`).emit('presence:update', presenceStore.get(guildId));
+        const updated = presenceStore.get(guildId);
+        fastify.io.to(`messages-${guildId}`).emit('presence:update', updated);
+        presenceSse.push(presenceStore.getAll());
       }
     });
 
@@ -38,8 +41,10 @@ export const loadSocket = (fastify: FastifyCustomInstance) => {
             } catch {
               // avatar unavailable — fall back to null
             }
-            presenceStore.add(guildId, socket.id, session.displayName, avatarUrl);
-            fastify.io.to(roomId).emit('presence:update', presenceStore.get(guildId));
+            presenceStore.add(guildId, socket.id, session.discordUserId, session.displayName, avatarUrl);
+            const updated = presenceStore.get(guildId);
+            fastify.io.to(roomId).emit('presence:update', updated);
+            presenceSse.push(presenceStore.getAll());
           }
         } catch (err) {
           logger.error(err, '[Socket] Failed to resolve client session for presence');
