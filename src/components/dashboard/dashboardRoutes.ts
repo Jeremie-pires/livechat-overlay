@@ -585,7 +585,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       const setupBadge = g.isSetup
         ? '<span class="badge green">Configuré</span>'
         : '<span class="badge yellow">Non configuré</span>';
-      return '<div class="server-card" data-guild-id="'+g.id+'" onclick="openGuild(\''+g.id+'\')"><div class="server-top">'+av+'<div class="server-info"><div class="server-name">'+g.name+'</div><div class="server-members">'+fmt(g.memberCount)+' membres</div></div></div><div class="server-badges">'+setupBadge+presenceBadge+'</div></div>';
+      return '<div class="server-card" data-guild-id="'+g.id+'"><div class="server-top">'+av+'<div class="server-info"><div class="server-name">'+g.name+'</div><div class="server-members">'+fmt(g.memberCount)+' membres</div></div></div><div class="server-badges">'+setupBadge+presenceBadge+'</div></div>';
     }).join('');
   }
 
@@ -703,6 +703,11 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
 
   refresh();
   setInterval(refresh, 30000);
+
+  document.getElementById('server-grid').addEventListener('click', function(e) {
+    const card = e.target.closest('[data-guild-id]');
+    if (card) openGuild(card.getAttribute('data-guild-id'));
+  });
 
   // Real-time presence updates via SSE
   (function initPresenceSse() {
