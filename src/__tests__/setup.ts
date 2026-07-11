@@ -1,0 +1,13 @@
+process.env.APP_ENV = 'production';
+process.env.DATABASE_URL = 'file:./prisma/sqlite.db';
+process.env.DISCORD_TOKEN = 'test-token-placeholder';
+process.env.DISCORD_CLIENT_ID = 'test-client-id-placeholder';
+process.env.DISCORD_CLIENT_SECRET = 'test-client-secret';
+process.env.DISCORD_OWNER_ID = '123456789012345678';
+process.env.API_URL = 'http://localhost:3000';
+process.env.I18N = 'fr';
+process.env.PORT = '3000';
+process.env.LOG = 'info';
+process.env.HIDE_COMMANDS_DISABLED = 'false';
+process.env.DEFAULT_DURATION = '5';
+process.env.NODE_ENV = 'test';

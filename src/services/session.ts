@@ -15,6 +15,10 @@ export const getSessionToken = (cookieHeader?: string): string | undefined => {
   return match?.split('=').slice(1).join('=').trim();
 };
 
+export const deleteSession = (token: string): void => {
+  sessions.delete(token);
+};
+
 export const isValidSession = (token?: string): boolean => {
   if (!token) return false;
   const exp = sessions.get(token);

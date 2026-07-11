@@ -2,18 +2,18 @@
 
 ## Project overview
 
-**LiveChat CCB** is a Discord bot that streams media (images, videos, audio, links, text) to a browser-based client displayed on screens. It combines a Fastify HTTP/WebSocket server, a Discord.js bot, a Prisma-managed queue, and an Electron desktop client.
+**LiveChat CCB** — Discord bot streams media (images, videos, audio, links, text) to browser client displayed on screens. Stack: Fastify HTTP/WebSocket + Discord.js bot + Prisma queue + Electron desktop client.
 
 ## Tech stack
 
-- **Runtime**: Node.js with TypeScript (`tsx` for dev, compiled to `dist/` for prod)
+- **Runtime**: Node.js + TypeScript (`tsx` dev, `dist/` prod)
 - **HTTP framework**: Fastify v4 + CORS + Socket.IO (`fastify-socket.io`)
 - **Discord**: discord.js v14 (slash commands, interaction handlers)
-- **Database**: Prisma v5 with SQLite — two models: `Queue` and `Guild`
-- **i18n**: custom `rosetty` setup (FR/EN under `src/services/i18n/`)
+- **Database**: Prisma v5 + SQLite — models: `Queue`, `Guild`
+- **i18n**: custom `rosetty` (FR/EN under `src/services/i18n/`)
 - **TTS**: Google TTS via `gtts`
-- **Video player**: vidstack (client-side, bundled assets in `src/components/client/`)
-- **Desktop client**: Electron app under `desktop-client/`
+- **Video player**: vidstack (client-side, `src/components/client/`)
+- **Desktop client**: Electron (`desktop-client/`)
 - **Package manager**: `pnpm`
 
 ## Key source layout
@@ -31,10 +31,10 @@ src/
     messages/           — send/talk/stop/hide commands + messagesWorker
     client/             — browser player HTML/JS/CSS (vidstack)
     api/statsRoutes.ts  — GET /api/stats (requires auth session)
-    dashboard/          — dashboardRoutes.ts — full glassmorphism admin dashboard + Discord OAuth
+    dashboard/          — dashboardRoutes.ts — glassmorphism admin dashboard + Discord OAuth
   services/
     env.ts              — zod-validated env vars (T3 env-core)
-    session.ts          — simple session token management
+    session.ts          — session token management
     cpuSampler.ts       — background CPU/RAM sampling for dashboard
     prisma/loadPrisma.ts
     i18n/               — loader.ts + en.ts + fr.ts
@@ -56,43 +56,43 @@ pnpm migration:make # prisma migrate dev
 
 ## Globals
 
-`server.ts` attaches helpers to `global`: `logger`, `prisma`, `discordClient`, `discordRest`, `rosetty`, `commandsLoaded`, `env`. These are typed in `src/types/module.d.ts`.
+`server.ts` attaches to `global`: `logger`, `prisma`, `discordClient`, `discordRest`, `rosetty`, `commandsLoaded`, `env`. Typed in `src/types/module.d.ts`.
 
 ## Dashboard auth
 
-Discord OAuth2 flow (`/dashboard` → `/auth/callback` → cookie session). Only `env.DISCORD_OWNER_ID` is allowed in. Session stored as a signed cookie (`session=…`).
+Discord OAuth2 flow (`/dashboard` → `/auth/callback` → cookie session). Only `env.DISCORD_OWNER_ID` allowed. Session = signed cookie (`session=…`).
 
 ## Queue flow
 
-Discord command → `messagesWorker` dequeues → emits via Socket.IO to the browser client → client plays content with vidstack.
+Discord command → `messagesWorker` dequeues → Socket.IO emit → browser client plays via vidstack.
 
 ---
 
-**MEMOIRE DU PROJET** : Commence toujours par lire `AI_STATE.md`. Avant de fermer le terminal ou sur demande, mets à jour `AI_STATE.md` avec l'état actuel de l'architecture et les prochaines étapes.
+**PROJECT MEMORY**: Always read `AI_STATE.md` first. Before closing or on request, update `AI_STATE.md` with current architecture and next steps.
 
 ---
 
-## 🚀 Release du client desktop
+## 🚀 Desktop client release
 
-- **Déclencheur :** Quand je dis "on envoie une nouvelle version" (ou formulation similaire), tu dois **d'abord me demander** quel texte je veux afficher aux utilisateurs dans le modal de mise à jour (les release notes), avant de faire quoi que ce soit.
-- Le texte choisi sera utilisé comme description de la GitHub Release (récupéré automatiquement par `electron-updater` et affiché dans le modal de l'app).
-- Workflow de release : bumper la version dans `desktop-client/package.json`, puis `npm run release` dans `desktop-client/`.
+- **Trigger**: When user says "send a new version" (or similar) — **ask first** what text to show users in the update modal (release notes) before doing anything.
+- Chosen text = GitHub Release description (fetched by `electron-updater`, shown in app modal).
+- Release workflow: bump version in `desktop-client/package.json`, then `npm run release` in `desktop-client/`.
 
-## 🧠 Mémoire et Contexte
+## 🧠 Memory & Context
 
-- **Lecture obligatoire :** Si je te demande "On reprend" ou "Où en est-on ?", commence par lire `AI_STATE.md` pour récupérer le contexte.
-- **Le rituel du Commit :** À chaque fois que je te demande de faire un commit (ou de préparer un message de commit), tu dois **strictement suivre cet ordre** :
-  1. Analyser les changements effectués.
-  2. Mettre à jour le fichier `AI_STATE.md` (architecture actuelle, ce qui vient d'être fait, ce qu'il reste à faire).
-  3. Ajouter `AI_STATE.md` aux fichiers stagés (`git add AI_STATE.md`).
-  4. Générer le commit avec le message approprié.
+- **Mandatory read**: If user says "let's resume" or "where are we?" — read `AI_STATE.md` first.
+- **Commit ritual** — strict order:
+  1. Analyze changes made.
+  2. Update `AI_STATE.md` (current architecture, done, remaining).
+  3. Stage `AI_STATE.md` (`git add AI_STATE.md`).
+  4. Generate commit with appropriate message.
 
-## 🔒 Sécurité
+## 🔒 Security
 
-- **Zéro Secret :** Il est strictement interdit d'écrire des clés d'API, des mots de passe, des tokens ou des données sensibles dans le code en dur, et encore moins dans `AI_STATE.md`. Utilise toujours le `.env`.
+- **Zero secrets**: Never hardcode API keys, passwords, tokens, or sensitive data in code or `AI_STATE.md`. Always use `.env`.
 
-## 🧹 Qualité du Code et Standards
+## 🧹 Code quality
 
-- **Clean Code strict :** Ne laisse aucun code mort. Supprime immédiatement les imports inutilisés, les variables non appelées, les fonctions obsolètes et les logs de debug.
-- **Modernité :** Utilise les syntaxes et les features les plus récentes du langage ou du framework détecté dans ce projet.
-- **Conformité SonarLint/SonarQube :** Écris le code pour qu'il passe les analyses statiques haut la main. Limite la complexité cognitive (découpe tes fonctions), gère explicitement toutes les exceptions/cas d'erreur, et type strictement tes données.
+- **No dead code**: Remove unused imports, uncalled variables, obsolete functions, debug logs immediately.
+- **Modern syntax**: Use latest language/framework features detected in project.
+- **SonarLint/SonarQube compliance**: Low cognitive complexity, explicit error handling, strict typing.
