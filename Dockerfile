@@ -35,4 +35,8 @@ RUN pnpm generate
 COPY --from=builder /app/src ./src
 
 EXPOSE $PORT
+
+HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
+  CMD node -e "const http=require('http');const req=http.request({host:'127.0.0.1',port:process.env.PORT||3000,path:'/health',timeout:2000},r=>{process.exit(r.statusCode===200?0:1)});req.on('error',()=>process.exit(1));req.end()"
+
 CMD ["pnpm", "run", "docker:start"]
