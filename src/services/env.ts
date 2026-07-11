@@ -39,7 +39,8 @@ export const validateEnvCoherence = (): void => {
   const dbUrl = env.DATABASE_URL;
   const maskedClientId = `${env.DISCORD_CLIENT_ID.slice(0, 6)}…`;
 
-  console.info(`[ENV] APP_ENV=${appEnv} | DB=${dbUrl} | DISCORD_CLIENT_ID=${maskedClientId}`);
+  const safeDsn = dbUrl.includes('@') ? dbUrl.replace(/:\/\/([^@]+)@/, '://[masked]@') : dbUrl;
+  console.info(`[ENV] APP_ENV=${appEnv} | DB=${safeDsn} | DISCORD_CLIENT_ID=${maskedClientId}`);
 
   if (appEnv === 'production' && dbUrl.includes('sqlite-dev')) {
     throw new Error(
@@ -62,11 +63,7 @@ export enum Environment {
   PRODUCTION = 'production',
 }
 
-export const currentEnv = () =>
-  (!!env.NODE_ENV && env.NODE_ENV !== undefined ? env.NODE_ENV : Environment.DEVELOPMENT)
-    ?.toString()
-    ?.toLowerCase()
-    ?.trim();
+export const currentEnv = () => env.NODE_ENV.toLowerCase().trim();
 export const isProductionEnv = () => currentEnv() === Environment.PRODUCTION;
 export const isPreProductionEnv = () => currentEnv() === Environment.PREPRODUCTION;
 export const isStagingEnv = () => currentEnv() === Environment.STAGING;

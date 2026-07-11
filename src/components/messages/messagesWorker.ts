@@ -72,6 +72,15 @@ export const executeMessagesWorker = async (fastify: FastifyCustomInstance) => {
     });
   }
 
+  let content: Record<string, unknown>;
+  try {
+    content = JSON.parse(lastMessage.content);
+  } catch {
+    logger.error(`[WORKER] Malformed JSON for message ${lastMessage.id} — discarding`);
+    await prisma.queue.delete({ where: { id: lastMessage.id } });
+    return;
+  }
+
   fastify.io.to(`${env.APP_ENV}:messages-${lastMessage.discordGuildId}`).emit('new-message', {
     ...lastMessage,
     displayAt: Date.now() + MESSAGE_SYNC_LEAD_TIME_MS,
@@ -79,8 +88,6 @@ export const executeMessagesWorker = async (fastify: FastifyCustomInstance) => {
   logger.debug(`[SOCKET] New message ${lastMessage.id} (guild: ${lastMessage.discordGuildId}): ${lastMessage.content}`);
 
   await prisma.queue.delete({ where: { id: lastMessage.id } });
-
-  const content = JSON.parse(lastMessage.content);
   const latencyMs = Date.now() - lastMessage.submissionDate.getTime();
   const payloadBytes = Buffer.byteLength(lastMessage.content, 'utf8');
 

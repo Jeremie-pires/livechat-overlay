@@ -532,7 +532,14 @@
           displayAuthor(message.author, message.authorImage);
         }
 
-        var data = JSON.parse(message.content || '{}');
+        var data;
+        try {
+          data = JSON.parse(message.content || '{}');
+        } catch {
+          console.warn('[Client] Malformed message content, skipping.');
+          onContentDone(myToken);
+          return;
+        }
 
         displayText(data.text);
 

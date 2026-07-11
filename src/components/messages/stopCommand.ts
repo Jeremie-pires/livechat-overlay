@@ -8,13 +8,10 @@ export const stopCommand = (fastify: FastifyCustomInstance) => ({
   handler: async (interaction: CommandInteraction) => {
     fastify.io.to(`${env.APP_ENV}:messages-${interaction.guildId!}`).emit('stop');
 
-    await prisma.guild.update({
-      where: {
-        id: interaction.guildId!,
-      },
-      data: {
-        busyUntil: null,
-      },
+    await prisma.guild.upsert({
+      where: { id: interaction.guildId! },
+      create: { id: interaction.guildId!, busyUntil: null },
+      update: { busyUntil: null },
     });
 
     await interaction.reply({

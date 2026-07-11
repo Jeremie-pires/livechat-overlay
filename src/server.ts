@@ -6,7 +6,7 @@ import GracefulServer from '@gquittet/graceful-server';
 import unifyFastifyPlugin from 'unify-fastify';
 import { loadRoutes } from './loaders/RESTLoader';
 import { loadSocket } from './loaders/socketLoader';
-import { isProductionEnv, isPreProductionEnv, validateEnvCoherence } from './services/env';
+import { env, isProductionEnv, isPreProductionEnv, validateEnvCoherence } from './services/env';
 import { loadDiscord } from './loaders/DiscordLoader';
 import { loadRosetty } from './services/i18n/loader';
 import { loadPrismaClient } from './services/prisma/loadPrisma';
@@ -14,6 +14,19 @@ import './services/cpuSampler';
 
 export const runServer = async () => {
   validateEnvCoherence();
+
+  const allowedOrigin = new URL(env.API_URL).origin;
+
+  const corsOrigin = (
+    origin: string | undefined,
+    callback: (err: Error | null, allow: boolean) => void,
+  ) => {
+    if (!origin || origin === allowedOrigin) {
+      callback(null, true);
+    } else {
+      callback(new Error('CORS not allowed'), false);
+    }
+  };
 
   const logLevel = env.LOG || 'info';
   // LOAD API FRAMEWORK
@@ -40,8 +53,8 @@ export const runServer = async () => {
   });
 
   try {
-    logger.info('[DB] Connected to database');
     await loadPrismaClient();
+    logger.info('[DB] Connected to database');
   } catch (e) {
     logger.fatal(e, '[DB] Impossible to connect to database');
     process.exit(1);
@@ -61,7 +74,7 @@ export const runServer = async () => {
           'set-cookie',
           'Cookie',
         ],
-        origin: true,
+        origin: corsOrigin,
         credentials: true,
       },
     });
@@ -92,7 +105,7 @@ export const runServer = async () => {
       'set-cookie',
       'Cookie',
     ],
-    origin: true,
+    origin: corsOrigin,
     credentials: true,
   });
 

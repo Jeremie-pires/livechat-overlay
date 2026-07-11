@@ -27,14 +27,29 @@ export const loadSocket = (fastify: FastifyCustomInstance) => {
     });
 
     socket.on('join-room', async (payload: JoinRoomPayload) => {
-      const roomId = typeof payload === 'string' ? payload : payload.id;
+      const rawId = typeof payload === 'string' ? payload : (payload as Record<string, unknown>)?.id;
+      if (typeof rawId !== 'string' || rawId.length === 0 || rawId.length > 200) {
+        logger.warn(`[Socket] Invalid join-room payload from ${socket.id}`);
+        return;
+      }
+      const roomId = rawId;
       const token = typeof payload === 'string' ? null : (payload.token ?? null);
+
+      if (!roomId.startsWith(ROOM_PREFIX)) {
+        logger.warn(`[Socket] Rejected join to unauthorized room: ${roomId} (socket: ${socket.id})`);
+        return;
+      }
+
+      const guildId = roomId.slice(ROOM_PREFIX.length);
+      if (!guildId || !/^\d+$/.test(guildId)) {
+        logger.warn(`[Socket] Rejected join with invalid guildId: "${guildId}"`);
+        return;
+      }
 
       logger.debug(`Join room :  ${socket.id} -> ${roomId}`);
       socket.join(roomId);
 
-      if (token && roomId.startsWith(ROOM_PREFIX)) {
-        const guildId = roomId.slice(ROOM_PREFIX.length);
+      if (token) {
         try {
           const session = await prisma.clientSession.findUnique({ where: { tokenHash: hashToken(token) } });
           if (session && session.guildId === guildId) {
