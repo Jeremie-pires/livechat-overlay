@@ -6,13 +6,15 @@ import GracefulServer from '@gquittet/graceful-server';
 import unifyFastifyPlugin from 'unify-fastify';
 import { loadRoutes } from './loaders/RESTLoader';
 import { loadSocket } from './loaders/socketLoader';
-import { isProductionEnv, isPreProductionEnv } from './services/env';
+import { isProductionEnv, isPreProductionEnv, validateEnvCoherence } from './services/env';
 import { loadDiscord } from './loaders/DiscordLoader';
 import { loadRosetty } from './services/i18n/loader';
 import { loadPrismaClient } from './services/prisma/loadPrisma';
 import './services/cpuSampler';
 
 export const runServer = async () => {
+  validateEnvCoherence();
+
   const logLevel = env.LOG || 'info';
   // LOAD API FRAMEWORK
   //@ts-ignore

@@ -1,7 +1,7 @@
 # AI_STATE.md — LiveChat CCB
 
 ## Statut
-Stable. Système de logging BDD + DMs owner + nettoyage dead code déployé.
+Sprint DevSecOps en cours. Branche `feature/env-isolation-msg` : isolation environnement Prod/Staging complète (APP_ENV + rooms namespacées + handshake client).
 
 ## Architecture actuelle
 
@@ -13,17 +13,17 @@ Stable. Système de logging BDD + DMs owner + nettoyage dead code déployé.
 ### Loaders
 - `src/loaders/DiscordLoader.ts` — bot Discord, dispatch commands, log START au ClientReady, log STOP + DM owner au SIGTERM/SIGINT
 - `src/loaders/RESTLoader.ts` — routes REST
-- `src/loaders/socketLoader.ts` — événements Socket.IO — lors du `join-room` avec token, fetch l'avatar Discord du user (cache first puis `users.fetch`) et le stocke dans le presenceStore
+- `src/loaders/socketLoader.ts` — événements Socket.IO — émet `server:env` (APP_ENV) à chaque connexion (handshake client) ; rooms namespacées `${APP_ENV}:messages-${guildId}` ; guildId extrait du préfixe complet `${ROOM_PREFIX}` dans `join-room`
 
 ### Composants
 - `src/components/discord/` — commandes slash : dispo, client, setup, help, info, config-defaut, config-max, announce, maintenance
-- `src/components/messages/` — send/cmsg/dire/cdire/stop + messagesWorker
-- `src/components/client/` — player navigateur HTML/JS/CSS (vidstack)
+- `src/components/messages/` — send/cmsg/dire/cdire/stop + messagesWorker — `messagesWorker.ts` et `stopCommand.ts` émettent sur `${APP_ENV}:messages-${guildId}`
+- `src/components/client/` — player navigateur HTML/JS/CSS (vidstack) — écoute `server:env` avant de rejoindre la room ; room = `${serverEnv}:messages-${guildId}` ; ne rejoint plus la room au `connect` mais attend le handshake serveur
 - `src/components/api/statsRoutes.ts` — GET /api/stats (auth requise) — inclut BotEvents + champ `isSetup` par guild (lookup Prisma via `Set<string>`)
 - `src/components/dashboard/dashboardRoutes.ts` — dashboard glassmorphism + OAuth Discord + onglet Journal + badge setup par serveur + subtitle "X connectés / Y configurés" + cards restructurées (server-top / server-badges)
 
 ### Services
-- `src/services/env.ts` — variables d'env validées par Zod
+- `src/services/env.ts` — variables d'env validées par Zod + `APP_ENV: z.enum(['production','staging'])` (obligatoire) + `validateEnvCoherence()` (garde fail-fast au boot : vérifie cohérence APP_ENV / DATABASE_URL)
 - `src/services/session.ts` — tokens de session (cookie signé)
 - `src/services/cpuSampler.ts` — échantillonnage CPU/RAM
 - `src/services/botLogger.ts` — `logBotEvent(type, message)` + `notifyOwner(type, message)` (DM Discord owner)
@@ -73,6 +73,13 @@ Seul `env.DISCORD_OWNER_ID` est autorisé.
 Discord command → `messagesWorker` déqueue → Socket.IO emit → browser client (vidstack)
 
 ## Ce qui vient d'être fait (dernière session)
+- **Sprint DevSecOps — Objectif 1 : Isolation environnement (`feature/env-isolation-msg`)** :
+  - `env.ts` : ajout de `APP_ENV: z.enum(['production','staging'])` (variable obligatoire dans `.env`) + `validateEnvCoherence()` — fail-fast si `APP_ENV=production` avec `sqlite-dev` ou `APP_ENV=staging` sans `dev` dans `DATABASE_URL`. Log au boot : APP_ENV, DATABASE_URL, DISCORD_CLIENT_ID masqué.
+  - `server.ts` : appel de `validateEnvCoherence()` en tout premier dans `runServer()`, avant l'initialisation de Fastify.
+  - `socketLoader.ts` : émet `server:env` (APP_ENV) sur chaque connexion Socket.IO. Rooms désormais namespacées `${APP_ENV}:messages-${guildId}`. `ROOM_PREFIX` calculé une fois au module load.
+  - `messagesWorker.ts` : émet sur `${env.APP_ENV}:messages-${guildId}` — isolation physique des flux Prod/Staging.
+  - `stopCommand.ts` : émet `stop` sur `${env.APP_ENV}:messages-${guildId}`.
+  - `client.html` : ne rejoint plus la room au `connect`. Attend l'événement `server:env` du serveur (handshake), puis construit `${serverEnv}:messages-${guildId}` et émet `join-room`. Fonctionne aussi sur reconnexion (le serveur ré-émet `server:env` à chaque `connection`).
 - **Fix DiscordAPIError 10062 (Unknown interaction)** : `sendCommand`, `hidesendCommand`, `talkCommand` — ajout de `deferReply()` en début de handler + remplacement de `interaction.reply()` par `interaction.editReply()`. Corrige les timeouts Discord (3s) sur les serveurs lents ou avec URL lentes à résoudre. Import `MessageFlags` retiré de `hidesendCommand` (devenu inutilisé).
 - **Dashboard — renommage métrique "latence"** : "Latence moy." → "Attente file moy." dans les 3 endroits du dashboard. La métrique mesure le temps d'attente en file d'attente (submissionDate → émission Socket.IO), pas la latence réseau réelle (~1.2s fixe via `MESSAGE_SYNC_LEAD_TIME_MS`).
 
@@ -97,9 +104,14 @@ Discord command → `messagesWorker` déqueue → Socket.IO emit → browser cli
 - **Mode maintenance** : `Stats.silentMode` + commande `/maintenance` + bouton dashboard
 
 ## Points ouverts
+- **Migration config `.env`** : ajouter `APP_ENV=production` dans `.env` prod et `APP_ENV=staging` dans `.env.dev` avant déploiement — le serveur refuse de démarrer sans cette variable.
 - 404 réguliers en paires dans les logs (origine inconnue — probablement trafic TLS terminé en amont par HAProxy). À surveiller via le Journal du dashboard.
-- Déploiement serveur requis : `git pull && docker compose down && docker compose up -d --build` (inclut fix 10062 + presenceSse + dashboard SSE + presenceStore dedup + Shorts).
+- Déploiement serveur requis : `git pull && docker compose down && docker compose up -d --build` (inclut isolation APP_ENV + fix 10062 + presenceSse + dashboard SSE + presenceStore dedup + Shorts).
 - Desktop client : bump version + release (v1.3.0) à planifier.
 
-## Prochaines étapes
-En attente d'instructions.
+## Prochaines étapes (sprint DevSecOps)
+1. PR `feature/env-isolation-msg` → `develop` + validation staging
+2. `feature/observability-logging` — correlation_id + `/health` + `/health/ready` + rotation logs Docker
+3. `feature/security-remediation` — XSS player/journal + durcissement sessions/OAuth
+4. `feature/network-media-optim` — médias par URL + compression + cache
+5. `chore/deploy-zero-downtime` — scripts deploy + readiness gate HAProxy + rollback

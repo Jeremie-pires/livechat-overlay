@@ -1,8 +1,11 @@
 import { createHash } from 'crypto';
+import { env } from '../services/env';
 import { presenceStore } from '../services/presenceStore';
 import { presenceSse } from '../services/presenceSse';
 
 const hashToken = (t: string) => createHash('sha256').update(t).digest('hex');
+
+const ROOM_PREFIX = `${env.APP_ENV}:messages-`;
 
 type JoinRoomPayload = string | { id: string; token?: string };
 
@@ -11,12 +14,14 @@ export const loadSocket = (fastify: FastifyCustomInstance) => {
   fastify.io.on('connection', (socket) => {
     logger.debug(`New connection to socketIO :  ${socket.id}`);
 
+    socket.emit('server:env', env.APP_ENV);
+
     socket.on('disconnecting', () => {
       logger.debug(`New disconnection to socketIO :  ${socket.id}`);
       const affected = presenceStore.removeSocket(socket.id);
       for (const guildId of affected) {
         const updated = presenceStore.get(guildId);
-        fastify.io.to(`messages-${guildId}`).emit('presence:update', updated);
+        fastify.io.to(`${ROOM_PREFIX}${guildId}`).emit('presence:update', updated);
         presenceSse.push(presenceStore.getAll());
       }
     });
@@ -28,8 +33,8 @@ export const loadSocket = (fastify: FastifyCustomInstance) => {
       logger.debug(`Join room :  ${socket.id} -> ${roomId}`);
       socket.join(roomId);
 
-      if (token && roomId.startsWith('messages-')) {
-        const guildId = roomId.slice('messages-'.length);
+      if (token && roomId.startsWith(ROOM_PREFIX)) {
+        const guildId = roomId.slice(ROOM_PREFIX.length);
         try {
           const session = await prisma.clientSession.findUnique({ where: { tokenHash: hashToken(token) } });
           if (session && session.guildId === guildId) {

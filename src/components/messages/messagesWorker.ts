@@ -1,4 +1,5 @@
 import { addMilliseconds, addSeconds } from 'date-fns';
+import { env } from '../../services/env';
 import { QueueType } from '../../services/prisma/loadPrisma';
 
 const MESSAGE_SYNC_LEAD_TIME_MS = 1200;
@@ -71,7 +72,7 @@ export const executeMessagesWorker = async (fastify: FastifyCustomInstance) => {
     });
   }
 
-  fastify.io.to(`messages-${lastMessage.discordGuildId}`).emit('new-message', {
+  fastify.io.to(`${env.APP_ENV}:messages-${lastMessage.discordGuildId}`).emit('new-message', {
     ...lastMessage,
     displayAt: Date.now() + MESSAGE_SYNC_LEAD_TIME_MS,
   });

@@ -7,6 +7,7 @@ import { z } from 'zod';
 export const env = createEnv({
   server: {
     NODE_ENV: z.string().default('development'),
+    APP_ENV: z.enum(['production', 'staging']),
     LOG: z.enum(['info', 'debug', 'error', 'silent', 'warning']).default('info'),
     PORT: z
       .string()
@@ -32,6 +33,26 @@ export const env = createEnv({
   },
   runtimeEnv: process.env,
 });
+
+export const validateEnvCoherence = (): void => {
+  const appEnv = env.APP_ENV;
+  const dbUrl = env.DATABASE_URL;
+  const maskedClientId = `${env.DISCORD_CLIENT_ID.slice(0, 6)}…`;
+
+  console.info(`[ENV] APP_ENV=${appEnv} | DB=${dbUrl} | DISCORD_CLIENT_ID=${maskedClientId}`);
+
+  if (appEnv === 'production' && dbUrl.includes('sqlite-dev')) {
+    throw new Error(
+      `[ENV] FATAL: APP_ENV=production but DATABASE_URL references a dev database ("${dbUrl}"). Boot aborted to prevent environment cross-contamination.`,
+    );
+  }
+
+  if (appEnv === 'staging' && !dbUrl.includes('dev')) {
+    throw new Error(
+      `[ENV] FATAL: APP_ENV=staging but DATABASE_URL does not reference a dev database ("${dbUrl}"). Boot aborted to prevent environment cross-contamination.`,
+    );
+  }
+};
 
 export enum Environment {
   TEST = 'test',
