@@ -23,7 +23,7 @@ export const frLang: typeof enLang = {
 
   clientCommand: 'client',
   clientCommandDescription: 'Obtenez un lien OBS pour intégrer LiveChat',
-  clientCommandsAnswer: 'Voici les infos de connexion à entrer dans l\'app :',
+  clientCommandsAnswer: "Voici les infos de connexion à entrer dans l'app :",
   clientCommandsUrlLabel: 'URL du serveur',
   clientCommandsGuildIdLabel: 'ID de la Guild Discord',
 
@@ -95,7 +95,8 @@ export const frLang: typeof enLang = {
   setupCommandDescription: 'Configurer le canal du bot pour ce serveur',
   setupCommandOptionChannelDescription: 'Canal texte où les commandes du bot seront acceptées',
   setupCommandAnswer: 'Bot configuré ! Les commandes seront acceptées dans {{channel}}.',
-  noChannelConfigured: "Ce serveur n'a pas encore de canal configuré. Un administrateur doit d'abord faire `/setup #canal`.",
+  noChannelConfigured:
+    "Ce serveur n'a pas encore de canal configuré. Un administrateur doit d'abord faire `/setup #canal`.",
 
   announceCommand: 'announce',
   announceCommandDescription: 'Envoyer une annonce à tous les serveurs (propriétaire du bot uniquement)',

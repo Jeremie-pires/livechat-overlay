@@ -801,10 +801,7 @@ async function dashboardPlugin(fastify: FastifyCustomInstance) {
     }
 
     const sessionToken = createSession();
-    reply.header(
-      'Set-Cookie',
-      `session=${sessionToken}; HttpOnly; Secure; Path=/; SameSite=Lax; Max-Age=604800`,
-    );
+    reply.header('Set-Cookie', `session=${sessionToken}; HttpOnly; Secure; Path=/; SameSite=Lax; Max-Age=604800`);
     return reply.redirect('/dashboard', 302);
   });
 
@@ -840,7 +837,7 @@ async function dashboardPlugin(fastify: FastifyCustomInstance) {
     raw.writeHead(200, {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive',
+      Connection: 'keep-alive',
       'X-Accel-Buffering': 'no',
     });
     raw.write(': connected\n\n');
@@ -848,7 +845,11 @@ async function dashboardPlugin(fastify: FastifyCustomInstance) {
     presenceSse.register(raw);
 
     const keepAlive = setInterval(() => {
-      try { raw.write(': ping\n\n'); } catch { clearInterval(keepAlive); }
+      try {
+        raw.write(': ping\n\n');
+      } catch {
+        clearInterval(keepAlive);
+      }
     }, 25000);
 
     req.raw.on('close', () => clearInterval(keepAlive));

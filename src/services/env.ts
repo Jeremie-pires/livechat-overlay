@@ -40,6 +40,7 @@ export const validateEnvCoherence = (): void => {
   const maskedClientId = `${env.DISCORD_CLIENT_ID.slice(0, 6)}…`;
 
   const safeDsn = dbUrl.includes('@') ? dbUrl.replace(/:\/\/([^@]+)@/, '://[masked]@') : dbUrl;
+  // eslint-disable-next-line no-console
   console.info(`[ENV] APP_ENV=${appEnv} | DB=${safeDsn} | DISCORD_CLIENT_ID=${maskedClientId}`);
 
   if (appEnv === 'production' && dbUrl.includes('sqlite-dev')) {

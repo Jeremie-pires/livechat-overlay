@@ -33,7 +33,7 @@ export const loadSocket = (fastify: FastifyCustomInstance) => {
         return;
       }
       const roomId = rawId;
-      const token = typeof payload === 'string' ? null : (payload.token ?? null);
+      const token = typeof payload === 'string' ? null : payload.token ?? null;
 
       if (!roomId.startsWith(ROOM_PREFIX)) {
         logger.warn(`[Socket] Rejected join to unauthorized room: ${roomId} (socket: ${socket.id})`);
@@ -55,8 +55,9 @@ export const loadSocket = (fastify: FastifyCustomInstance) => {
           if (session && session.guildId === guildId) {
             let avatarUrl: string | null = null;
             try {
-              const user = discordClient.users.cache.get(session.discordUserId)
-                ?? await discordClient.users.fetch(session.discordUserId);
+              const user =
+                discordClient.users.cache.get(session.discordUserId) ??
+                (await discordClient.users.fetch(session.discordUserId));
               avatarUrl = user.avatarURL({ size: 64 }) ?? null;
             } catch {
               // avatar unavailable — fall back to null
