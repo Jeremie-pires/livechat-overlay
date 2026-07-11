@@ -34,7 +34,7 @@ export const ClientRoutes = () =>
     fastify.get('/img/:filename', async function (req, reply) {
       const { filename } = req.params as { filename: string };
       const filePath = join(__dirname, 'img', filename);
-      
+
       if (fs.existsSync(filePath)) {
         const stream = fs.createReadStream(filePath);
         if (filename.endsWith('.svg')) {
@@ -48,7 +48,7 @@ export const ClientRoutes = () =>
         }
         return stream;
       }
-      
+
       reply.status(404).send('Not Found');
     });
   };

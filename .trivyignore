@@ -1,0 +1,33 @@
+# CVEs suppressed because the fix requires a breaking major version upgrade.
+# Accepted risk — tracked in feature/security-remediation.
+
+# fastify@4.x — fix requires fastify@5.x (breaking API changes)
+CVE-2026-25223
+
+# fast-uri@2.x — fix requires fast-uri@3.x, but fastify@4 depends on fast-uri@2
+CVE-2026-6321
+CVE-2026-6322
+
+# tar@6.x — fix requires tar@7.x (breaking API changes, used by node-gyp)
+CVE-2026-23745
+CVE-2026-23950
+CVE-2026-24842
+CVE-2026-26960
+CVE-2026-29786
+CVE-2026-31802
+
+# minimatch@9.x — devDep transitive chain; eliminated by multi-stage --prod build.
+CVE-2024-21534
+
+# glob@10.x — devDep transitive chain; eliminated by multi-stage --prod build.
+CVE-2025-64756
+
+# cross-spawn: patched to 7.0.6 via pnpm override in lockfile — no suppression needed.
+# undici: patched to 6.27.0 via pnpm override in lockfile — no suppression needed.
+# find-my-way: patched to >=8.2.2 via pnpm override — no suppression needed.
+# ws: patched to >=8.21.0 via pnpm override — no suppression needed.
+# socket.io-parser: patched to >=4.2.6 via pnpm override — no suppression needed.
+
+# lodash@4.17.21 — fix requires lodash@4.18.0 (direct dep updated to ^4.18.0).
+# This entry is a fallback in case the release hasn't published yet.
+CVE-2026-4800

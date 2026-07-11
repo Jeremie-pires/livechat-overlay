@@ -8,7 +8,7 @@
     "docker:start": "pnpm migration:up && tsx ./src/index.ts",
     "start": "node ./dist/src/index.js",
     "lint": "eslint src --ext .ts --fix",
-    "prepare": "husky install",
+    "prepare": "node -e \"process.env.HUSKY!=='0'&&require('child_process').execSync('husky install',{stdio:'inherit'})\"",
     "generate": "prisma generate",
     "migration:up": "prisma db push",
     "migration:make": "prisma migrate dev",
@@ -33,7 +33,6 @@
     "lint-staged": "15.2.2",
     "pino-pretty": "10.3.1",
     "prettier": "3.2.5",
-    "tsx": "^4.7.1",
     "types-fastify-socket.io": "0.0.1",
     "typescript": "5.3.3",
     "vitest": "^4.1.10"
@@ -50,7 +49,7 @@
     "file-type": "16.5.4",
     "get-video-duration": "^4.1.0",
     "gtts": "^0.2.1",
-    "lodash": "^4.17.21",
+    "lodash": "^4.18.0",
     "mime-types": "^2.1.35",
     "node-fetch": "^3.3.2",
     "node-gyp": "^10.0.1",
@@ -66,7 +65,8 @@
     "youtubei.js": "^15.1.1",
     "zlib-sync": "^0.1.9",
     "zod": "^3.22.4",
-    "zod-validation-error": "^3.0.1"
+    "zod-validation-error": "^3.0.1",
+    "tsx": "^4.7.1"
   },
   "optionalDependencies": {
     "bufferutil": "^4.0.8",
@@ -75,7 +75,12 @@
   "packageManager": "pnpm@8.15.9+sha512.499434c9d8fdd1a2794ebf4552b3b25c0a633abcee5bb15e7b5de90f32f47b513aca98cd5cfd001c31f0db454bc3804edccd578501e4ca293a6816166bbd9f81",
   "pnpm": {
     "overrides": {
-      "form-data": ">=2.5.4"
+      "form-data": ">=2.5.4",
+      "cross-spawn": "^7.0.5",
+      "undici": "^6.27.0",
+      "find-my-way": "^8.2.2",
+      "ws": ">=8.21.0",
+      "socket.io-parser": ">=4.2.6"
     }
   }
 }

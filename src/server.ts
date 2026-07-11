@@ -17,10 +17,7 @@ export const runServer = async () => {
 
   const allowedOrigin = new URL(env.API_URL).origin;
 
-  const corsOrigin = (
-    origin: string | undefined,
-    callback: (err: Error | null, allow: boolean) => void,
-  ) => {
+  const corsOrigin = (origin: string | undefined, callback: (err: Error | null, allow: boolean) => void) => {
     if (!origin || origin === allowedOrigin) {
       callback(null, true);
     } else {
