@@ -8,7 +8,7 @@
     "docker:start": "pnpm migration:up && tsx ./src/index.ts",
     "start": "node ./dist/src/index.js",
     "lint": "eslint src --ext .ts --fix",
-    "prepare": "husky install",
+    "prepare": "node -e \"process.env.HUSKY!=='0'&&require('child_process').execSync('husky install',{stdio:'inherit'})\"",
     "generate": "prisma generate",
     "migration:up": "prisma db push",
     "migration:make": "prisma migrate dev",
