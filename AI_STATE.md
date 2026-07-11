@@ -56,7 +56,7 @@ Sprint `feature/observability-prod-readiness` — READY TO MERGE. Lead Tech revi
 | `src/services/env.ts` | Zod env, `validateEnvCoherence()`, DSN masked |
 | `src/services/session.ts` | createSession / getSessionToken / isValidSession / deleteSession |
 | `src/components/dashboard/dashboardRoutes.ts` | XSS-safe, Secure cookie, server-side logout |
-| `src/__tests__/` | 6 files, ~51 tests |
+| `src/__tests__/` | 6 files, ~54 tests |
 
 ---
 
