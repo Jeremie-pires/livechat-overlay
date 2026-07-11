@@ -11,8 +11,10 @@ export const HealthRoutes = () =>
         await global.prisma.$queryRaw`SELECT 1`;
         checks.db = { ok: true };
       } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        checks.db = { ok: false, reason: msg };
+        fastify.log.error(err, '[HEALTH] Prisma readiness probe failed');
+        const code = (err as Record<string, unknown>).code;
+        const reason = typeof code === 'string' ? `Database connection failed (${code})` : 'Database connection failed';
+        checks.db = { ok: false, reason };
       }
 
       const discordReady = global.discordClient?.isReady() ?? false;

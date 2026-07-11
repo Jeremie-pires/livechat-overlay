@@ -1,7 +1,7 @@
 # AI_STATE.md — LiveChat CCB
 
 ## Status
-Sprint `feature/observability-prod-readiness` — IN PROGRESS. Observability, health endpoints, correlation IDs, zero-downtime deploy runbook implemented. Ready for test run + PR → `develop`.
+Sprint `feature/observability-prod-readiness` — READY TO MERGE. Lead Tech review blockers B1–B4 resolved. 54 tests green. Branch ready for PR → `develop`.
 
 ---
 
@@ -16,6 +16,11 @@ Sprint `feature/observability-prod-readiness` — IN PROGRESS. Observability, he
 - `src/server.ts`: Pino structured JSON in deployed envs (`base` bindings: env/service/version/timestamp), `redact` paths (DISCORD_TOKEN, DISCORD_CLIENT_SECRET, cookies), correlation-id hook (`genReqId` from `x-request-id` or `crypto.randomUUID()`)
 - `docs/DEPLOYMENT.md`: zero-downtime runbook (`--wait`, rollback, pre-deploy checklist, HAProxy drain, log rotation)
 - 8 new Vitest tests for `/health`, `/health/ready`, correlation-id propagation
+- **B1 (security):** `genReqId` validates strict UUID v4 regex (`/^…4…[89ab]…$/i`); non-string, malformed, or non-v4 headers fall through to `crypto.randomUUID()`
+- **B2 (reliability):** `onClose` hook moved outside socket.io `try/catch` — always registered, no handle leak on partial init
+- **B3 (correctness):** `onClose` param renamed to `_instance`, dead `if (err)` branch removed — Fastify v4 contract honoured
+- **B4 (security):** `/health/ready` Prisma error logs full detail server-side; returns `'Database connection failed'` (+ `err.code` when present) — never exposes `err.message`
+- 3 new tests: B1 invalid UUID fallback, B1 v1 UUID fallback, B4 sanitized reason, B4 reason with err.code → 54 tests total, 6 files
 
 **Trivy Round 2 — 41 CVEs (commit `a90bfe7`):**
 - `find-my-way^8.2.2`, `ws>=8.21.0`, `socket.io-parser>=4.2.6`, `lodash^4.18.0`
@@ -55,7 +60,7 @@ Sprint `feature/observability-prod-readiness` — IN PROGRESS. Observability, he
 
 ## 3. Next steps
 
-1. **Merge** `feature/observability-prod-readiness` → `develop` (staging validation).
+1. **PR** `feature/observability-prod-readiness` → `develop` (suite green, review blockers resolved).
 2. **`feature/security-remediation`** — fastify v5 (CVE-2026-25223 + fast-uri CVEs), tar upgrade, SRI for Tailwind CDN, pnpm v10.
 3. **`feature/network-media-optim`** — media by URL, compression, cache.
 4. **Observability phase 2** — external log shipping (Loki/ELK), Docker log rotation config fine-tuning.

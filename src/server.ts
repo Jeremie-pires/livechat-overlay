@@ -52,11 +52,18 @@ export const runServer = async () => {
       }
     : { level: logLevel };
 
+  const UUID_V4_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+  const resolveCorrelationId = (header: string | string[] | undefined): string => {
+    if (typeof header === 'string' && UUID_V4_RE.test(header)) return header;
+    return crypto.randomUUID();
+  };
+
   //@ts-ignore
   const fastify: FastifyCustomInstance = Fastify({
     logger: loggerOptions,
     disableRequestLogging: true,
-    genReqId: (req) => (req.headers['x-request-id'] as string) || crypto.randomUUID(),
+    genReqId: (req) => resolveCorrelationId(req.headers['x-request-id']),
   });
 
   const logger = fastify.log;
@@ -105,18 +112,15 @@ export const runServer = async () => {
         credentials: true,
       },
     });
-
-    fastify.addHook('onClose', async (err) => {
-      if (err) {
-        logger.debug(err);
-      }
-      await global.prisma.$disconnect();
-      await fastify.io.close();
-      logger.info({ event: 'shutdown' }, '[SERVER] Connections closed');
-    });
   } catch (error) {
-    logger.fatal('Impossible to disconnect to db');
+    logger.fatal(error, '[SERVER] Failed to register socket.io');
   }
+
+  fastify.addHook('onClose', async (_instance) => {
+    await global.prisma.$disconnect();
+    await fastify.io?.close();
+    logger.info({ event: 'shutdown' }, '[SERVER] Connections closed');
+  });
 
   await fastify.register(FastifyCORS, {
     methods: ['GET', 'PUT', 'DELETE', 'POST', 'OPTIONS', 'PATCH'],
