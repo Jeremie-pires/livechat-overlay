@@ -7,10 +7,6 @@ import { DashboardRoutes } from '../components/dashboard/dashboardRoutes';
 export const loadRoutes = (fastify: FastifyCustomInstance) => {
   const routes = [{ '/client': ClientRoutes }, { '/api': StatsRoutes }, { '/': DashboardRoutes }];
 
-  fastify.register(HealthRoutes(), { prefix: '/' });
-  logger.info('[REST] Health Routes loaded (/health, /health/ready)');
-
-
   for (const route of routes) {
     const [[prefix, fastifyRoutes]] = Object.entries(route);
     //@ts-ignore
