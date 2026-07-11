@@ -1,4 +1,12 @@
-import { ChannelType, ChatInputCommandInteraction, Client, EmbedBuilder, MessageFlags, PermissionFlagsBits, SlashCommandBuilder } from 'discord.js';
+import {
+  ChannelType,
+  ChatInputCommandInteraction,
+  Client,
+  EmbedBuilder,
+  MessageFlags,
+  PermissionFlagsBits,
+  SlashCommandBuilder,
+} from 'discord.js';
 
 export const setupCommand = () => ({
   data: new SlashCommandBuilder()
