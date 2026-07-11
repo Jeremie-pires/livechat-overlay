@@ -1,7 +1,7 @@
 # AI_STATE.md — LiveChat CCB
 
 ## Status
-Sprint `feature/observability-prod-readiness` — READY TO MERGE. Lead Tech review blockers B1–B4 resolved. 54 tests green. Branch ready for PR → `develop`.
+Sprint `feature/observability-prod-readiness` — READY TO MERGE. Lead Tech review blockers B1–B4 resolved. All tests green. Branch ready for PR → `develop`.
 
 ---
 
@@ -21,6 +21,7 @@ Sprint `feature/observability-prod-readiness` — READY TO MERGE. Lead Tech revi
 - **B3 (correctness):** `onClose` param renamed to `_instance`, dead `if (err)` branch removed — Fastify v4 contract honoured
 - **B4 (security):** `/health/ready` Prisma error logs full detail server-side; returns `'Database connection failed'` (+ `err.code` when present) — never exposes `err.message`
 - 3 new tests: B1 invalid UUID fallback, B1 v1 UUID fallback, B4 sanitized reason, B4 reason with err.code → 54 tests total, 6 files
+- **CI fix:** `messagesWorker.test.ts` — added `vi.mock` for `loadPrisma` so `@prisma/client` is never resolved when Prisma client is not generated in CI
 
 **Trivy Round 2 — 41 CVEs (commit `a90bfe7`):**
 - `find-my-way^8.2.2`, `ws>=8.21.0`, `socket.io-parser>=4.2.6`, `lodash^4.18.0`

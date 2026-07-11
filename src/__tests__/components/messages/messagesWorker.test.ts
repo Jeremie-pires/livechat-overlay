@@ -1,5 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
 
+vi.mock('../../../services/prisma/loadPrisma', () => ({
+  QueueType: { VOCAL: 'vocal', MESSAGE: 'message' },
+}));
+
 type MediaType = 'image' | 'video' | 'audio' | 'link' | 'text';
 
 const getMediaType = (type: string, content: { url?: string; mediaContentType?: string }): MediaType => {
