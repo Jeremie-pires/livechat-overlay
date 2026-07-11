@@ -5,10 +5,7 @@ export const announceCommand = () => ({
     .setName('announce')
     .setDescription(rosetty.t('announceCommandDescription')!)
     .addStringOption((option) =>
-      option
-        .setName('message')
-        .setDescription(rosetty.t('announceCommandOptionDescription')!)
-        .setRequired(true),
+      option.setName('message').setDescription(rosetty.t('announceCommandOptionDescription')!).setRequired(true),
     ),
   bypassChannelCheck: true,
   handler: async (interaction: ChatInputCommandInteraction) => {
@@ -23,7 +20,10 @@ export const announceCommand = () => ({
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     const message = interaction.options.getString('message', true);
-    const guilds = await prisma.guild.findMany({ where: { channelId: { not: null } }, select: { id: true, channelId: true } });
+    const guilds = await prisma.guild.findMany({
+      where: { channelId: { not: null } },
+      select: { id: true, channelId: true },
+    });
 
     let sent = 0;
     for (const guild of guilds) {

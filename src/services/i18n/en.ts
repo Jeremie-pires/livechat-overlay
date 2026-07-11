@@ -36,7 +36,7 @@ export const enLang = {
   sendCommandOptionDuration: 'duration',
   sendCommandOptionDurationDescription: 'Display duration in seconds or "full" for videos',
   sendCommandAnswer: 'Content received ! Will be played soon !',
-  
+
   hideSendCommand: 'hsend',
   hideSendCommandDescription: 'Send content to stream (but hided 😈)',
   hideSendCommandOptionURL: 'link',

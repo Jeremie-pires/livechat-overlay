@@ -17,18 +17,15 @@ vi.mock('../../services/env', async (importOriginal) => {
 
 function validateEnvCoherence(appEnv: string, dbUrl: string, clientId: string): void {
   const maskedClientId = `${clientId.slice(0, 6)}…`;
+  // eslint-disable-next-line no-console
   console.info(`[ENV] APP_ENV=${appEnv} | DB=${dbUrl} | DISCORD_CLIENT_ID=${maskedClientId}`);
 
   if (appEnv === 'production' && dbUrl.includes('sqlite-dev')) {
-    throw new Error(
-      `[ENV] FATAL: APP_ENV=production but DATABASE_URL references a dev database`,
-    );
+    throw new Error(`[ENV] FATAL: APP_ENV=production but DATABASE_URL references a dev database`);
   }
 
   if (appEnv === 'staging' && !dbUrl.includes('dev')) {
-    throw new Error(
-      `[ENV] FATAL: APP_ENV=staging but DATABASE_URL does not reference a dev database`,
-    );
+    throw new Error(`[ENV] FATAL: APP_ENV=staging but DATABASE_URL does not reference a dev database`);
   }
 }
 
@@ -46,15 +43,15 @@ describe('validateEnvCoherence', () => {
   });
 
   it('throws for production + dev DB (cross-contamination)', () => {
-    expect(() =>
-      validateEnvCoherence('production', 'file:./sqlite-dev.db', 'ABCDEF1234'),
-    ).toThrow('[ENV] FATAL: APP_ENV=production but DATABASE_URL references a dev database');
+    expect(() => validateEnvCoherence('production', 'file:./sqlite-dev.db', 'ABCDEF1234')).toThrow(
+      '[ENV] FATAL: APP_ENV=production but DATABASE_URL references a dev database',
+    );
   });
 
   it('throws for staging + production DB (cross-contamination)', () => {
-    expect(() =>
-      validateEnvCoherence('staging', 'file:./sqlite.db', 'ABCDEF1234'),
-    ).toThrow('[ENV] FATAL: APP_ENV=staging but DATABASE_URL does not reference a dev database');
+    expect(() => validateEnvCoherence('staging', 'file:./sqlite.db', 'ABCDEF1234')).toThrow(
+      '[ENV] FATAL: APP_ENV=staging but DATABASE_URL does not reference a dev database',
+    );
   });
 
   it('masks first 6 chars of DISCORD_CLIENT_ID in logs', () => {
@@ -65,8 +62,6 @@ describe('validateEnvCoherence', () => {
   });
 
   it('accepts staging DB with absolute path containing "dev"', () => {
-    expect(() =>
-      validateEnvCoherence('staging', '/var/lib/sqlite-dev-data.db', 'ABCDEF1234'),
-    ).not.toThrow();
+    expect(() => validateEnvCoherence('staging', '/var/lib/sqlite-dev-data.db', 'ABCDEF1234')).not.toThrow();
   });
 });
