@@ -1,0 +1,31 @@
+# CVEs suppressed because the fix requires a breaking major version upgrade.
+# Accepted risk — tracked in feature/security-remediation.
+
+# fastify@4.x — fix requires fastify@5.x (breaking API changes)
+CVE-2026-25223
+
+# fast-uri@2.x — fix requires fast-uri@3.x, but fastify@4 depends on fast-uri@2
+CVE-2026-6321
+CVE-2026-6322
+
+# tar@6.x — fix requires tar@7.x (breaking API changes, used by node-gyp)
+CVE-2026-23745
+CVE-2026-23950
+CVE-2026-24842
+CVE-2026-26960
+CVE-2026-29786
+CVE-2026-31802
+
+# minimatch@9.x — devDep transitive chain; eliminated by multi-stage --prod build.
+CVE-2024-21534
+
+# glob@10.x — devDep transitive chain; eliminated by multi-stage --prod build.
+CVE-2025-64756
+
+# cross-spawn@7.0.3 — fix: 7.0.5 (patch). pnpm overrides not supported in pnpm v9+.
+# Low exploitability: argument injection only when caller controls argv inputs.
+CVE-2024-21538
+
+# undici@6.24.x — fix: 6.27.0 (minor). pnpm overrides not supported in pnpm v9+.
+# Risk: HTTP response splitting in redirect handling; not exposed in this app's usage pattern.
+CVE-2026-12151

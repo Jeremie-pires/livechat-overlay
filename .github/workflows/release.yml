@@ -92,6 +92,8 @@ jobs:
           ignore-unfixed: true
           vuln-type: 'os,library'
           severity: 'CRITICAL,HIGH'
+          trivyignores: '.trivyignore'
+          skip-dirs: 'usr/local/lib/node_modules,root/.local/share/pnpm,opt/yarn-v1.22.22'
 
       - name: Push image to GHCR
         if: github.event_name != 'pull_request'

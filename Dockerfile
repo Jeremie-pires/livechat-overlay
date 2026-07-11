@@ -1,33 +1,35 @@
-FROM node:20-alpine
+# ─────────────── Stage 1 – Builder ────────────────────────────────────────────
+FROM node:20-alpine AS builder
 
-# Install ffmpeg
-RUN apk update
-RUN apk add ffmpeg alpine-sdk
-RUN apk add --update --no-cache python3 py3-pip py3-setuptools
+RUN apk add --no-cache python3 py3-pip py3-setuptools alpine-sdk ffmpeg
 
-# Set environment variables for configuration
-ENV PORT=3000
-ENV DATABASE_URL="file:/usr/src/app/sqlite.db"
+RUN corepack enable && corepack prepare pnpm@8.15.9 --activate
 
-# Add maintainer label
-LABEL maintainer="Quentin Laffont <contact@qlaffont.com>"
+WORKDIR /app
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
 
-RUN npm install pnpm -g
-
-# Copy package.json and package-lock.json to the working directory
-COPY package*.json ./
-
-# Install app dependencies
-RUN pnpm install
-
-# Copy the rest of the application code
 COPY . .
-
-# Generate the Prisma database
 RUN pnpm generate
 
-# Expose the port the app runs on
-EXPOSE $PORT
+# ─────────────── Stage 2 – Runtime ────────────────────────────────────────────
+FROM node:20-alpine AS runner
 
-# Command to run the app
+RUN apk add --no-cache ffmpeg python3 py3-pip py3-setuptools alpine-sdk
+
+RUN corepack enable && corepack prepare pnpm@8.15.9 --activate
+
+ENV PORT=3000
+ENV DATABASE_URL="file:/app/sqlite.db"
+LABEL maintainer="Quentin Laffont <contact@qlaffont.com>"
+
+WORKDIR /app
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile --prod
+
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/src ./src
+COPY --from=builder /app/prisma ./prisma
+
+EXPOSE $PORT
 CMD ["pnpm", "run", "docker:start"]
