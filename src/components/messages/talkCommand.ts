@@ -30,7 +30,12 @@ export const talkCommand = () => ({
 
     if (!voice.trim() || voice.length > MAX_TTS_LENGTH) {
       await interaction.editReply({
-        embeds: [new EmbedBuilder().setTitle(rosetty.t('error')!).setDescription(rosetty.t('ttsTextTooLong')!).setColor(0xe74c3c)],
+        embeds: [
+          new EmbedBuilder()
+            .setTitle(rosetty.t('error')!)
+            .setDescription(rosetty.t('ttsTextTooLong')!)
+            .setColor(0xe74c3c),
+        ],
       });
       return;
     }

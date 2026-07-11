@@ -1,6 +1,6 @@
 import { createHash } from 'crypto';
 import fetch from 'node-fetch';
-import { createSession, getSessionToken, isValidSession } from '../../services/session';
+import { createSession, deleteSession, getSessionToken, isValidSession } from '../../services/session';
 import { broadcastToAllGuilds } from '../../services/broadcast';
 import { presenceStore } from '../../services/presenceStore';
 import { presenceSse } from '../../services/presenceSse';
@@ -487,6 +487,15 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
     finally { btn.disabled = false; }
   }
 
+  function esc(s) {
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
   function navigate(page) {
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
@@ -531,8 +540,8 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
     if (!guild) return;
     const avatarWrap = document.getElementById('g-avatar-wrap');
     avatarWrap.innerHTML = guild.icon
-      ? '<img class="guild-hero-avatar" src="' + guild.icon + '" alt="">'
-      : '<div class="guild-hero-avatar-ph">' + guild.name.charAt(0).toUpperCase() + '</div>';
+      ? '<img class="guild-hero-avatar" src="' + esc(guild.icon) + '" alt="">'
+      : '<div class="guild-hero-avatar-ph">' + esc(guild.name.charAt(0).toUpperCase()) + '</div>';
     document.getElementById('g-name').textContent = guild.name;
     document.getElementById('g-id').textContent = '🆔 ' + id;
     document.getElementById('g-members').textContent = fmt(guild.memberCount);
@@ -555,9 +564,9 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
     el.innerHTML = clients.map(c => {
       const since = c.connectedAt ? fmtDuration(now - new Date(c.connectedAt).getTime()) : '—';
       const av = c.avatarUrl
-        ? '<img class="user-avatar" src="' + c.avatarUrl + '" alt="">'
-        : '<div class="user-avatar-ph">' + (c.displayName || '?').charAt(0).toUpperCase() + '</div>';
-      return '<div class="user-item">' + av + '<div><div class="user-name">' + c.displayName + '</div><div class="user-since">Connecté depuis ' + since + '</div></div></div>';
+        ? '<img class="user-avatar" src="' + esc(c.avatarUrl) + '" alt="">'
+        : '<div class="user-avatar-ph">' + esc((c.displayName || '?').charAt(0).toUpperCase()) + '</div>';
+      return '<div class="user-item">' + av + '<div><div class="user-name">' + esc(c.displayName) + '</div><div class="user-since">Connecté depuis ' + esc(since) + '</div></div></div>';
     }).join('');
   }
 
@@ -577,15 +586,15 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
     const configured = sorted.filter(g => g.isSetup).length;
     document.getElementById('s-subtitle').textContent = sorted.length+' serveur'+(sorted.length>1?'s':'')+' connecté'+(sorted.length>1?'s':'')+' / '+configured+' configuré'+(configured>1?'s':'');
     document.getElementById('server-grid').innerHTML = sorted.map(g => {
-      const av = g.icon ? '<img class="server-avatar" src="'+g.icon+'" alt="">' : '<div class="server-avatar-ph">'+g.name.charAt(0).toUpperCase()+'</div>';
+      const av = g.icon ? '<img class="server-avatar" src="'+esc(g.icon)+'" alt="">' : '<div class="server-avatar-ph">'+esc(g.name.charAt(0).toUpperCase())+'</div>';
       const clients = (presence && presence[g.id]) || [];
       const presenceBadge = clients.length > 0
-        ? '<span class="server-presence" title="'+clients.map(c=>c.displayName).join(', ')+'">'+clients.length+' client'+(clients.length>1?'s':'')+' en ligne</span>'
+        ? '<span class="server-presence" title="'+esc(clients.map(c=>c.displayName).join(', '))+'">'+clients.length+' client'+(clients.length>1?'s':'')+' en ligne</span>'
         : '';
       const setupBadge = g.isSetup
         ? '<span class="badge green">Configuré</span>'
         : '<span class="badge yellow">Non configuré</span>';
-      return '<div class="server-card" data-guild-id="'+g.id+'"><div class="server-top">'+av+'<div class="server-info"><div class="server-name">'+g.name+'</div><div class="server-members">'+fmt(g.memberCount)+' membres</div></div></div><div class="server-badges">'+setupBadge+presenceBadge+'</div></div>';
+      return '<div class="server-card" data-guild-id="'+esc(g.id)+'"><div class="server-top">'+av+'<div class="server-info"><div class="server-name">'+esc(g.name)+'</div><div class="server-members">'+fmt(g.memberCount)+' membres</div></div></div><div class="server-badges">'+setupBadge+presenceBadge+'</div></div>';
     }).join('');
   }
 
@@ -604,7 +613,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       if (!guild) continue;
       const clients = (presence && presence[guildId]) || [];
       const presenceBadge = clients.length > 0
-        ? '<span class="server-presence" title="'+clients.map(c=>c.displayName).join(', ')+'">'+clients.length+' client'+(clients.length>1?'s':'')+' en ligne</span>'
+        ? '<span class="server-presence" title="'+esc(clients.map(c=>c.displayName).join(', '))+'">'+clients.length+' client'+(clients.length>1?'s':'')+' en ligne</span>'
         : '';
       const setupBadge = guild.isSetup
         ? '<span class="badge green">Configuré</span>'
@@ -622,8 +631,9 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
     el.innerHTML = events.map(e => {
       const d = new Date(e.createdAt);
       const abs = d.toLocaleDateString('fr-FR')+' '+d.toLocaleTimeString('fr-FR');
-      const msg = e.message ? '<div class="event-msg">'+e.message.replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</div>' : '';
-      return '<div class="event-item"><span class="event-badge '+e.type+'">'+e.type+'</span><div class="event-body">'+msg+'<div class="event-time">'+abs+'</div></div></div>';
+      const msg = e.message ? '<div class="event-msg">'+esc(e.message)+'</div>' : '';
+      const safeType = esc(e.type);
+      return '<div class="event-item"><span class="event-badge '+safeType+'">'+safeType+'</span><div class="event-body">'+msg+'<div class="event-time">'+esc(abs)+'</div></div></div>';
     }).join('');
   }
 
@@ -791,10 +801,7 @@ async function dashboardPlugin(fastify: FastifyCustomInstance) {
     }
 
     const sessionToken = createSession();
-    reply.header(
-      'Set-Cookie',
-      `session=${sessionToken}; HttpOnly; Path=/; SameSite=Lax; Max-Age=604800`,
-    );
+    reply.header('Set-Cookie', `session=${sessionToken}; HttpOnly; Secure; Path=/; SameSite=Lax; Max-Age=604800`);
     return reply.redirect('/dashboard', 302);
   });
 
@@ -830,7 +837,7 @@ async function dashboardPlugin(fastify: FastifyCustomInstance) {
     raw.writeHead(200, {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive',
+      Connection: 'keep-alive',
       'X-Accel-Buffering': 'no',
     });
     raw.write(': connected\n\n');
@@ -838,7 +845,11 @@ async function dashboardPlugin(fastify: FastifyCustomInstance) {
     presenceSse.register(raw);
 
     const keepAlive = setInterval(() => {
-      try { raw.write(': ping\n\n'); } catch { clearInterval(keepAlive); }
+      try {
+        raw.write(': ping\n\n');
+      } catch {
+        clearInterval(keepAlive);
+      }
     }, 25000);
 
     req.raw.on('close', () => clearInterval(keepAlive));
@@ -860,8 +871,10 @@ async function dashboardPlugin(fastify: FastifyCustomInstance) {
     return reply.send(presenceStore.get(guildId));
   });
 
-  fastify.get('/auth/logout', async (_req, reply) => {
-    reply.header('Set-Cookie', 'session=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0');
+  fastify.get('/auth/logout', async (req, reply) => {
+    const token = getSessionToken(req.headers.cookie);
+    if (token) deleteSession(token);
+    reply.header('Set-Cookie', 'session=; HttpOnly; Secure; Path=/; SameSite=Lax; Max-Age=0');
     return reply.redirect('/dashboard', 302);
   });
 }

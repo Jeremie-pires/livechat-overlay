@@ -532,7 +532,14 @@
           displayAuthor(message.author, message.authorImage);
         }
 
-        var data = JSON.parse(message.content || '{}');
+        var data;
+        try {
+          data = JSON.parse(message.content || '{}');
+        } catch {
+          console.warn('[Client] Malformed message content, skipping.');
+          onContentDone(myToken);
+          return;
+        }
 
         displayText(data.text);
 
@@ -586,11 +593,16 @@
         });
 
         socket.on('connect', () => {
+          syncServerClock(socket);
+        });
+
+        socket.on('server:env', function (serverEnv) {
           const guildId = urlParams.get('guildId');
           const token = urlParams.get('token');
-          const roomPayload = token ? { id: 'messages-' + guildId, token } : 'messages-' + guildId;
+          if (!guildId) return;
+          const roomId = serverEnv + ':messages-' + guildId;
+          const roomPayload = token ? { id: roomId, token } : roomId;
           socket.emit('join-room', roomPayload);
-          syncServerClock(socket);
         });
 
         socket.on('new-message', function (data) {

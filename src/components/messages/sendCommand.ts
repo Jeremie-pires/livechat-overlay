@@ -1,4 +1,4 @@
-import { ChatInputCommandInteraction, EmbedBuilder, MessageFlags, SlashCommandBuilder } from 'discord.js';
+import { ChatInputCommandInteraction, EmbedBuilder, SlashCommandBuilder } from 'discord.js';
 import { QueueType } from '../../services/prisma/loadPrisma';
 import { getContentInformationsFromUrl } from '../../services/content-utils';
 import { getDurationFromGuildId } from '../../services/utils';
@@ -44,21 +44,30 @@ export const sendCommand = () => ({
     const url = interaction.options.get(rosetty.t('sendCommandOptionURL')!)?.value as string | undefined;
     const text = interaction.options.get(rosetty.t('sendCommandOptionText')!)?.value as string | undefined;
     const media = interaction.options.get(rosetty.t('sendCommandOptionMedia')!)?.attachment?.proxyURL;
-    const customDurationString = interaction.options.get(rosetty.t('sendCommandOptionDuration')!)?.value as string | undefined;
+    const customDurationString = interaction.options.get(rosetty.t('sendCommandOptionDuration')!)?.value as
+      | string
+      | undefined;
     let mediaContentType = interaction.options.get(rosetty.t('sendCommandOptionMedia')!)?.attachment?.contentType;
     let mediaDuration = interaction.options.get(rosetty.t('sendCommandOptionMedia')!)?.attachment?.duration;
     let mediaIsShort = false;
 
     if (!url && !media && !text) {
       await interaction.editReply({
-        embeds: [new EmbedBuilder().setTitle(rosetty.t('error')!).setDescription(rosetty.t('noContentProvided')!).setColor(0xe74c3c)],
+        embeds: [
+          new EmbedBuilder()
+            .setTitle(rosetty.t('error')!)
+            .setDescription(rosetty.t('noContentProvided')!)
+            .setColor(0xe74c3c),
+        ],
       });
       return;
     }
 
     if (url && !isValidUrl(url)) {
       await interaction.editReply({
-        embeds: [new EmbedBuilder().setTitle(rosetty.t('error')!).setDescription(rosetty.t('invalidUrl')!).setColor(0xe74c3c)],
+        embeds: [
+          new EmbedBuilder().setTitle(rosetty.t('error')!).setDescription(rosetty.t('invalidUrl')!).setColor(0xe74c3c),
+        ],
       });
       return;
     }
@@ -73,7 +82,12 @@ export const sendCommand = () => ({
         const parsed = parseInt(trimmed, 10);
         if (isNaN(parsed) || parsed < 1 || parsed > MAX_DURATION_SECONDS) {
           await interaction.editReply({
-            embeds: [new EmbedBuilder().setTitle(rosetty.t('error')!).setDescription(rosetty.t('invalidDuration')!).setColor(0xe74c3c)],
+            embeds: [
+              new EmbedBuilder()
+                .setTitle(rosetty.t('error')!)
+                .setDescription(rosetty.t('invalidDuration')!)
+                .setColor(0xe74c3c),
+            ],
           });
           return;
         }

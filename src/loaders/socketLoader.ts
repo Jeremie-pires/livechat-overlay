@@ -1,8 +1,11 @@
 import { createHash } from 'crypto';
+import { env } from '../services/env';
 import { presenceStore } from '../services/presenceStore';
 import { presenceSse } from '../services/presenceSse';
 
 const hashToken = (t: string) => createHash('sha256').update(t).digest('hex');
+
+const ROOM_PREFIX = `${env.APP_ENV}:messages-`;
 
 type JoinRoomPayload = string | { id: string; token?: string };
 
@@ -11,32 +14,50 @@ export const loadSocket = (fastify: FastifyCustomInstance) => {
   fastify.io.on('connection', (socket) => {
     logger.debug(`New connection to socketIO :  ${socket.id}`);
 
+    socket.emit('server:env', env.APP_ENV);
+
     socket.on('disconnecting', () => {
       logger.debug(`New disconnection to socketIO :  ${socket.id}`);
       const affected = presenceStore.removeSocket(socket.id);
       for (const guildId of affected) {
         const updated = presenceStore.get(guildId);
-        fastify.io.to(`messages-${guildId}`).emit('presence:update', updated);
+        fastify.io.to(`${ROOM_PREFIX}${guildId}`).emit('presence:update', updated);
         presenceSse.push(presenceStore.getAll());
       }
     });
 
     socket.on('join-room', async (payload: JoinRoomPayload) => {
-      const roomId = typeof payload === 'string' ? payload : payload.id;
-      const token = typeof payload === 'string' ? null : (payload.token ?? null);
+      const rawId = typeof payload === 'string' ? payload : (payload as Record<string, unknown>)?.id;
+      if (typeof rawId !== 'string' || rawId.length === 0 || rawId.length > 200) {
+        logger.warn(`[Socket] Invalid join-room payload from ${socket.id}`);
+        return;
+      }
+      const roomId = rawId;
+      const token = typeof payload === 'string' ? null : payload.token ?? null;
+
+      if (!roomId.startsWith(ROOM_PREFIX)) {
+        logger.warn(`[Socket] Rejected join to unauthorized room: ${roomId} (socket: ${socket.id})`);
+        return;
+      }
+
+      const guildId = roomId.slice(ROOM_PREFIX.length);
+      if (!guildId || !/^\d+$/.test(guildId)) {
+        logger.warn(`[Socket] Rejected join with invalid guildId: "${guildId}"`);
+        return;
+      }
 
       logger.debug(`Join room :  ${socket.id} -> ${roomId}`);
       socket.join(roomId);
 
-      if (token && roomId.startsWith('messages-')) {
-        const guildId = roomId.slice('messages-'.length);
+      if (token) {
         try {
           const session = await prisma.clientSession.findUnique({ where: { tokenHash: hashToken(token) } });
           if (session && session.guildId === guildId) {
             let avatarUrl: string | null = null;
             try {
-              const user = discordClient.users.cache.get(session.discordUserId)
-                ?? await discordClient.users.fetch(session.discordUserId);
+              const user =
+                discordClient.users.cache.get(session.discordUserId) ??
+                (await discordClient.users.fetch(session.discordUserId));
               avatarUrl = user.avatarURL({ size: 64 }) ?? null;
             } catch {
               // avatar unavailable — fall back to null

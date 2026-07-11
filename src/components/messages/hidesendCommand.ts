@@ -46,21 +46,30 @@ export const hideSendCommand = () => ({
     const url = interaction.options.get(rosetty.t('hideSendCommandOptionURL')!)?.value as string | undefined;
     const text = interaction.options.get(rosetty.t('hideSendCommandOptionText')!)?.value as string | undefined;
     const media = interaction.options.get(rosetty.t('hideSendCommandOptionMedia')!)?.attachment?.proxyURL;
-    const customDurationString = interaction.options.get(rosetty.t('hideSendCommandOptionDuration')!)?.value as string | undefined;
+    const customDurationString = interaction.options.get(rosetty.t('hideSendCommandOptionDuration')!)?.value as
+      | string
+      | undefined;
     let mediaContentType = interaction.options.get(rosetty.t('sendCommandOptionMedia')!)?.attachment?.contentType;
     let mediaDuration = interaction.options.get(rosetty.t('sendCommandOptionMedia')!)?.attachment?.duration;
     let mediaIsShort = false;
 
     if (!url && !media && !text) {
       await interaction.editReply({
-        embeds: [new EmbedBuilder().setTitle(rosetty.t('error')!).setDescription(rosetty.t('noContentProvided')!).setColor(0xe74c3c)],
+        embeds: [
+          new EmbedBuilder()
+            .setTitle(rosetty.t('error')!)
+            .setDescription(rosetty.t('noContentProvided')!)
+            .setColor(0xe74c3c),
+        ],
       });
       return;
     }
 
     if (url && !isValidUrl(url)) {
       await interaction.editReply({
-        embeds: [new EmbedBuilder().setTitle(rosetty.t('error')!).setDescription(rosetty.t('invalidUrl')!).setColor(0xe74c3c)],
+        embeds: [
+          new EmbedBuilder().setTitle(rosetty.t('error')!).setDescription(rosetty.t('invalidUrl')!).setColor(0xe74c3c),
+        ],
       });
       return;
     }
@@ -75,7 +84,12 @@ export const hideSendCommand = () => ({
         const parsed = parseInt(trimmed, 10);
         if (isNaN(parsed) || parsed < 1 || parsed > MAX_DURATION_SECONDS) {
           await interaction.editReply({
-            embeds: [new EmbedBuilder().setTitle(rosetty.t('error')!).setDescription(rosetty.t('invalidDuration')!).setColor(0xe74c3c)],
+            embeds: [
+              new EmbedBuilder()
+                .setTitle(rosetty.t('error')!)
+                .setDescription(rosetty.t('invalidDuration')!)
+                .setColor(0xe74c3c),
+            ],
           });
           return;
         }

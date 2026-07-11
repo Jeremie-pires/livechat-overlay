@@ -34,10 +34,10 @@ const handleShutdown = async () => {
   await Promise.race([
     Promise.all([
       logBotEvent('STOP', 'Arrêt propre via SIGTERM/SIGINT'),
-      notifyOwner('STOP', "Le bot s’éteint proprement (SIGTERM/SIGINT)."),
+      notifyOwner('STOP', 'Le bot s’éteint proprement (SIGTERM/SIGINT).'),
       broadcastToAllGuilds(
         '🔴 Maintenance en cours',
-        "Le bot va s’éteindre quelques minutes pour maintenance. Il sera bientôt de retour !",
+        'Le bot va s’éteindre quelques minutes pour maintenance. Il sera bientôt de retour !',
         0xe74c3c,
       ),
     ]),
@@ -114,6 +114,21 @@ export const loadDiscord = async (fastify: FastifyCustomInstance) => {
           ],
         });
       } catch {}
+    }
+  });
+
+  client.on(Events.GuildDelete, async (guild) => {
+    try {
+      const [queued, sessions] = await Promise.all([
+        prisma.queue.deleteMany({ where: { discordGuildId: guild.id } }),
+        prisma.clientSession.deleteMany({ where: { guildId: guild.id } }),
+      ]);
+      await prisma.guild.deleteMany({ where: { id: guild.id } });
+      logger.info(
+        `[DISCORD] Guild ${guild.id} removed — purged ${queued.count} queue item(s), ${sessions.count} session(s), guild config`,
+      );
+    } catch (error) {
+      logger.error(error, `[DISCORD] Failed to clean up data for removed guild ${guild.id}`);
     }
   });
 

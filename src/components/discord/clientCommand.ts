@@ -26,17 +26,15 @@ export const clientCommand = () => ({
 
     await interaction.reply({
       embeds: [
-        new EmbedBuilder()
-          .setDescription(rosetty.t('clientCommandsAnswer')!)
-          .addFields(
-            { name: rosetty.t('clientCommandsUrlLabel')!, value: `\`${baseUrl}\``, inline: false },
-            { name: rosetty.t('clientCommandsGuildIdLabel')!, value: `\`${guildId}\``, inline: false },
-            {
-              name: '🔑 Token client',
-              value: `\`${token}\`\nColle ce token dans l'app desktop (onglet Serveur).\n⚠️ Ce token remplace l'ancien — mets à jour l'app si déjà configurée.`,
-              inline: false,
-            },
-          ),
+        new EmbedBuilder().setDescription(rosetty.t('clientCommandsAnswer')!).addFields(
+          { name: rosetty.t('clientCommandsUrlLabel')!, value: `\`${baseUrl}\``, inline: false },
+          { name: rosetty.t('clientCommandsGuildIdLabel')!, value: `\`${guildId}\``, inline: false },
+          {
+            name: '🔑 Token client',
+            value: `\`${token}\`\nColle ce token dans l'app desktop (onglet Serveur).\n⚠️ Ce token remplace l'ancien — mets à jour l'app si déjà configurée.`,
+            inline: false,
+          },
+        ),
       ],
       flags: MessageFlags.Ephemeral,
     });

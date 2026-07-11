@@ -5,16 +5,10 @@ export const announceGuildCommand = () => ({
     .setName('announce-guild')
     .setDescription(rosetty.t('announceGuildCommandDescription')!)
     .addStringOption((option) =>
-      option
-        .setName('guild_id')
-        .setDescription(rosetty.t('announceGuildCommandOptionGuildId')!)
-        .setRequired(true),
+      option.setName('guild_id').setDescription(rosetty.t('announceGuildCommandOptionGuildId')!).setRequired(true),
     )
     .addStringOption((option) =>
-      option
-        .setName('message')
-        .setDescription(rosetty.t('announceCommandOptionDescription')!)
-        .setRequired(true),
+      option.setName('message').setDescription(rosetty.t('announceCommandOptionDescription')!).setRequired(true),
     ),
   bypassChannelCheck: true,
   handler: async (interaction: ChatInputCommandInteraction) => {
@@ -54,10 +48,7 @@ export const announceGuildCommand = () => ({
 
       await (channel as TextChannel).send({
         embeds: [
-          new EmbedBuilder()
-            .setTitle(rosetty.t('announceCommandTitle')!)
-            .setDescription(message)
-            .setColor(0x3498db),
+          new EmbedBuilder().setTitle(rosetty.t('announceCommandTitle')!).setDescription(message).setColor(0x3498db),
         ],
       });
 

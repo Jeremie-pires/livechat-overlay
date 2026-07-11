@@ -1,105 +1,68 @@
 # AI_STATE.md — LiveChat CCB
 
-## Statut
-Stable. Système de logging BDD + DMs owner + nettoyage dead code déployé.
+## Status
+Sprint `feature/observability-prod-readiness` — READY TO MERGE. Lead Tech review blockers B1–B4 resolved. All tests green. Branch ready for PR → `develop`.
 
-## Architecture actuelle
+---
 
-### Entrée / Serveur
-- `src/index.ts` — point d'entrée Fastify + handlers `uncaughtException` / `unhandledRejection` (crash capturé → log BDD + DM owner → exit 1)
-- `src/server.ts` — enregistrement des plugins, loaders, routes
-- **Globals** : `logger`, `prisma`, `discordClient`, `discordRest`, `rosetty`, `commandsLoaded`, `env`
+## 1. Accomplished (all sprints)
 
-### Loaders
-- `src/loaders/DiscordLoader.ts` — bot Discord, dispatch commands, log START au ClientReady, log STOP + DM owner au SIGTERM/SIGINT
-- `src/loaders/RESTLoader.ts` — routes REST
-- `src/loaders/socketLoader.ts` — événements Socket.IO — lors du `join-room` avec token, fetch l'avatar Discord du user (cache first puis `users.fetch`) et le stocke dans le presenceStore
+**Observability & Production Readiness (current branch):**
+- `GET /health` — liveness: 200 `{status,env,uptime}`; unauthenticated, no external deps
+- `GET /health/ready` — readiness: Prisma `SELECT 1` + `discordClient.isReady()`; 503 with per-dep breakdown on failure
+- `HEALTHCHECK` in Dockerfile runner stage (Node-based probe, no curl needed)
+- `docker-compose.yml`: added `APP_ENV`, `LOG`, `healthcheck:`, `logging` (json-file 10m×5)
+- `docker-compose.dev.yml`: same healthcheck + log rotation additions
+- `src/server.ts`: Pino structured JSON in deployed envs (`base` bindings: env/service/version/timestamp), `redact` paths (DISCORD_TOKEN, DISCORD_CLIENT_SECRET, cookies), correlation-id hook (`genReqId` from `x-request-id` or `crypto.randomUUID()`)
+- `docs/DEPLOYMENT.md`: zero-downtime runbook (`--wait`, rollback, pre-deploy checklist, HAProxy drain, log rotation)
+- 8 new Vitest tests for `/health`, `/health/ready`, correlation-id propagation
+- **B1 (security):** `genReqId` validates strict UUID v4 regex (`/^…4…[89ab]…$/i`); non-string, malformed, or non-v4 headers fall through to `crypto.randomUUID()`
+- **B2 (reliability):** `onClose` hook moved outside socket.io `try/catch` — always registered, no handle leak on partial init
+- **B3 (correctness):** `onClose` param renamed to `_instance`, dead `if (err)` branch removed — Fastify v4 contract honoured
+- **B4 (security):** `/health/ready` Prisma error logs full detail server-side; returns `'Database connection failed'` (+ `err.code` when present) — never exposes `err.message`
+- 3 new tests: B1 invalid UUID fallback, B1 v1 UUID fallback, B4 sanitized reason, B4 reason with err.code → 54 tests total, 6 files
+- **CI fix:** `messagesWorker.test.ts` — added `vi.mock` for `loadPrisma` so `@prisma/client` is never resolved when Prisma client is not generated in CI
+- **Lint fix:** `server.ts` — dropped unused `_instance` param from `onClose` async hook; `RESTLoader.ts` — extracted `HealthRoutes()` call to `healthPlugin` const so the import is unambiguously referenced
 
-### Composants
-- `src/components/discord/` — commandes slash : dispo, client, setup, help, info, config-defaut, config-max, announce, maintenance
-- `src/components/messages/` — send/cmsg/dire/cdire/stop + messagesWorker
-- `src/components/client/` — player navigateur HTML/JS/CSS (vidstack)
-- `src/components/api/statsRoutes.ts` — GET /api/stats (auth requise) — inclut BotEvents + champ `isSetup` par guild (lookup Prisma via `Set<string>`)
-- `src/components/dashboard/dashboardRoutes.ts` — dashboard glassmorphism + OAuth Discord + onglet Journal + badge setup par serveur + subtitle "X connectés / Y configurés" + cards restructurées (server-top / server-badges)
+**Trivy Round 2 — 41 CVEs (commit `a90bfe7`):**
+- `find-my-way^8.2.2`, `ws>=8.21.0`, `socket.io-parser>=4.2.6`, `lodash^4.18.0`
+- Trivy `skip-dirs`: corepack + esbuild Go stdlib false positives
 
-### Services
-- `src/services/env.ts` — variables d'env validées par Zod
-- `src/services/session.ts` — tokens de session (cookie signé)
-- `src/services/cpuSampler.ts` — échantillonnage CPU/RAM
-- `src/services/botLogger.ts` — `logBotEvent(type, message)` + `notifyOwner(type, message)` (DM Discord owner)
-- `src/services/broadcast.ts` — `broadcastToAllGuilds(title, description, color)` partagée entre DiscordLoader, maintenanceCommand et dashboardRoutes
-- `src/services/presenceStore.ts` — `PresenceEntry { displayName, connectedAt, avatarUrl }` — déduplique par `discordUserId` via `userSocketMap`
-- `src/services/presenceSse.ts` — SSE broadcaster : `register(res)` + `push(presence)` → notifie le dashboard en temps réel
-- `src/services/prisma/loadPrisma.ts` — initialisation Prisma
-- `src/services/i18n/` — loader + FR/EN
-- `src/services/utils.ts` — `getDurationFromGuildId` uniquement
+**Trivy Round 1 — 48 CVEs (commits `f1dfc73`…`1e11d14`):**
+- Multi-stage Dockerfile, pnpm overrides, `.trivyignore`
 
-### Base de données (Prisma v5 + SQLite)
-- `Queue` — file d'attente des médias
-- `Guild` — config par serveur (channel, durées, busyUntil)
-- `Stats` — compteurs globaux (singleton)
-- `LatencySample` — historique latence (50 derniers)
-- `BotEvent` — journal démarrages/arrêts/crashs/erreurs (type, message, createdAt)
-- `Stats.silentMode` — booléen global (singleton) pour couper les annonces de redémarrage
-- `ClientSession` — tokenHash (SHA-256) + discordUserId + displayName + guildId
+**ESLint + SHA-pinned CI:**
+- All 9 GitHub Actions pinned to 40-char SHAs
 
-### Client desktop (v1.2.1 → v1.3.0-next)
-- Electron wrapper dans `desktop-client/`
-- Trois onglets : Contrôle / Serveur / Utilisateurs
-- Onglet "Utilisateurs" : liste verticale des clients connectés avec avatar Discord (ou initiale), pseudo, durée de connexion
-- **Tray** : l'app démarre dans le tray (si `startMinimized` activé), fermer la fenêtre → tray, clic tray toggle la fenêtre, menu contextuel "Ouvrir / Quitter"
-- **Présence temps réel** : `overlay-preload.ts` bridge les events `presence:update` du socket vers IPC main → control window. Polling fallback 60 s. Plus de doublons (presenceStore filtre par discordUserId).
-- `extraResources` dans package.json : `build/icon.ico` copié dans `resources/icon.ico` pour le tray packagé
+**OWASP + Vitest:**
+- XSS, Secure cookies, `deleteSession`, DSN masking, socket join validation, strict CORS
+- 43 prior tests + 8 new = 51 tests, 6 files
 
-## Environnements Prod & Staging
+---
 
-| Env        | Branche | Port | Volume Docker        | Base SQLite      | Domaine                       |
-|------------|---------|------|----------------------|------------------|-------------------------------|
-| Production | `main`  | 3000 | `livechat_data`      | `sqlite.db`      | `livechat.ton-domaine.fr`     |
-| Staging    | `develop`| 3001| `livechat_dev_data`  | `sqlite-dev.db`  | `dev-livechat.ton-domaine.fr` |
+## 2. Current architecture (key files)
 
-- **`docker-compose.yml`** — prod, lit `.env`
-- **`docker-compose.dev.yml`** — staging, lit `.env.dev`, port 3001, volume séparé
-- **`haproxy.cfg.example`** — routage ACL par sous-domaine (prod → 3000, staging → 3001)
-- **`STAGING_SETUP.md`** — guide complet de mise en place (bot Discord dev, DNS, certificats SSL, HAProxy, workflow Git)
-- Lancement staging : `docker compose -f docker-compose.dev.yml up -d --build`
-- Chaque env a son propre bot Discord pour éviter les conflits de commandes slash
+| File | Role |
+|---|---|
+| `Dockerfile` | Multi-stage: builder → runner; HEALTHCHECK Node probe |
+| `docker-compose.yml` | APP_ENV default=production, LOG, healthcheck, json-file log rotation |
+| `docker-compose.dev.yml` | APP_ENV default=staging, healthcheck, log rotation |
+| `docs/DEPLOYMENT.md` | Zero-downtime runbook: health-gated rolling replace, rollback, HAProxy drain |
+| `src/components/api/healthRoutes.ts` | `/health` + `/health/ready` Fastify plugin |
+| `src/loaders/RESTLoader.ts` | Mounts HealthRoutes at `/` |
+| `src/server.ts` | Structured JSON logs (deployed), redact, correlation-id hook, boot log |
+| `.trivyignore` | Accepted-risk suppressions |
+| `.github/workflows/release.yml` | SHA-pinned; Trivy skip-dirs |
+| `src/services/env.ts` | Zod env, `validateEnvCoherence()`, DSN masked |
+| `src/services/session.ts` | createSession / getSessionToken / isValidSession / deleteSession |
+| `src/components/dashboard/dashboardRoutes.ts` | XSS-safe, Secure cookie, server-side logout |
+| `src/__tests__/` | 6 files, ~54 tests |
 
-## Auth Dashboard
-OAuth2 Discord → `/dashboard` → `/auth/callback` → cookie `session=…`
-Seul `env.DISCORD_OWNER_ID` est autorisé.
+---
 
-## Flux Queue
-Discord command → `messagesWorker` déqueue → Socket.IO emit → browser client (vidstack)
+## 3. Next steps
 
-## Ce qui vient d'être fait (dernière session)
-- **Fix DiscordAPIError 10062 (Unknown interaction)** : `sendCommand`, `hidesendCommand`, `talkCommand` — ajout de `deferReply()` en début de handler + remplacement de `interaction.reply()` par `interaction.editReply()`. Corrige les timeouts Discord (3s) sur les serveurs lents ou avec URL lentes à résoudre. Import `MessageFlags` retiré de `hidesendCommand` (devenu inutilisé).
-- **Dashboard — renommage métrique "latence"** : "Latence moy." → "Attente file moy." dans les 3 endroits du dashboard. La métrique mesure le temps d'attente en file d'attente (submissionDate → émission Socket.IO), pas la latence réseau réelle (~1.2s fixe via `MESSAGE_SYNC_LEAD_TIME_MS`).
-
-## Historique
-- **Fix YouTube Shorts / portrait** : `content-utils.ts` — `isYouTubeShortUrl()` + détection portrait via `loaded-metadata` côté client.
-- **Tray (desktop)** : `startMinimized` → "Démarrer dans le tray" ; fenêtre cachée au lieu de quittée sur close ; tray avec menu "Ouvrir / Quitter" ; `isQuitting` flag ; `extraResources` pour l'icône packagée.
-- **Déduplication présence** : `presenceStore` trackle `discordUserId` via `userSocketMap`.
-- **Présence dynamique (desktop)** : `overlay-preload.ts` bridge les events `presence:update` du socket vers IPC → control window. Polling fallback 60 s.
-- **Dashboard présence temps réel** : `presenceSse.ts` (SSE broadcaster) + endpoint `/api/presence-events` + `EventSource` dans le dashboard JS.
-- **Release v1.2.1** : CSS `input[type="password"]`, onglet Utilisateurs desktop, presenceStore avatarUrl, socketLoader Discord avatar.
-- **Badge isSetup sur les serveurs** : `statsRoutes.ts` + dashboard.
-- **Système de présence (Rooms)** : `ClientSession` (Prisma), token SHA-256, safeStorage Electron, `presenceStore.ts`.
-- **Crash handlers** : `uncaughtException` + `unhandledRejection` dans `index.ts`
-- **BotEvent logging** : modèle Prisma + service `botLogger.ts`
-- **DMs owner** : `notifyOwner()` dans `botLogger.ts`
-- **Dashboard Journal** : onglet avec les 100 derniers événements
-- **Fix deprecation `reply.redirect()`** : Fastify v4
-- **Docker TZ** : `TZ: Europe/Paris`
-- **Fix "Missing Access" unhandledRejection** : `GuildCreate` handler async + try/catch
-- **Fix spam d'annonces sur crash** : broadcast conditionnel (STOP uniquement)
-- **Résilience messagesWorker** : try/catch dans executeMessagesWorker
-- **Mode maintenance** : `Stats.silentMode` + commande `/maintenance` + bouton dashboard
-
-## Points ouverts
-- 404 réguliers en paires dans les logs (origine inconnue — probablement trafic TLS terminé en amont par HAProxy). À surveiller via le Journal du dashboard.
-- Déploiement serveur requis : `git pull && docker compose down && docker compose up -d --build` (inclut fix 10062 + presenceSse + dashboard SSE + presenceStore dedup + Shorts).
-- Desktop client : bump version + release (v1.3.0) à planifier.
-
-## Prochaines étapes
-En attente d'instructions.
+1. **PR** `feature/observability-prod-readiness` → `develop` (suite green, review blockers resolved).
+2. **`feature/security-remediation`** — fastify v5 (CVE-2026-25223 + fast-uri CVEs), tar upgrade, SRI for Tailwind CDN, pnpm v10.
+3. **`feature/network-media-optim`** — media by URL, compression, cache.
+4. **Observability phase 2** — external log shipping (Loki/ELK), Docker log rotation config fine-tuning.
