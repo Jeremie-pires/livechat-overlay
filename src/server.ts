@@ -116,7 +116,7 @@ export const runServer = async () => {
     logger.fatal(error, '[SERVER] Failed to register socket.io');
   }
 
-  fastify.addHook('onClose', async (_instance) => {
+  fastify.addHook('onClose', async () => {
     await global.prisma.$disconnect();
     await fastify.io?.close();
     logger.info({ event: 'shutdown' }, '[SERVER] Connections closed');

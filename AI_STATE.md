@@ -22,6 +22,7 @@ Sprint `feature/observability-prod-readiness` — READY TO MERGE. Lead Tech revi
 - **B4 (security):** `/health/ready` Prisma error logs full detail server-side; returns `'Database connection failed'` (+ `err.code` when present) — never exposes `err.message`
 - 3 new tests: B1 invalid UUID fallback, B1 v1 UUID fallback, B4 sanitized reason, B4 reason with err.code → 54 tests total, 6 files
 - **CI fix:** `messagesWorker.test.ts` — added `vi.mock` for `loadPrisma` so `@prisma/client` is never resolved when Prisma client is not generated in CI
+- **Lint fix:** `server.ts` — dropped unused `_instance` param from `onClose` async hook; `RESTLoader.ts` — extracted `HealthRoutes()` call to `healthPlugin` const so the import is unambiguously referenced
 
 **Trivy Round 2 — 41 CVEs (commit `a90bfe7`):**
 - `find-my-way^8.2.2`, `ws>=8.21.0`, `socket.io-parser>=4.2.6`, `lodash^4.18.0`
