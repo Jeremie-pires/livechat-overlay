@@ -22,10 +22,5 @@ CVE-2024-21534
 # glob@10.x — devDep transitive chain; eliminated by multi-stage --prod build.
 CVE-2025-64756
 
-# cross-spawn@7.0.3 — fix: 7.0.5 (patch). pnpm overrides not supported in pnpm v9+.
-# Low exploitability: argument injection only when caller controls argv inputs.
-CVE-2024-21538
-
-# undici@6.24.x — fix: 6.27.0 (minor). pnpm overrides not supported in pnpm v9+.
-# Risk: HTTP response splitting in redirect handling; not exposed in this app's usage pattern.
-CVE-2026-12151
+# cross-spawn: patched to 7.0.6 via pnpm override in lockfile — no suppression needed.
+# undici: patched to 6.27.0 via pnpm override in lockfile — no suppression needed.
