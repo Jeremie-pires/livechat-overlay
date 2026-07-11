@@ -11,7 +11,8 @@
     "prepare": "husky install",
     "generate": "prisma generate",
     "migration:up": "prisma db push",
-    "migration:make": "prisma migrate dev"
+    "migration:make": "prisma migrate dev",
+    "test": "vitest run"
   },
   "author": "qlaffont",
   "license": "ISC",
@@ -34,7 +35,8 @@
     "prettier": "3.2.5",
     "tsx": "^4.7.1",
     "types-fastify-socket.io": "0.0.1",
-    "typescript": "5.3.3"
+    "typescript": "5.3.3",
+    "vitest": "^4.1.10"
   },
   "dependencies": {
     "@gquittet/graceful-server": "^4.0.8",
