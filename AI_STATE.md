@@ -1,13 +1,18 @@
 # AI_STATE.md — LiveChat CCB
 
 ## Status
-Sprint `feature/observability-prod-readiness` — READY TO MERGE. Lead Tech review blockers B1–B4 resolved. All tests green. Branch ready for PR → `develop`.
+Sprint `bugfix/single-instance-lock` — COMPLETE. Single instance lock implemented in Electron main process. Branch ready for PR → `develop`.
 
 ---
 
 ## 1. Accomplished (all sprints)
 
-**Observability & Production Readiness (current branch):**
+**Single Instance Lock — `bugfix/single-instance-lock`:**
+- `desktop-client/src/main.ts`: `app.requestSingleInstanceLock()` called before `whenReady`; secondary instances quit silently via `app.quit()`.
+- `app.on('second-instance', …)` registered on primary: recreates `controlWindow` if null (closed-to-tray), then calls `showControlWindow()` — identical UX to tray click and `activate`.
+- Prevents duplicate websocket connections and overlay UI glitches on relaunch.
+
+**Observability & Production Readiness:**
 - `GET /health` — liveness: 200 `{status,env,uptime}`; unauthenticated, no external deps
 - `GET /health/ready` — readiness: Prisma `SELECT 1` + `discordClient.isReady()`; 503 with per-dep breakdown on failure
 - `HEALTHCHECK` in Dockerfile runner stage (Node-based probe, no curl needed)
@@ -57,12 +62,13 @@ Sprint `feature/observability-prod-readiness` — READY TO MERGE. Lead Tech revi
 | `src/services/session.ts` | createSession / getSessionToken / isValidSession / deleteSession |
 | `src/components/dashboard/dashboardRoutes.ts` | XSS-safe, Secure cookie, server-side logout |
 | `src/__tests__/` | 6 files, ~54 tests |
+| `desktop-client/src/main.ts` | Electron main process; single-instance lock via `requestSingleInstanceLock()` |
 
 ---
 
 ## 3. Next steps
 
-1. **PR** `feature/observability-prod-readiness` → `develop` (suite green, review blockers resolved).
+1. **PR** `bugfix/single-instance-lock` → `develop` (change is desktop-scoped, server test suite unaffected).
 2. **`feature/security-remediation`** — fastify v5 (CVE-2026-25223 + fast-uri CVEs), tar upgrade, SRI for Tailwind CDN, pnpm v10.
 3. **`feature/network-media-optim`** — media by URL, compression, cache.
 4. **Observability phase 2** — external log shipping (Loki/ELK), Docker log rotation config fine-tuning.
