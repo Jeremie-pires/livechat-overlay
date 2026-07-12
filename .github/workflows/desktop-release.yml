@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - 'v*' # Se déclenche uniquement pour les tags commençant par "v"
+  workflow_dispatch: # Permet de déclencher manuellement le workflow depuis l'interface GitHub
 
 permissions:
   contents: write # Obligatoire pour autoriser GitHub à publier une "Release"
