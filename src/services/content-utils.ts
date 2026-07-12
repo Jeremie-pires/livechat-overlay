@@ -2,6 +2,7 @@ import fetch from 'node-fetch';
 import { getVideoDurationInSeconds } from 'get-video-duration';
 import { fileTypeFromBuffer } from 'file-type';
 import mime from 'mime-types';
+import { assertPublicHttpUrl } from './url-guard';
 
 function getFileTypeWithRegex(url: string): string {
   const regex = /(?:\.([^.]+))?$/;
@@ -24,6 +25,8 @@ function isYouTubeShortUrl(url: string): boolean {
 }
 
 export const getContentInformationsFromUrl = async (url: string) => {
+  await assertPublicHttpUrl(url);
+
   let contentType: string | undefined;
   let mediaDuration: number | undefined;
   const mediaIsShort = isYouTubeShortUrl(url);
