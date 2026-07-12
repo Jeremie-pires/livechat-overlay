@@ -457,6 +457,14 @@ function registerIpc() {
     controlWindow?.webContents.send('presence:update', data);
   });
 
+  ipcMain.on('presence:userJoined', (_event, data: unknown) => {
+    controlWindow?.webContents.send('presence:userJoined', data);
+  });
+
+  ipcMain.on('presence:userLeft', (_event, data: unknown) => {
+    controlWindow?.webContents.send('presence:userLeft', data);
+  });
+
   ipcMain.handle('overlay:test-sound', async () => {
     if (!overlayWindow) return false;
     const vol = settings.volume / 100;

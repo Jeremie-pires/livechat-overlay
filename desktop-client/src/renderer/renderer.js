@@ -6,6 +6,7 @@ const state = {
     message: 'Prêt',
   },
   activeTestFormat: null,
+  clients: [],
 };
 
 const elements = {
@@ -56,6 +57,8 @@ const elements = {
   statusDot: document.getElementById('statusDot'),
   statusText: document.getElementById('statusText'),
 };
+
+const noMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 // Toggle viewable tabs
 function switchTab(activeTab) {
@@ -297,33 +300,157 @@ async function refreshUi() {
 
 let presenceInterval = null;
 let presenceCleanup = null;
+let presenceUserJoinedCleanup = null;
+let presenceUserLeftCleanup = null;
 
 function escapeHtml(str) {
   return str.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 }
 
-function renderUserList(clients) {
+function updatePresenceSummary(clients) {
+  if (!elements.presenceSummary) return;
+  const count = clients.length;
+  elements.presenceSummary.textContent = count === 0 ? '—' : String(count);
+  elements.presenceSummary.title = clients.map((c) => c.displayName).join(', ');
+  elements.presenceSummary.setAttribute(
+    'aria-label',
+    `${count} utilisateur${count !== 1 ? 's' : ''} connecté${count !== 1 ? 's' : ''}`,
+  );
+}
+
+function buildUserItem(client) {
+  const item = document.createElement('div');
+  item.className = 'user-item';
+  item.setAttribute('role', 'listitem');
+  item.setAttribute('data-user-id', client.id);
+
+  if (client.avatarUrl) {
+    const img = document.createElement('img');
+    img.className = 'user-avatar';
+    img.src = client.avatarUrl;
+    img.alt = '';
+    item.appendChild(img);
+  } else {
+    const initial = document.createElement('div');
+    initial.className = 'user-avatar user-avatar-initial';
+    initial.setAttribute('aria-hidden', 'true');
+    // textContent is XSS-safe — escapeHtml not needed here
+    initial.textContent = client.displayName.charAt(0).toUpperCase();
+    item.appendChild(initial);
+  }
+
+  const info = document.createElement('div');
+  info.className = 'user-info';
+
+  const name = document.createElement('span');
+  name.className = 'user-name';
+  name.textContent = client.displayName; // textContent is XSS-safe
+  info.appendChild(name);
+
+  const since = document.createElement('span');
+  since.className = 'user-since';
+  const mins = Math.floor((Date.now() - client.connectedAt) / 60000);
+  since.textContent = mins < 1 ? "À l'instant" : `il y a ${mins} min`;
+  info.appendChild(since);
+
+  item.appendChild(info);
+  return item;
+}
+
+function showEmptyPlaceholder() {
   if (!elements.userList) return;
-  if (clients.length === 0) {
-    elements.userList.innerHTML = '<div class="user-list-empty">Personne n\'est connecté.</div>';
+  if (elements.userList.querySelector('.user-list-empty')) return;
+  const empty = document.createElement('div');
+  empty.className = 'user-list-empty';
+  empty.textContent = "Personne n'est connecté.";
+  elements.userList.appendChild(empty);
+}
+
+function addUserToList(client) {
+  if (!elements.userList) return;
+  // Idempotence: no duplicate inserts
+  if (elements.userList.querySelector(`[data-user-id="${client.id}"]`)) return;
+
+  const empty = elements.userList.querySelector('.user-list-empty');
+  if (empty) empty.remove();
+
+  const item = buildUserItem(client);
+
+  if (!noMotion) {
+    item.classList.add('user-item-entering');
+    item.addEventListener('animationend', () => item.classList.remove('user-item-entering'), { once: true });
+  }
+
+  elements.userList.appendChild(item);
+}
+
+function removeUserFromList(id) {
+  if (!elements.userList) return;
+  const item = elements.userList.querySelector(`[data-user-id="${id}"]`);
+  if (!item) return; // Idempotence: no-op if already absent
+
+  const onRemoved = () => {
+    item.remove();
+    if (elements.userList && !elements.userList.querySelector('.user-item')) {
+      showEmptyPlaceholder();
+    }
+  };
+
+  if (noMotion) {
+    onRemoved();
     return;
   }
-  elements.userList.innerHTML = clients.map((c) => {
-    const avatarHtml = c.avatarUrl
-      ? `<img class="user-avatar" src="${c.avatarUrl}" alt="" />`
-      : `<div class="user-avatar user-avatar-initial">${escapeHtml(c.displayName.charAt(0).toUpperCase())}</div>`;
-    const mins = Math.floor((Date.now() - c.connectedAt) / 60000);
-    const since = mins < 1 ? 'À l\'instant' : `il y a ${mins} min`;
-    return `<div class="user-item">${avatarHtml}<div class="user-info"><span class="user-name">${escapeHtml(c.displayName)}</span><span class="user-since">${since}</span></div></div>`;
-  }).join('');
+
+  const height = item.getBoundingClientRect().height;
+  item.style.overflow = 'hidden';
+  item.style.maxHeight = `${height}px`;
+
+  // Force reflow so the browser registers the initial maxHeight before transitioning
+  void item.offsetHeight;
+
+  item.style.transition = 'opacity 160ms ease-in, max-height 160ms ease-in, padding 160ms ease-in, margin 160ms ease-in';
+  item.style.opacity = '0';
+  item.style.maxHeight = '0';
+  item.style.paddingTop = '0';
+  item.style.paddingBottom = '0';
+  item.style.marginBottom = '0';
+
+  item.addEventListener('transitionend', onRemoved, { once: true });
+}
+
+function reconcileUserList(snapshot) {
+  if (!elements.userList) return;
+
+  const snapshotMap = new Map(snapshot.map((c) => [c.id, c]));
+
+  // Remove DOM items no longer in snapshot
+  const existingItems = elements.userList.querySelectorAll('.user-item[data-user-id]');
+  for (const domItem of existingItems) {
+    const userId = domItem.getAttribute('data-user-id');
+    if (!snapshotMap.has(userId)) {
+      domItem.remove();
+    }
+  }
+
+  // Insert items present in snapshot but not yet in DOM
+  for (const client of snapshot) {
+    if (!elements.userList.querySelector(`[data-user-id="${client.id}"]`)) {
+      const empty = elements.userList.querySelector('.user-list-empty');
+      if (empty) empty.remove();
+      elements.userList.appendChild(buildUserItem(client));
+    }
+  }
+
+  // Show placeholder when list is empty
+  if (snapshot.length === 0 && !elements.userList.querySelector('.user-item')) {
+    showEmptyPlaceholder();
+  }
 }
 
 function updatePresence(clients) {
-  if (elements.presenceSummary) {
-    elements.presenceSummary.textContent = clients.length === 0 ? '0' : String(clients.length);
-    elements.presenceSummary.title = clients.map((c) => c.displayName).join(', ');
-  }
-  renderUserList(clients);
+  state.clients = clients;
+  updatePresenceSummary(clients);
+  reconcileUserList(clients);
 }
 
 function startPresencePolling() {
@@ -345,13 +472,34 @@ function stopPresencePolling() {
     elements.presenceSummary.textContent = '—';
     elements.presenceSummary.title = '';
   }
-  renderUserList([]);
+  state.clients = [];
+  reconcileUserList([]);
 }
 
-function setupPresenceListener() {
+function setupPresenceListeners() {
   if (presenceCleanup) return;
-  presenceCleanup = window.livechat.onPresence((data) => {
-    updatePresence(data);
+
+  presenceCleanup = window.livechat.onPresence((snapshot) => {
+    updatePresence(snapshot);
+  });
+
+  presenceUserJoinedCleanup = window.livechat.onUserJoined((data) => {
+    // Idempotent: addUserToList is a no-op if user already present
+    const client = {
+      id: data.id,
+      displayName: data.displayName,
+      avatarUrl: data.avatarUrl,
+      connectedAt: data.connectedAt,
+    };
+    state.clients = [...state.clients.filter((c) => c.id !== data.id), client];
+    addUserToList(client);
+    updatePresenceSummary(state.clients);
+  });
+
+  presenceUserLeftCleanup = window.livechat.onUserLeft((data) => {
+    state.clients = state.clients.filter((c) => c.id !== data.id);
+    removeUserFromList(data.id);
+    updatePresenceSummary(state.clients);
   });
 }
 
@@ -502,8 +650,8 @@ window.livechat.onSettingsChanged((settings) => {
 
 bindEvents();
 
-// Subscribe to real-time presence events from the overlay socket bridge
-setupPresenceListener();
+// Subscribe to real-time presence and delta events from the overlay socket bridge
+setupPresenceListeners();
 
 refreshUi().then(async () => {
   renderStatus({ type: 'idle', message: 'Prêt' });

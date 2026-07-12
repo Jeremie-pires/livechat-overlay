@@ -625,6 +625,18 @@
             window.livechatOverlay.reportPresence(data);
           }
         });
+
+        socket.on('userJoined', function (data) {
+          if (window.livechatOverlay && typeof window.livechatOverlay.reportUserJoined === 'function') {
+            window.livechatOverlay.reportUserJoined(data);
+          }
+        });
+
+        socket.on('userLeft', function (data) {
+          if (window.livechatOverlay && typeof window.livechatOverlay.reportUserLeft === 'function') {
+            window.livechatOverlay.reportUserLeft(data);
+          }
+        });
       });
     </script>
   </body>

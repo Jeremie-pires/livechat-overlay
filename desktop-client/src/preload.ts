@@ -14,7 +14,9 @@ type AppSettings = {
   clientToken: string;
 };
 
-type PresenceEntry = { displayName: string; connectedAt: number; avatarUrl: string | null };
+type PresenceEntry = { id: string; displayName: string; connectedAt: number; avatarUrl: string | null };
+
+type UserJoinedPayload = { id: string; displayName: string; avatarUrl: string | null; connectedAt: number };
 
 type OverlayStatus = {
   type: 'idle' | 'loading' | 'connected' | 'error';
@@ -53,6 +55,16 @@ contextBridge.exposeInMainWorld('livechat', {
     ipcRenderer.on('presence:update', listener);
     return () => ipcRenderer.removeListener('presence:update', listener);
   },
+  onUserJoined: (callback: (data: UserJoinedPayload) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, data: UserJoinedPayload) => callback(data);
+    ipcRenderer.on('presence:userJoined', listener);
+    return () => ipcRenderer.removeListener('presence:userJoined', listener);
+  },
+  onUserLeft: (callback: (data: { id: string }) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, data: { id: string }) => callback(data);
+    ipcRenderer.on('presence:userLeft', listener);
+    return () => ipcRenderer.removeListener('presence:userLeft', listener);
+  },
   installUpdate: () => ipcRenderer.invoke('update:install'),
 });
 
@@ -74,6 +86,8 @@ declare global {
       onSettingsChanged: (callback: (settings: AppSettings) => void) => () => void;
       onUpdateDownloaded: (callback: (info: { version: string; releaseNotes: string }) => void) => () => void;
       onPresence: (callback: (data: PresenceEntry[]) => void) => () => void;
+      onUserJoined: (callback: (data: UserJoinedPayload) => void) => () => void;
+      onUserLeft: (callback: (data: { id: string }) => void) => () => void;
       installUpdate: () => Promise<void>;
     };
   }

@@ -1,11 +1,11 @@
-type PublicPresenceEntry = { displayName: string; connectedAt: number; avatarUrl: string | null };
+type PublicPresenceEntry = { id: string; displayName: string; connectedAt: number; avatarUrl: string | null };
 type InternalPresenceEntry = PublicPresenceEntry & { discordUserId: string };
 
 const store = new Map<string, Map<string, InternalPresenceEntry>>();
 const userSocketMap = new Map<string, string>(); // `${guildId}:${discordUserId}` → socketId
 
-function toPublic({ displayName, connectedAt, avatarUrl }: InternalPresenceEntry): PublicPresenceEntry {
-  return { displayName, connectedAt, avatarUrl };
+function toPublic({ discordUserId, displayName, connectedAt, avatarUrl }: InternalPresenceEntry): PublicPresenceEntry {
+  return { id: discordUserId, displayName, connectedAt, avatarUrl };
 }
 
 export const presenceStore = {
@@ -47,6 +47,15 @@ export const presenceStore = {
     const result: Record<string, PublicPresenceEntry[]> = {};
     for (const [guildId, sockets] of store) {
       result[guildId] = Array.from(sockets.values()).map(toPublic);
+    }
+    return result;
+  },
+
+  getSocketEntries(socketId: string): Array<{ guildId: string; discordUserId: string }> {
+    const result: Array<{ guildId: string; discordUserId: string }> = [];
+    for (const [guildId, sockets] of store) {
+      const entry = sockets.get(socketId);
+      if (entry) result.push({ guildId, discordUserId: entry.discordUserId });
     }
     return result;
   },
