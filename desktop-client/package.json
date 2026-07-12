@@ -1,6 +1,6 @@
 {
   "name": "livechat-ccb-desktop",
-  "version": "1.2.3",
+  "version": "1.2.4-rc.2",
   "private": true,
   "description": "Desktop overlay client for LiveChat CCB",
   "repository": {
