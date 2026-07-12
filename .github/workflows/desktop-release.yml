@@ -1,0 +1,34 @@
+name: Desktop Release
+
+on:
+  push:
+    tags:
+      - 'v*' # Se déclenche uniquement pour les tags commençant par "v"
+  workflow_dispatch: # Permet de déclencher manuellement le workflow depuis l'interface GitHub
+
+permissions:
+  contents: write # Obligatoire pour autoriser GitHub à publier une "Release"
+
+jobs:
+  build-and-publish:
+    name: Build & Publish Windows App
+    runs-on: windows-latest # Nécessaire pour compiler un .exe natif sous Windows
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Use Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        working-directory: desktop-client
+        run: npm install
+
+      - name: Build and Publish Electron App
+        working-directory: desktop-client
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run release

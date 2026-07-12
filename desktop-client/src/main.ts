@@ -532,17 +532,30 @@ app.on('before-quit', () => {
   isQuitting = true;
 });
 
-app.whenReady().then(() => {
-  void bootstrap();
+const gotLock = app.requestSingleInstanceLock();
 
-  app.on('activate', () => {
-    if (controlWindow) {
-      showControlWindow();
-    } else {
+if (!gotLock) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    if (!controlWindow) {
       createControlWindow();
     }
+    showControlWindow();
   });
-});
+
+  app.whenReady().then(() => {
+    void bootstrap();
+
+    app.on('activate', () => {
+      if (controlWindow) {
+        showControlWindow();
+      } else {
+        createControlWindow();
+      }
+    });
+  });
+}
 
 app.on('window-all-closed', () => {
   // Do not quit — tray keeps the app alive
