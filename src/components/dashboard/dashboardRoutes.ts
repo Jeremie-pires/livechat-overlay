@@ -841,6 +841,11 @@ async function dashboardPlugin(fastify: FastifyCustomInstance) {
       'X-Accel-Buffering': 'no',
     });
     raw.write(': connected\n\n');
+    // Push current state immediately so dashboards opened while users are connected see data right away
+    const currentPresence = presenceStore.getAll();
+    if (Object.keys(currentPresence).length > 0) {
+      raw.write(`event: presence\ndata: ${JSON.stringify(currentPresence)}\n\n`);
+    }
 
     presenceSse.register(raw);
 
