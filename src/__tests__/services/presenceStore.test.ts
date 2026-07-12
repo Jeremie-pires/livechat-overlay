@@ -2,8 +2,9 @@ import { describe, it, expect, beforeEach } from 'vitest';
 
 // Inline implementation mirror for isolation — avoids importing the module-level singleton
 function makeStore() {
-  type PublicPresenceEntry = { id: string; displayName: string; connectedAt: number; avatarUrl: string | null };
-  type InternalPresenceEntry = PublicPresenceEntry & { discordUserId: string };
+  type CorePresenceFields = { displayName: string; connectedAt: number; avatarUrl: string | null };
+  type PublicPresenceEntry = CorePresenceFields & { id: string };
+  type InternalPresenceEntry = CorePresenceFields & { discordUserId: string };
 
   const store = new Map<string, Map<string, InternalPresenceEntry>>();
   const userSocketMap = new Map<string, string>();
@@ -20,7 +21,7 @@ function makeStore() {
       const oldSocketId = userSocketMap.get(userKey);
       if (oldSocketId && oldSocketId !== socketId) guildMap.delete(oldSocketId);
       userSocketMap.set(userKey, socketId);
-      guildMap.set(socketId, { id: discordUserId, displayName, connectedAt: Date.now(), avatarUrl, discordUserId });
+      guildMap.set(socketId, { displayName, connectedAt: Date.now(), avatarUrl, discordUserId });
     },
     removeSocket(socketId: string): string[] {
       const affected: string[] = [];

@@ -42,6 +42,13 @@ const DEFAULT_SETTINGS: AppSettings = {
   clientToken: '',
 };
 
+const OVERLAY_POSITION_ALLOWLIST: readonly string[] = [
+  'center',
+  'top-left', 'top-center', 'top-right',
+  'center-left', 'center-right',
+  'bottom-left', 'bottom-center', 'bottom-right',
+];
+
 let controlWindow: BrowserWindow | null = null;
 let overlayWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
@@ -59,6 +66,7 @@ function clampVolume(value: number) {
 }
 
 function normalizeSettings(candidate: Partial<AppSettings> | undefined): AppSettings {
+  const rawPosition = candidate?.overlayPosition?.trim() ?? '';
   return {
     backendUrl: candidate?.backendUrl?.trim() || DEFAULT_SETTINGS.backendUrl,
     guildId: candidate?.guildId?.trim() || '',
@@ -67,7 +75,7 @@ function normalizeSettings(candidate: Partial<AppSettings> | undefined): AppSett
     autoConnect: Boolean(candidate?.autoConnect ?? DEFAULT_SETTINGS.autoConnect),
     clickThrough: true, // Always true to prevent desktop locks
     overlaySize: Number.isFinite(candidate?.overlaySize as number) ? Number(candidate?.overlaySize) : DEFAULT_SETTINGS.overlaySize,
-    overlayPosition: candidate?.overlayPosition?.trim() || DEFAULT_SETTINGS.overlayPosition,
+    overlayPosition: OVERLAY_POSITION_ALLOWLIST.includes(rawPosition) ? rawPosition : DEFAULT_SETTINGS.overlayPosition,
     launchAtStartup: Boolean(candidate?.launchAtStartup ?? DEFAULT_SETTINGS.launchAtStartup),
     startMinimized: Boolean(candidate?.startMinimized ?? DEFAULT_SETTINGS.startMinimized),
     clientToken: candidate?.clientToken?.trim() || '',

@@ -1,5 +1,6 @@
-type PublicPresenceEntry = { id: string; displayName: string; connectedAt: number; avatarUrl: string | null };
-type InternalPresenceEntry = PublicPresenceEntry & { discordUserId: string };
+type CorePresenceFields = { displayName: string; connectedAt: number; avatarUrl: string | null };
+type PublicPresenceEntry = CorePresenceFields & { id: string };
+type InternalPresenceEntry = CorePresenceFields & { discordUserId: string };
 
 const store = new Map<string, Map<string, InternalPresenceEntry>>();
 const userSocketMap = new Map<string, string>(); // `${guildId}:${discordUserId}` → socketId

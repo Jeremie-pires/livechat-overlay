@@ -271,7 +271,7 @@
         var el = document.getElementById('message-block');
         var ab = document.getElementById('author-block');
         var mt = document.getElementById('message-text');
-        if (el) el.innerHTML = '';
+        if (el) el.replaceChildren();
         if (ab) ab.style.display = 'none';
         if (mt) mt.style.display = 'none';
         if (!isDesktop) emptyState.style.display = 'block';
@@ -383,10 +383,18 @@
       globalThis.__updateLayoutSettings(sizeParam, posParam);
 
       function generateImg(src) {
-        return '<img id="message-img" alt="" src="' + src + '" />';
+        var img = document.createElement('img');
+        img.id = 'message-img';
+        img.alt = '';
+        img.src = src;
+        return img;
       }
 
       function generateAudioVideo(src, mediaIsShort, onDone) {
+        var wrapper = document.createElement('div');
+        wrapper.id = 'message-player';
+        if (mediaIsShort) wrapper.classList.add('is-short');
+
         setTimeout(() => {
           (async () => {
             await VidstackPlayer.create({
@@ -415,8 +423,8 @@
                 const { videoWidth, videoHeight } = videoEl;
                 player.style.setProperty('aspect-ratio', `${videoWidth} / ${videoHeight}`, 'important');
                 if (videoHeight > videoWidth) {
-                  const wrapper = document.getElementById('message-player');
-                  if (wrapper) wrapper.classList.add('is-short');
+                  const playerWrapper = document.getElementById('message-player');
+                  if (playerWrapper) playerWrapper.classList.add('is-short');
                 }
               }
             });
@@ -446,7 +454,7 @@
           })();
         }, 100);
 
-        return '<div id="message-player" ' + (mediaIsShort ? "class='is-short'" : '') + '></div>';
+        return wrapper;
       }
 
       function displayAuthor(authorUsername, authorPictureURL) {
@@ -481,14 +489,14 @@
       function displayContent(data, onDone) {
         var element = document.getElementById('message-block');
 
-        element.innerHTML = '';
+        element.replaceChildren();
         emptyState.style.display = 'none';
 
         if (data.mediaContentType) {
           if (data.mediaContentType.indexOf('image') === 0) {
-            element.innerHTML = generateImg(data.media || data.url);
+            element.appendChild(generateImg(data.media || data.url));
           } else {
-            element.innerHTML = generateAudioVideo(data.media || data.url, data.mediaIsShort, onDone);
+            element.appendChild(generateAudioVideo(data.media || data.url, data.mediaIsShort, onDone));
           }
         }
       }
@@ -524,7 +532,7 @@
         var elementMessage = document.getElementById('message-block');
         var elementBlock = document.getElementById('author-block');
         var elementText = document.getElementById('message-text');
-        elementMessage.innerHTML = '';
+        elementMessage.replaceChildren();
         elementBlock.style.display = 'none';
         elementText.style.display = 'none';
 

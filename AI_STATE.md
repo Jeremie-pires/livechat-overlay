@@ -1,14 +1,19 @@
 # AI_STATE.md — LiveChat CCB
 
 ## Status
-Sprint `bugfix/socket-room-sync` — COMPLETE. Delta presence sync + 3 s disconnect debounce implemented across backend, IPC bridge, and Electron renderer. Branch ready for PR → `develop`.
+Sprint `bugfix/socket-room-sync` — COMPLETE. Security remediation (B1 input validation, B2 DOM XSS, B3 type fidelity) applied on top of delta presence sync. REVIEWER NO-GO cleared. Branch ready for PR → `develop`.
 
 ---
 
 ## 1. Accomplished (all sprints)
 
+**Security Remediation — `bugfix/socket-room-sync` (review NO-GO cleared):**
+- **B1** `desktop-client/src/main.ts`: Added `OVERLAY_POSITION_ALLOWLIST`; `normalizeSettings` now rejects any `overlayPosition` not in the allowlist, coercing to `center`. Eliminates JS injection via single-quote break in `executeJavaScript` template and untrusted URL param.
+- **B2** `src/components/client/client.html`: Replaced `generateImg`/`generateAudioVideo` HTML-string returns with DOM factory functions (`document.createElement`). `displayContent` uses `replaceChildren()`/`appendChild()`; all clear-only `innerHTML = ''` calls converted to `replaceChildren()`. No user-supplied string reaches `innerHTML`.
+- **B3** `src/services/presenceStore.ts`: Introduced `CorePresenceFields` base type; `InternalPresenceEntry` now only carries `{ CorePresenceFields & discordUserId }` (no phantom `id`); `PublicPresenceEntry` adds `id`. Inline mirror in `presenceStore.test.ts` updated to match — phantom `id: discordUserId` removed from `add()`.
+
 **Delta Presence Sync — `bugfix/socket-room-sync`:**
-- `src/services/presenceStore.ts`: `PublicPresenceEntry` now includes `id: string` (= `discordUserId`). Added `getSocketEntries(socketId)` read-only lookup method.
+- `src/services/presenceStore.ts`: `PublicPresenceEntry` exposes `id: string` (= `discordUserId`). Added `getSocketEntries(socketId)` read-only lookup method.
 - `src/loaders/socketLoader.ts`: Replaced full-list `presence:update` broadcast with delta model:
   - On join (valid session): sends `presence:update` snapshot to joining socket only; broadcasts `userJoined` delta to room peers.
   - On disconnect: arms 3 s debounce timer per `${guildId}:${discordUserId}`; timer emits `userLeft` + calls `presenceStore.removeSocket()`.
@@ -38,11 +43,11 @@ Sprint `bugfix/socket-room-sync` — COMPLETE. Delta presence sync + 3 s disconn
 
 | File | Role |
 |---|---|
-| `src/services/presenceStore.ts` | In-memory presence store; `PublicPresenceEntry` now includes `id`; `getSocketEntries()` for debounce lookup |
+| `src/services/presenceStore.ts` | In-memory presence store; `CorePresenceFields` base type; `PublicPresenceEntry` exposes `id`; `InternalPresenceEntry` has no phantom `id`; `getSocketEntries()` for debounce lookup |
 | `src/loaders/socketLoader.ts` | Socket.IO handler; delta events `userJoined`/`userLeft`; 3 s disconnect debounce |
-| `src/components/client/client.html` | Browser overlay; forwards `userJoined`/`userLeft` via `livechatOverlay` IPC bridge |
+| `src/components/client/client.html` | Browser overlay; DOM-factory media rendering (no innerHTML XSS); forwards `userJoined`/`userLeft` via `livechatOverlay` IPC bridge |
 | `desktop-client/src/overlay-preload.ts` | Exposes `reportPresence`, `reportUserJoined`, `reportUserLeft` to overlay context |
-| `desktop-client/src/main.ts` | Electron main; forwards all three presence IPC events to control window |
+| `desktop-client/src/main.ts` | Electron main; `OVERLAY_POSITION_ALLOWLIST` sanitizes `overlayPosition` in `normalizeSettings`; forwards all three presence IPC events to control window |
 | `desktop-client/src/preload.ts` | `window.livechat` API; `onUserJoined`/`onUserLeft` listeners |
 | `desktop-client/src/renderer/renderer.js` | Delta DOM mutations; reconcile on snapshot; 60 s polling fallback; WCAG AA |
 | `desktop-client/src/renderer/index.html` | `#userList` with `role="list"` + `aria-live` |
