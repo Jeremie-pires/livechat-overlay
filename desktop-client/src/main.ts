@@ -42,6 +42,15 @@ const DEFAULT_SETTINGS: AppSettings = {
   clientToken: '',
 };
 
+const OVERLAY_POSITION_ALLOWLIST: readonly string[] = [
+  'center',
+  'top-left', 'top-center', 'top-right',
+  'center-left', 'center-right',
+  'bottom-left', 'bottom-center', 'bottom-right',
+];
+
+const FORMAT_ALLOWLIST: readonly string[] = ['landscape', 'square', 'portrait', 'stop'];
+
 let controlWindow: BrowserWindow | null = null;
 let overlayWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
@@ -59,6 +68,7 @@ function clampVolume(value: number) {
 }
 
 function normalizeSettings(candidate: Partial<AppSettings> | undefined): AppSettings {
+  const rawPosition = candidate?.overlayPosition?.trim() ?? '';
   return {
     backendUrl: candidate?.backendUrl?.trim() || DEFAULT_SETTINGS.backendUrl,
     guildId: candidate?.guildId?.trim() || '',
@@ -67,7 +77,7 @@ function normalizeSettings(candidate: Partial<AppSettings> | undefined): AppSett
     autoConnect: Boolean(candidate?.autoConnect ?? DEFAULT_SETTINGS.autoConnect),
     clickThrough: true, // Always true to prevent desktop locks
     overlaySize: Number.isFinite(candidate?.overlaySize as number) ? Number(candidate?.overlaySize) : DEFAULT_SETTINGS.overlaySize,
-    overlayPosition: candidate?.overlayPosition?.trim() || DEFAULT_SETTINGS.overlayPosition,
+    overlayPosition: OVERLAY_POSITION_ALLOWLIST.includes(rawPosition) ? rawPosition : DEFAULT_SETTINGS.overlayPosition,
     launchAtStartup: Boolean(candidate?.launchAtStartup ?? DEFAULT_SETTINGS.launchAtStartup),
     startMinimized: Boolean(candidate?.startMinimized ?? DEFAULT_SETTINGS.startMinimized),
     clientToken: candidate?.clientToken?.trim() || '',
@@ -405,7 +415,8 @@ function registerIpc() {
 
   ipcMain.handle('overlay:trigger-test-format', async (_event, format: string) => {
     if (overlayWindow) {
-      const js = `if (typeof window.__triggerTestFormat === 'function') { window.__triggerTestFormat('${format}'); }`;
+      const safeFormat = FORMAT_ALLOWLIST.includes(format) ? format : 'stop';
+      const js = `if (typeof window.__triggerTestFormat === 'function') { window.__triggerTestFormat('${safeFormat}'); }`;
       await overlayWindow.webContents.executeJavaScript(js).catch(() => undefined);
       return true;
     }
@@ -455,6 +466,14 @@ function registerIpc() {
   // Forward real-time presence events from the overlay window to the control window
   ipcMain.on('presence:update', (_event, data: unknown) => {
     controlWindow?.webContents.send('presence:update', data);
+  });
+
+  ipcMain.on('presence:userJoined', (_event, data: unknown) => {
+    controlWindow?.webContents.send('presence:userJoined', data);
+  });
+
+  ipcMain.on('presence:userLeft', (_event, data: unknown) => {
+    controlWindow?.webContents.send('presence:userLeft', data);
   });
 
   ipcMain.handle('overlay:test-sound', async () => {
