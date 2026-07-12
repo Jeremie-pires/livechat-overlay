@@ -49,6 +49,8 @@ const OVERLAY_POSITION_ALLOWLIST: readonly string[] = [
   'bottom-left', 'bottom-center', 'bottom-right',
 ];
 
+const FORMAT_ALLOWLIST: readonly string[] = ['landscape', 'square', 'portrait', 'stop'];
+
 let controlWindow: BrowserWindow | null = null;
 let overlayWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
@@ -413,7 +415,8 @@ function registerIpc() {
 
   ipcMain.handle('overlay:trigger-test-format', async (_event, format: string) => {
     if (overlayWindow) {
-      const js = `if (typeof window.__triggerTestFormat === 'function') { window.__triggerTestFormat('${format}'); }`;
+      const safeFormat = FORMAT_ALLOWLIST.includes(format) ? format : 'stop';
+      const js = `if (typeof window.__triggerTestFormat === 'function') { window.__triggerTestFormat('${safeFormat}'); }`;
       await overlayWindow.webContents.executeJavaScript(js).catch(() => undefined);
       return true;
     }

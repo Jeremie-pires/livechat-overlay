@@ -1,16 +1,18 @@
 # AI_STATE.md — LiveChat CCB
 
 ## Status
-Sprint `bugfix/socket-room-sync` — COMPLETE. Security remediation (B1 input validation, B2 DOM XSS, B3 type fidelity) applied on top of delta presence sync. REVIEWER NO-GO cleared. Branch ready for PR → `develop`.
+Sprint `bugfix/socket-room-sync` — COMPLETE. Security remediation (B1 input validation, B2 DOM XSS, B3 type fidelity, C1 trigger-test-format JS injection) applied on top of delta presence sync. All REVIEWER NO-GOs cleared. Branch ready for PR → `develop`.
 
 ---
 
 ## 1. Accomplished (all sprints)
 
-**Security Remediation — `bugfix/socket-room-sync` (review NO-GO cleared):**
+**Security Remediation — `bugfix/socket-room-sync` (all REVIEWER NO-GOs cleared):**
 - **B1** `desktop-client/src/main.ts`: Added `OVERLAY_POSITION_ALLOWLIST`; `normalizeSettings` now rejects any `overlayPosition` not in the allowlist, coercing to `center`. Eliminates JS injection via single-quote break in `executeJavaScript` template and untrusted URL param.
 - **B2** `src/components/client/client.html`: Replaced `generateImg`/`generateAudioVideo` HTML-string returns with DOM factory functions (`document.createElement`). `displayContent` uses `replaceChildren()`/`appendChild()`; all clear-only `innerHTML = ''` calls converted to `replaceChildren()`. No user-supplied string reaches `innerHTML`.
 - **B3** `src/services/presenceStore.ts`: Introduced `CorePresenceFields` base type; `InternalPresenceEntry` now only carries `{ CorePresenceFields & discordUserId }` (no phantom `id`); `PublicPresenceEntry` adds `id`. Inline mirror in `presenceStore.test.ts` updated to match — phantom `id: discordUserId` removed from `add()`.
+- **C1** `desktop-client/src/main.ts`: Added `FORMAT_ALLOWLIST` (`landscape`, `square`, `portrait`, `stop`) alongside `OVERLAY_POSITION_ALLOWLIST`. `overlay:trigger-test-format` IPC handler now validates `format` against `FORMAT_ALLOWLIST`, coercing unknown values to `stop` before interpolation into `executeJavaScript`. Raw `format` no longer reaches the JS template literal.
+- **Dead code** `desktop-client/src/renderer/renderer.js`: Removed unused `escapeHtml` function and its stale reference comment. All user text already uses `textContent` (XSS-safe).
 
 **Delta Presence Sync — `bugfix/socket-room-sync`:**
 - `src/services/presenceStore.ts`: `PublicPresenceEntry` exposes `id: string` (= `discordUserId`). Added `getSocketEntries(socketId)` read-only lookup method.
@@ -47,9 +49,9 @@ Sprint `bugfix/socket-room-sync` — COMPLETE. Security remediation (B1 input va
 | `src/loaders/socketLoader.ts` | Socket.IO handler; delta events `userJoined`/`userLeft`; 3 s disconnect debounce |
 | `src/components/client/client.html` | Browser overlay; DOM-factory media rendering (no innerHTML XSS); forwards `userJoined`/`userLeft` via `livechatOverlay` IPC bridge |
 | `desktop-client/src/overlay-preload.ts` | Exposes `reportPresence`, `reportUserJoined`, `reportUserLeft` to overlay context |
-| `desktop-client/src/main.ts` | Electron main; `OVERLAY_POSITION_ALLOWLIST` sanitizes `overlayPosition` in `normalizeSettings`; forwards all three presence IPC events to control window |
+| `desktop-client/src/main.ts` | Electron main; `OVERLAY_POSITION_ALLOWLIST` + `FORMAT_ALLOWLIST` guard all `executeJavaScript` sinks; forwards all three presence IPC events to control window |
 | `desktop-client/src/preload.ts` | `window.livechat` API; `onUserJoined`/`onUserLeft` listeners |
-| `desktop-client/src/renderer/renderer.js` | Delta DOM mutations; reconcile on snapshot; 60 s polling fallback; WCAG AA |
+| `desktop-client/src/renderer/renderer.js` | Delta DOM mutations; reconcile on snapshot; 60 s polling fallback; WCAG AA; no dead code |
 | `desktop-client/src/renderer/index.html` | `#userList` with `role="list"` + `aria-live` |
 | `desktop-client/src/renderer/styles.css` | `userItemEnter` keyframe; reduced-motion override |
 | `src/__tests__/services/presenceStore.test.ts` | 11 new tests (presenceStore delta + debounce logic) |

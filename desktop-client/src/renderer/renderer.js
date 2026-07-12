@@ -303,10 +303,6 @@ let presenceCleanup = null;
 let presenceUserJoinedCleanup = null;
 let presenceUserLeftCleanup = null;
 
-function escapeHtml(str) {
-  return str.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
-}
-
 function updatePresenceSummary(clients) {
   if (!elements.presenceSummary) return;
   const count = clients.length;
@@ -334,7 +330,6 @@ function buildUserItem(client) {
     const initial = document.createElement('div');
     initial.className = 'user-avatar user-avatar-initial';
     initial.setAttribute('aria-hidden', 'true');
-    // textContent is XSS-safe — escapeHtml not needed here
     initial.textContent = client.displayName.charAt(0).toUpperCase();
     item.appendChild(initial);
   }
