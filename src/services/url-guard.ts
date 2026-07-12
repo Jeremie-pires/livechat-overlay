@@ -80,7 +80,7 @@ export async function assertPublicHttpUrl(url: string): Promise<URL> {
   try {
     addresses = await dns.promises.lookup(rawHost, { all: true });
   } catch (err) {
-    throw new SsrfBlockedError(`DNS resolution failed: ${(err as Error).message}`);
+    throw new SsrfBlockedError(`DNS resolution failed: ${err instanceof Error ? err.message : String(err)}`);
   }
 
   for (const { address } of addresses) {

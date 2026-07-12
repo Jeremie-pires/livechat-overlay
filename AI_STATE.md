@@ -1,10 +1,12 @@
 # AI_STATE.md — LiveChat CCB
 
 ## Status
-Sprint `feature/security-remediation` — COMPLETE.
+Sprint `feature/security-remediation` — COMPLETE (REVIEWER GO ✅).
 
-- **P0 (SSRF in `content-utils.ts`)**: Fixed. New `src/services/url-guard.ts` exports `assertPublicHttpUrl(url): Promise<URL>`, `isPrivateIp(addr)`, and `SsrfBlockedError`. Guards: scheme allow-list (http/https only), literal IP block-list (loopback, RFC1918, link-local, ULA, unspecified, broadcast), IPv4-mapped IPv6 (both dotted-decimal and URL-normalized hex forms), DNS resolution check (fail closed on private resolution or lookup failure). Called at entry of `getContentInformationsFromUrl` before any network use.
-- **P1 (Path Traversal in `clientRoutes.ts`)**: Fixed. New `resolveWithinDir(baseDir, filename): string | null` exported pure helper: enforces `^[\w.-]+$` charset, extension allow-list (svg/png/jpg/jpeg/webp), and `resolve()`-based containment check (`target.startsWith(IMG_DIR + sep)`). `/img/:filename` route uses this helper — returns 400 on blocked input, 404 on missing file.
+- **P0 (SSRF in `content-utils.ts`)**: Fixed. `assertPublicHttpUrl` guards the entry point. `fetch(url, { redirect: 'error' })` closes the redirect-bypass TOCTOU — node-fetch throws on any 3xx, preventing traversal to unvalidated redirect targets (B-1).
+- **P1 (Path Traversal in `clientRoutes.ts`)**: Fixed. `resolveWithinDir` enforces `^[\w.-]+$` charset, extension allow-list, and `resolve()`-based containment.
+- **Q-1**: Three empty `catch` blocks in `getContentInformationsFromUrl` replaced with `logger.debug` calls — SSRF blocks and probe failures are now traceable.
+- **Q-2**: `(err as Error).message` unsafe cast replaced with `instanceof Error` narrowing in `url-guard.ts` DNS catch.
 
 Previous: `bugfix/presence-and-security-hardening` — COMPLETE.
 Previous: `bugfix/restrict-auto-update` — COMPLETE.
@@ -15,12 +17,13 @@ Previous: `bugfix/socket-room-sync` — COMPLETE.
 ## 1. Accomplished (all sprints)
 
 **Security Remediation — `feature/security-remediation`:**
-- **`src/services/url-guard.ts`** (NEW): Pure, framework-free module exporting `SsrfBlockedError`, `isPrivateIp`, `assertPublicHttpUrl`. Covers IPv4 private ranges, IPv6 (loopback, link-local, ULA, IPv4-mapped in both dotted-decimal and URL-normalized hex forms), DNS resolution check (fail closed). No new heavyweight deps — uses `node:dns`, `node:net`.
-- **`src/services/content-utils.ts`**: Imports and calls `assertPublicHttpUrl(url)` at entry of `getContentInformationsFromUrl`; rejects private/invalid URLs before any `fetch` or `ffprobe` invocation.
-- **`src/components/client/clientRoutes.ts`**: Exports `resolveWithinDir(baseDir, filename): string | null`. `IMG_DIR` computed once from `__dirname`. `/img/:filename` route uses the helper — 400 on traversal/bad-charset/disallowed-ext, 404 on missing-but-contained file. Replaced `join` with `resolve` throughout static routes.
+- **`src/services/url-guard.ts`** (NEW + Q-2): Pure, framework-free module exporting `SsrfBlockedError`, `isPrivateIp`, `assertPublicHttpUrl`. DNS catch uses `instanceof Error` narrowing (Q-2). No new deps — `node:dns`, `node:net` only.
+- **`src/services/content-utils.ts`** (B-1 + Q-1): `assertPublicHttpUrl(url)` at entry. `fetch(url, { redirect: 'error' })` closes the redirect-bypass vector. Three catch blocks log via `logger.debug`.
+- **`src/components/client/clientRoutes.ts`**: Exports `resolveWithinDir(baseDir, filename): string | null`. `IMG_DIR` computed once from `__dirname`. `/img/:filename` route uses the helper — 400 on traversal/bad-charset/disallowed-ext, 404 on missing-but-contained file.
 - **`src/__tests__/services/url-guard.test.ts`** (NEW): 49 tests covering `isPrivateIp` (IPv4 + IPv6 ranges) and `assertPublicHttpUrl` (scheme, literal IPs, DNS mocking).
 - **`src/__tests__/components/clientRoutes.test.ts`** (NEW): 22 tests covering `resolveWithinDir` (legitimate names, traversal payloads, extension allow-list).
-- **Total: 10 files, 179 tests. All passing. `pnpm lint` clean.**
+- **`src/__tests__/services/content-utils.test.ts`** (NEW): 7 regression tests — redirect:error wiring, redirect rejection end-to-end, logger.debug on error, normal flow.
+- **Total: 11 files, 186 tests. All passing. `pnpm lint` clean.**
 
 **Presence & Security Hardening — `bugfix/presence-and-security-hardening`:**
 - **`desktop-client/src/utils.ts`** (NEW): Pure, electron-free module exporting `AppSettings`, `PresenceEntry`, `DEFAULT_BACKEND_URL`, `DEFAULT_SETTINGS`, `OVERLAY_POSITION_ALLOWLIST`, `MIN_OVERLAY_SIZE`, `MAX_OVERLAY_SIZE`, `errMessage`, `assertHttpUrl`, `clampVolume`, `clampOverlaySize`, `isPresenceEntry`, `isPresenceArray`, `normalizeSettings`. Enables unit testing without Electron.
@@ -62,7 +65,8 @@ Previous: `bugfix/socket-room-sync` — COMPLETE.
 | `desktop-client/src/overlay-preload.ts` | IPC senders for `reportPresence`, `reportUserJoined`, `reportUserLeft` |
 | `desktop-client/src/preload.ts` | `window.livechat` API; typed `PresenceEntry` with `id` |
 | `desktop-client/src/renderer/renderer.js` | Delta DOM; H1 id guards; no dead code |
-| `src/__tests__/` | 10 files, 179 tests total |
+| `src/__tests__/services/content-utils.test.ts` | Regression tests: redirect:error wiring, redirect rejection, logger.debug on catch (Q-1) |
+| `src/__tests__/` | 11 files, 186 tests total |
 
 ---
 
