@@ -2,22 +2,20 @@ import { app, BrowserWindow, ipcMain, Menu, nativeImage, safeStorage, screen, Tr
 import { autoUpdater } from 'electron-updater';
 import fs from 'fs/promises';
 import path from 'path';
+import {
+  assertHttpUrl,
+  clampVolume,
+  errMessage,
+  isPresenceArray,
+  isPresenceEntry,
+  normalizeSettings,
+  DEFAULT_BACKEND_URL,
+  DEFAULT_SETTINGS,
+  type AppSettings,
+  type PresenceEntry,
+} from './utils';
 
 type OverlayStatusType = 'idle' | 'loading' | 'connected' | 'error';
-
-type AppSettings = {
-  backendUrl: string;
-  guildId: string;
-  screenId: number;
-  volume: number;
-  autoConnect: boolean;
-  clickThrough: boolean;
-  overlaySize: number;
-  overlayPosition: string;
-  launchAtStartup: boolean;
-  startMinimized: boolean;
-  clientToken: string;
-};
 
 type DisplayInfo = {
   id: number;
@@ -26,28 +24,6 @@ type DisplayInfo = {
   bounds: Electron.Rectangle;
   workArea: Electron.Rectangle;
 };
-
-const DEFAULT_BACKEND_URL = 'http://localhost:3000';
-const DEFAULT_SETTINGS: AppSettings = {
-  backendUrl: DEFAULT_BACKEND_URL,
-  guildId: '',
-  screenId: 0,
-  volume: 100,
-  autoConnect: true,
-  clickThrough: true,
-  overlaySize: 960,
-  overlayPosition: 'center',
-  launchAtStartup: false,
-  startMinimized: false,
-  clientToken: '',
-};
-
-const OVERLAY_POSITION_ALLOWLIST: readonly string[] = [
-  'center',
-  'top-left', 'top-center', 'top-right',
-  'center-left', 'center-right',
-  'bottom-left', 'bottom-center', 'bottom-right',
-];
 
 const FORMAT_ALLOWLIST: readonly string[] = ['landscape', 'square', 'portrait', 'stop'];
 
@@ -61,27 +37,6 @@ let settings = { ...DEFAULT_SETTINGS };
 
 function getSettingsPath() {
   return path.join(app.getPath('userData'), 'settings.json');
-}
-
-function clampVolume(value: number) {
-  return Math.max(0, Math.min(100, Math.round(value)));
-}
-
-function normalizeSettings(candidate: Partial<AppSettings> | undefined): AppSettings {
-  const rawPosition = candidate?.overlayPosition?.trim() ?? '';
-  return {
-    backendUrl: candidate?.backendUrl?.trim() || DEFAULT_SETTINGS.backendUrl,
-    guildId: candidate?.guildId?.trim() || '',
-    screenId: Number.isFinite(candidate?.screenId as number) ? Number(candidate?.screenId) : DEFAULT_SETTINGS.screenId,
-    volume: clampVolume(Number(candidate?.volume ?? DEFAULT_SETTINGS.volume)),
-    autoConnect: Boolean(candidate?.autoConnect ?? DEFAULT_SETTINGS.autoConnect),
-    clickThrough: true, // Always true to prevent desktop locks
-    overlaySize: Number.isFinite(candidate?.overlaySize as number) ? Number(candidate?.overlaySize) : DEFAULT_SETTINGS.overlaySize,
-    overlayPosition: OVERLAY_POSITION_ALLOWLIST.includes(rawPosition) ? rawPosition : DEFAULT_SETTINGS.overlayPosition,
-    launchAtStartup: Boolean(candidate?.launchAtStartup ?? DEFAULT_SETTINGS.launchAtStartup),
-    startMinimized: Boolean(candidate?.startMinimized ?? DEFAULT_SETTINGS.startMinimized),
-    clientToken: candidate?.clientToken?.trim() || '',
-  };
 }
 
 function applyLoginItemSettings(): void {
@@ -134,12 +89,12 @@ function getSelectedDisplay() {
 }
 
 function getOverlayUrl() {
-  const backendUrl = settings.backendUrl.replace(/\/$/, '');
+  const base = assertHttpUrl(settings.backendUrl).href.replace(/\/$/, '');
   const guildId = encodeURIComponent(settings.guildId);
   const size = settings.overlaySize;
   const position = encodeURIComponent(settings.overlayPosition);
   const tokenParam = settings.clientToken ? `&token=${encodeURIComponent(settings.clientToken)}` : '';
-  return `${backendUrl}/client?guildId=${guildId}&client=desktop&size=${size}&position=${position}${tokenParam}`;
+  return `${base}/client?guildId=${guildId}&client=desktop&size=${size}&position=${position}${tokenParam}`;
 }
 
 function updateStatus(type: OverlayStatusType, message: string) {
@@ -370,11 +325,11 @@ async function connectOverlay() {
   overlayWindow.showInactive();
   try {
     await overlayWindow.loadURL(getOverlayUrl());
-  } catch (err: any) {
+  } catch (err: unknown) {
     // Only report error if we didn't transition to connected/idle in the meantime
     if ((statusType as string) === 'loading') {
       console.error('Failed to load overlay URL:', err);
-      updateStatus('error', `Erreur de chargement: ${err.message || err}`);
+      updateStatus('error', `Erreur de chargement: ${errMessage(err)}`);
     }
   }
 }
@@ -402,7 +357,12 @@ function registerIpc() {
 
   ipcMain.handle('app:test-connection', async (_event, { backendUrl, guildId }) => {
     try {
-      const url = `${backendUrl.replace(/\/$/, '')}/client?guildId=${encodeURIComponent(guildId)}`;
+      assertHttpUrl(backendUrl as string);
+    } catch {
+      return false;
+    }
+    try {
+      const url = `${(backendUrl as string).replace(/\/$/, '')}/client?guildId=${encodeURIComponent(guildId as string)}`;
       const controller = new AbortController();
       const id = setTimeout(() => controller.abort(), 4000);
       const response = await fetch(url, { signal: controller.signal });
@@ -447,7 +407,7 @@ function registerIpc() {
     return true;
   });
 
-  ipcMain.handle('app:get-presence', async () => {
+  ipcMain.handle('app:get-presence', async (): Promise<PresenceEntry[]> => {
     if (!settings.clientToken || !settings.guildId) return [];
     try {
       const base = settings.backendUrl.replace(/\/$/, '');
@@ -457,7 +417,9 @@ function registerIpc() {
       const res = await fetch(url, { signal: controller.signal });
       clearTimeout(id);
       if (!res.ok) return [];
-      return (await res.json()) as Array<{ displayName: string; connectedAt: number; avatarUrl: string | null }>;
+      const data: unknown = await res.json();
+      if (!isPresenceArray(data)) return [];
+      return data;
     } catch {
       return [];
     }
@@ -465,14 +427,18 @@ function registerIpc() {
 
   // Forward real-time presence events from the overlay window to the control window
   ipcMain.on('presence:update', (_event, data: unknown) => {
+    if (!isPresenceArray(data)) return;
     controlWindow?.webContents.send('presence:update', data);
   });
 
   ipcMain.on('presence:userJoined', (_event, data: unknown) => {
+    if (!isPresenceEntry(data)) return;
     controlWindow?.webContents.send('presence:userJoined', data);
   });
 
   ipcMain.on('presence:userLeft', (_event, data: unknown) => {
+    const obj = data as Record<string, unknown>;
+    if (typeof obj?.id !== 'string') return;
     controlWindow?.webContents.send('presence:userLeft', data);
   });
 
