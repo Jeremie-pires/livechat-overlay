@@ -1,0 +1,42 @@
+name: Desktop Release
+
+on:
+  push:
+    tags:
+      - 'v*' # Se déclenche uniquement pour les tags commençant par "v"
+
+permissions:
+  contents: write # Obligatoire pour autoriser GitHub à publier une "Release"
+
+jobs:
+  build-and-publish:
+    name: Build & Publish Windows App
+    runs-on: windows-latest # Nécessaire pour compiler un .exe natif sous Windows
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 8
+
+      - name: Use Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Si ton dossier desktop est séparé, il faudra faire un `cd desktop-client` avant les commandes de build
+      - name: Build Web Assets (Frontend)
+        run: pnpm build
+
+      - name: Build and Publish Electron App
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # Exécute electron-builder pour générer le .exe et l'attacher directement à la release GitHub
+        run: npx electron-builder --win --publish always
