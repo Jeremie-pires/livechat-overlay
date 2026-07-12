@@ -39,14 +39,16 @@ export const getContentInformationsFromUrl = async (url: string) => {
     if (tmpContentType) {
       contentType = tmpContentType;
     }
-  } catch (error) {}
+  } catch (error) {
+    logger.debug({ err: error }, 'content-type from URL extension failed');
+  }
 
   // If it doesn't work with URL, try with fetch
   try {
     if (!contentType) {
-      const file = await fetch(url);
+      const file = await fetch(url, { redirect: 'error' });
 
-      contentType = file.headers.get('Content-Type');
+      contentType = file.headers.get('Content-Type') ?? undefined;
 
       if (!contentType) {
         const res = await fileTypeFromBuffer(await file.arrayBuffer());
@@ -56,11 +58,15 @@ export const getContentInformationsFromUrl = async (url: string) => {
         }
       }
     }
-  } catch (error) {}
+  } catch (error) {
+    logger.debug({ err: error }, 'content-type from fetch/buffer failed');
+  }
 
   try {
     mediaDuration = await getVideoDurationInSeconds(url, 'ffprobe');
-  } catch (error) {}
+  } catch (error) {
+    logger.debug({ err: error }, 'ffprobe duration detection failed');
+  }
 
   return { contentType, mediaDuration, mediaIsShort: mediaIsShort ?? false };
 };
