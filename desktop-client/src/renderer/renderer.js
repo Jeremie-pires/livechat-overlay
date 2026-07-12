@@ -314,7 +314,16 @@ function updatePresenceSummary(clients) {
   );
 }
 
+let _warnedMissingPresenceId = false;
+
 function buildUserItem(client) {
+  if (!client.id) {
+    if (!_warnedMissingPresenceId) {
+      console.warn('[presence] entry with missing id skipped');
+      _warnedMissingPresenceId = true;
+    }
+    return null;
+  }
   const item = document.createElement('div');
   item.className = 'user-item';
   item.setAttribute('role', 'listitem');
@@ -363,6 +372,7 @@ function showEmptyPlaceholder() {
 
 function addUserToList(client) {
   if (!elements.userList) return;
+  if (!client.id) return;
   // Idempotence: no duplicate inserts
   if (elements.userList.querySelector(`[data-user-id="${client.id}"]`)) return;
 
@@ -370,6 +380,7 @@ function addUserToList(client) {
   if (empty) empty.remove();
 
   const item = buildUserItem(client);
+  if (!item) return;
 
   if (!noMotion) {
     item.classList.add('user-item-entering');
@@ -416,7 +427,8 @@ function removeUserFromList(id) {
 function reconcileUserList(snapshot) {
   if (!elements.userList) return;
 
-  const snapshotMap = new Map(snapshot.map((c) => [c.id, c]));
+  const validSnapshot = snapshot.filter((c) => c.id);
+  const snapshotMap = new Map(validSnapshot.map((c) => [c.id, c]));
 
   // Remove DOM items no longer in snapshot
   const existingItems = elements.userList.querySelectorAll('.user-item[data-user-id]');
@@ -428,16 +440,17 @@ function reconcileUserList(snapshot) {
   }
 
   // Insert items present in snapshot but not yet in DOM
-  for (const client of snapshot) {
+  for (const client of validSnapshot) {
     if (!elements.userList.querySelector(`[data-user-id="${client.id}"]`)) {
       const empty = elements.userList.querySelector('.user-list-empty');
       if (empty) empty.remove();
-      elements.userList.appendChild(buildUserItem(client));
+      const item = buildUserItem(client);
+      if (item) elements.userList.appendChild(item);
     }
   }
 
   // Show placeholder when list is empty
-  if (snapshot.length === 0 && !elements.userList.querySelector('.user-item')) {
+  if (validSnapshot.length === 0 && !elements.userList.querySelector('.user-item')) {
     showEmptyPlaceholder();
   }
 }
