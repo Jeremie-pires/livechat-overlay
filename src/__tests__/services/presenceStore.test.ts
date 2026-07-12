@@ -9,7 +9,12 @@ function makeStore() {
   const store = new Map<string, Map<string, InternalPresenceEntry>>();
   const userSocketMap = new Map<string, string>();
 
-  function toPublic({ discordUserId, displayName, connectedAt, avatarUrl }: InternalPresenceEntry): PublicPresenceEntry {
+  function toPublic({
+    discordUserId,
+    displayName,
+    connectedAt,
+    avatarUrl,
+  }: InternalPresenceEntry): PublicPresenceEntry {
     return { id: discordUserId, displayName, connectedAt, avatarUrl };
   }
 
