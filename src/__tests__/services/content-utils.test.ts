@@ -36,6 +36,7 @@ function makeHtmlResponse(html: string) {
 }
 
 beforeEach(() => {
+  vi.clearAllMocks();
   (global as Record<string, unknown>).logger = {
     debug: vi.fn(),
     info: vi.fn(),
@@ -202,5 +203,124 @@ describe('getContentInformationsFromUrl — GIF provider extraction (Tenor / Gip
     vi.mocked(fetch).mockResolvedValueOnce(makeHtmlResponse(reversedHtml) as never);
     const result = await getContentInformationsFromUrl(TENOR_PAGE_URL);
     expect(result.contentType).toBe('video/mp4');
+  });
+
+  it('T-17: graceful fallthrough when Tenor page throws redirect error: logger.debug called, contentType undefined', async () => {
+    const redirectErr = new Error('redirect mode is set to error');
+    vi.mocked(fetch).mockRejectedValue(redirectErr);
+    const result = await getContentInformationsFromUrl(TENOR_PAGE_URL);
+    expect(
+      vi.mocked((global as Record<string, { debug: ReturnType<typeof vi.fn> }>).logger.debug),
+    ).toHaveBeenCalledWith(expect.objectContaining({ err: redirectErr }), 'gif-provider: HTML fetch failed');
+    expect(result.contentType).toBeUndefined();
+  });
+});
+
+// ── YouTube URL classification & early-return (T-1…T-11) ─────────────────────
+
+describe('getContentInformationsFromUrl — YouTube classification', () => {
+  it('T-1: returns video/youtube for www.youtube.com/watch without calling fetch', async () => {
+    const result = await getContentInformationsFromUrl('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+    expect(result.contentType).toBe('video/youtube');
+    expect(result.mediaIsShort).toBe(false);
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled();
+  });
+
+  it('T-2: returns video/youtube for youtube.com/watch (no www) without calling fetch', async () => {
+    const result = await getContentInformationsFromUrl('https://youtube.com/watch?v=abc');
+    expect(result.contentType).toBe('video/youtube');
+    expect(result.mediaIsShort).toBe(false);
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled();
+  });
+
+  it('T-3: returns video/youtube for m.youtube.com/watch without calling fetch', async () => {
+    const result = await getContentInformationsFromUrl('https://m.youtube.com/watch?v=abc');
+    expect(result.contentType).toBe('video/youtube');
+    expect(result.mediaIsShort).toBe(false);
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled();
+  });
+
+  it('T-4: returns video/youtube with mediaIsShort=true for www.youtube.com/shorts', async () => {
+    const result = await getContentInformationsFromUrl('https://www.youtube.com/shorts/abc123');
+    expect(result.contentType).toBe('video/youtube');
+    expect(result.mediaIsShort).toBe(true);
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled();
+  });
+
+  it('T-5: returns video/youtube with mediaIsShort=true for m.youtube.com/shorts', async () => {
+    const result = await getContentInformationsFromUrl('https://m.youtube.com/shorts/abc123');
+    expect(result.contentType).toBe('video/youtube');
+    expect(result.mediaIsShort).toBe(true);
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled();
+  });
+
+  it('T-6: returns video/youtube for youtu.be short links without calling fetch', async () => {
+    const result = await getContentInformationsFromUrl('https://youtu.be/dQw4w9WgXcQ');
+    expect(result.contentType).toBe('video/youtube');
+    expect(result.mediaIsShort).toBe(false);
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled();
+  });
+
+  it('T-7: returns video/youtube for youtu.be with timestamp query param without calling fetch', async () => {
+    const result = await getContentInformationsFromUrl('https://youtu.be/dQw4w9WgXcQ?t=30');
+    expect(result.contentType).toBe('video/youtube');
+    expect(result.mediaIsShort).toBe(false);
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled();
+  });
+
+  it('T-8: returns video/youtube even when fetch is mocked to reject (independence from redirect gate)', async () => {
+    vi.mocked(fetch).mockRejectedValue(new Error('redirect mode is set to error'));
+    const result = await getContentInformationsFromUrl('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+    expect(result.contentType).toBe('video/youtube');
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled();
+  });
+
+  it('T-9: non-YouTube host falls through to normal fetch pipeline', async () => {
+    vi.mocked(fetch).mockResolvedValue(makeResponse('video/mp4') as never);
+    const result = await getContentInformationsFromUrl('https://notyoutube.com/watch?v=x');
+    expect(vi.mocked(fetch)).toHaveBeenCalled();
+    expect(result.contentType).toBe('video/mp4');
+  });
+
+  it('T-10: returns video/youtube for music.youtube.com/watch without calling fetch', async () => {
+    const result = await getContentInformationsFromUrl('https://music.youtube.com/watch?v=abc');
+    expect(result.contentType).toBe('video/youtube');
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled();
+  });
+
+  it('T-11: video/youtube does not start with "image" — client routes to player not img element', () => {
+    expect('video/youtube'.indexOf('image')).not.toBe(0);
+  });
+
+  it('T-12: returns video/youtube for youtube.com/embed/... without calling fetch', async () => {
+    const result = await getContentInformationsFromUrl('https://youtube.com/embed/abc123');
+    expect(result.contentType).toBe('video/youtube');
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled();
+  });
+
+  it('T-13: returns video/youtube for youtube.com/live/... without calling fetch', async () => {
+    const result = await getContentInformationsFromUrl('https://youtube.com/live/abc123');
+    expect(result.contentType).toBe('video/youtube');
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled();
+  });
+
+  it('T-14: youtube.com/watchmen falls through to normal pipeline (not classified as YouTube)', async () => {
+    vi.mocked(fetch).mockResolvedValue(makeResponse('video/mp4') as never);
+    const result = await getContentInformationsFromUrl('https://youtube.com/watchmen');
+    expect(vi.mocked(fetch)).toHaveBeenCalled();
+    expect(result.contentType).toBe('video/mp4');
+  });
+
+  it('T-15: youtu.be/ with empty path falls through to normal pipeline', async () => {
+    vi.mocked(fetch).mockResolvedValue(makeResponse('text/html') as never);
+    await getContentInformationsFromUrl('https://youtu.be/');
+    expect(vi.mocked(fetch)).toHaveBeenCalled();
+  });
+
+  it('T-16: assertPublicHttpUrl rejects private-IP URL before YouTube early-return (guard-ordering contract)', async () => {
+    await expect(
+      getContentInformationsFromUrl('http://192.168.1.1/watch?v=abc'),
+    ).rejects.toThrow();
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled();
   });
 });
