@@ -34,14 +34,18 @@ export const mintRunId = (): string => randomUUID();
 
 export const persistBroadcastRun = async (runId: string, results: BroadcastResult[]): Promise<void> => {
   if (results.length === 0) return;
-  await prisma.broadcastLog.createMany({
-    data: results.map((r) => ({
-      runId,
-      guildId: r.guildId,
-      channelId: r.channelId ?? null,
-      status: r.status,
-      errorCode: r.errorCode ?? null,
-      errorReason: r.errorReason ?? null,
-    })),
-  });
+  try {
+    await prisma.broadcastLog.createMany({
+      data: results.map((r) => ({
+        runId,
+        guildId: r.guildId,
+        channelId: r.channelId ?? null,
+        status: r.status,
+        errorCode: r.errorCode ?? null,
+        errorReason: r.errorReason ?? null,
+      })),
+    });
+  } catch (err) {
+    logger.error({ err, runId }, '[BroadcastClassifier] Failed to persist broadcast run');
+  }
 };
