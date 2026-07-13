@@ -4,6 +4,16 @@ import { fileTypeFromBuffer } from 'file-type';
 import mime from 'mime-types';
 import { assertPublicHttpUrl } from './url-guard';
 
+const MAX_HTML_CHARS = 256 * 1024;
+const FETCH_TIMEOUT_MS = 5_000;
+
+interface OpenGraphResult {
+  videoUrl?: string;
+  imageUrl?: string;
+  videoType?: string;
+  imageType?: string;
+}
+
 function getFileTypeWithRegex(url: string): string {
   const regex = /(?:\.([^.]+))?$/;
   const extension = regex.exec(url)?.[1];
@@ -24,18 +34,115 @@ function isYouTubeShortUrl(url: string): boolean {
   }
 }
 
+function isSupportedGifProvider(url: string): boolean {
+  try {
+    const { hostname } = new URL(url);
+    return (
+      hostname === 'tenor.com' ||
+      hostname.endsWith('.tenor.com') ||
+      hostname === 'giphy.com' ||
+      hostname.endsWith('.giphy.com')
+    );
+  } catch {
+    return false;
+  }
+}
+
+function parseOpenGraph(html: string): OpenGraphResult {
+  const result: OpenGraphResult = {};
+  const tagRe = /<meta\b([^>]+)(?:\s*\/)?>/gi;
+  const attrRe = /\b(property|content)\s*=\s*(?:"([^"]*)"|'([^']*)')/gi;
+
+  let tagMatch: RegExpExecArray | null;
+  while ((tagMatch = tagRe.exec(html)) !== null) {
+    const tagContent = tagMatch[1];
+    const attrs: Record<string, string> = {};
+    attrRe.lastIndex = 0;
+    let attrMatch: RegExpExecArray | null;
+    while ((attrMatch = attrRe.exec(tagContent)) !== null) {
+      attrs[attrMatch[1].toLowerCase()] = (attrMatch[2] ?? attrMatch[3] ?? '').trim();
+    }
+
+    const prop = attrs['property'];
+    const content = attrs['content'];
+    if (prop === undefined || content === undefined) continue;
+
+    const propLower = prop.toLowerCase();
+    if ((propLower === 'og:video:url' || propLower === 'og:video') && result.videoUrl === undefined) {
+      result.videoUrl = content;
+    } else if (propLower === 'og:video:type' && result.videoType === undefined) {
+      result.videoType = content;
+    } else if (propLower === 'og:image' && result.imageUrl === undefined) {
+      result.imageUrl = content;
+    } else if (propLower === 'og:image:type' && result.imageType === undefined) {
+      result.imageType = content;
+    }
+  }
+
+  return result;
+}
+
+async function resolveProviderMediaUrl(url: string): Promise<{ url: string; contentType?: string } | null> {
+  if (!isSupportedGifProvider(url)) return null;
+
+  let html: string;
+  try {
+    const response = await Promise.race([
+      fetch(url, {
+        redirect: 'error',
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; LiveChatCCB/1.0)',
+          Accept: 'text/html',
+        },
+      }),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('provider HTML fetch timeout')), FETCH_TIMEOUT_MS),
+      ),
+    ]);
+    html = (await response.text()).slice(0, MAX_HTML_CHARS);
+  } catch (error) {
+    logger.debug({ err: error }, 'gif-provider: HTML fetch failed');
+    return null;
+  }
+
+  const og = parseOpenGraph(html);
+  const rawUrl = og.videoUrl ?? og.imageUrl;
+
+  if (rawUrl === undefined) {
+    logger.debug({ url }, 'gif-provider: no OG media URL found in HTML');
+    return null;
+  }
+
+  try {
+    await assertPublicHttpUrl(rawUrl);
+  } catch (error) {
+    logger.debug({ err: error, rawUrl }, 'gif-provider: extracted URL failed SSRF guard');
+    return null;
+  }
+
+  const ogContentType = og.videoType ?? og.imageType;
+  const ext = getFileTypeWithRegex(rawUrl);
+  const derivedContentType = ogContentType ?? (mime.lookup(ext) || undefined);
+
+  return { url: rawUrl, contentType: derivedContentType };
+}
+
 export const getContentInformationsFromUrl = async (url: string) => {
   await assertPublicHttpUrl(url);
 
   let contentType: string | undefined;
   let mediaDuration: number | undefined;
   const mediaIsShort = isYouTubeShortUrl(url);
-  // First try to get it with URL
+
+  const providerResult = await resolveProviderMediaUrl(url);
+  const effectiveUrl = providerResult?.url ?? url;
+  if (providerResult?.contentType !== undefined) {
+    contentType = providerResult.contentType;
+  }
+
   try {
-    const fileExt = getFileTypeWithRegex(url);
-
+    const fileExt = getFileTypeWithRegex(effectiveUrl);
     const tmpContentType = mime.lookup(fileExt);
-
     if (tmpContentType) {
       contentType = tmpContentType;
     }
@@ -43,10 +150,9 @@ export const getContentInformationsFromUrl = async (url: string) => {
     logger.debug({ err: error }, 'content-type from URL extension failed');
   }
 
-  // If it doesn't work with URL, try with fetch
   try {
     if (!contentType) {
-      const file = await fetch(url, { redirect: 'error' });
+      const file = await fetch(effectiveUrl, { redirect: 'error' });
 
       contentType = file.headers.get('Content-Type') ?? undefined;
 
@@ -63,7 +169,7 @@ export const getContentInformationsFromUrl = async (url: string) => {
   }
 
   try {
-    mediaDuration = await getVideoDurationInSeconds(url, 'ffprobe');
+    mediaDuration = await getVideoDurationInSeconds(effectiveUrl, 'ffprobe');
   } catch (error) {
     logger.debug({ err: error }, 'ffprobe duration detection failed');
   }
