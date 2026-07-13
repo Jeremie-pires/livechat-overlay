@@ -1,10 +1,11 @@
 # AI_STATE.md — LiveChat CCB
 
 ## Status
-Sprint `feature/gif-link-support` — IN PROGRESS.
+Sprint `hotfix/youtube-regression-1.2.7` — COMPLETE ✅.
 
-- **GIF Link Support**: Tenor/Giphy landing-page URLs now resolved to raw media via OpenGraph extraction before entering the existing detection pipeline. Both the input URL and every extracted URL pass through `assertPublicHttpUrl` (double SSRF validation). 7 new tests added; total 193/193 passing, `pnpm lint` clean.
+- **YouTube Regression Hotfix (P1)**: Restored YouTube classic / Shorts / youtu.be resolution broken in 1.2.7 by the `redirect: 'error'` SSRF hardening. Added `isYouTubeUrl` + `YOUTUBE_CONTENT_TYPE = 'video/youtube'` sentinel; early-return in `getContentInformationsFromUrl` bypasses fetch/ffprobe entirely for YouTube. SSRF posture unchanged. 10 new tests (T-1…T-9, T-11); total ≥203 passing.
 
+Previous: `feature/gif-link-support` — IN PROGRESS (awaiting REVIEWER).
 Previous: `feature/security-remediation` — COMPLETE (REVIEWER GO ✅).
 Previous: `bugfix/presence-and-security-hardening` — COMPLETE.
 Previous: `bugfix/restrict-auto-update` — COMPLETE.
@@ -13,6 +14,10 @@ Previous: `bugfix/socket-room-sync` — COMPLETE.
 ---
 
 ## 1. Accomplished (all sprints)
+
+**YouTube Regression Hotfix — `hotfix/youtube-regression-1.2.7`:**
+- **`src/services/content-utils.ts`** (UPDATED): Added `YOUTUBE_CONTENT_TYPE = 'video/youtube'` sentinel constant. Added `isYouTubeUrl(url): boolean` — pure host/path classifier matching `youtube.com`, `www/m/music.youtube.com` with `/watch`, `/shorts/`, `/embed/`, `/live/` paths, and `youtu.be` with non-empty path; wrapped in `try/catch`. Added early-return guard in `getContentInformationsFromUrl` immediately after `assertPublicHttpUrl` and `isYouTubeShortUrl` — bypasses `resolveProviderMediaUrl`, extension lookup, `fetch`, and `ffprobe` for all YouTube URLs. SSRF gate and `redirect: 'error'` fetch unchanged.
+- **`src/__tests__/services/content-utils.test.ts`** (UPDATED): 10 new tests (T-1…T-9, T-11) — www/no-www/mobile watch URLs, Shorts (www + mobile), youtu.be with/without query param, redirect-rejection independence guard, notyoutube.com negative, client contract (`video/youtube.indexOf('image') !== 0`). Total: ≥203 tests.
 
 **GIF Link Support — `feature/gif-link-support`:**
 - **`src/services/content-utils.ts`** (UPDATED): Added `isSupportedGifProvider`, `parseOpenGraph`, `resolveProviderMediaUrl` private helpers. `getContentInformationsFromUrl` calls `resolveProviderMediaUrl` after the input SSRF gate; uses resolved `effectiveUrl` for all downstream detection (extension, fetch, ffprobe). Both input URL and extracted OG URL are independently SSRF-validated. Fetch to provider HTML page is size-capped (256 KB slice) and timeout-guarded (5 s via `Promise.race`). All failure paths log via `logger.debug`.
@@ -55,7 +60,7 @@ Previous: `bugfix/socket-room-sync` — COMPLETE.
 | File | Role |
 |---|---|
 | `src/services/url-guard.ts` | SSRF guard: scheme + IP block-list + DNS check; `SsrfBlockedError`, `isPrivateIp`, `assertPublicHttpUrl` |
-| `src/services/content-utils.ts` | Media URL info; GIF provider extraction (Tenor/Giphy OG); double SSRF validation; calls `assertPublicHttpUrl` at entry and on every extracted URL |
+| `src/services/content-utils.ts` | Media URL info; YouTube early-return (`isYouTubeUrl` → `video/youtube`); GIF provider extraction (Tenor/Giphy OG); double SSRF validation; `redirect: 'error'` fetch for genuine media |
 | `src/components/client/clientRoutes.ts` | Static client routes; `resolveWithinDir` containment guard for `/img/:filename` (P1 fix) |
 | `desktop-client/src/utils.ts` | Pure helpers + types; no Electron dependency; fully unit-testable |
 | `desktop-client/src/main.ts` | Electron main; imports all helpers from `utils.ts`; M1/M2/L1/L2/L3/I1 applied |
@@ -66,17 +71,18 @@ Previous: `bugfix/socket-room-sync` — COMPLETE.
 | `desktop-client/src/overlay-preload.ts` | IPC senders for `reportPresence`, `reportUserJoined`, `reportUserLeft` |
 | `desktop-client/src/preload.ts` | `window.livechat` API; typed `PresenceEntry` with `id` |
 | `desktop-client/src/renderer/renderer.js` | Delta DOM; H1 id guards; no dead code |
-| `src/__tests__/services/content-utils.test.ts` | GIF provider extraction + redirect:error regression tests (193 total) |
-| `src/__tests__/` | 11 files, 193 tests total |
+| `src/__tests__/services/content-utils.test.ts` | YouTube classification (T-1…T-9,T-11) + GIF provider extraction + redirect:error regression tests (≥203 total) |
+| `src/__tests__/` | 11 files, ≥203 tests total |
 
 ---
 
 ## 3. Next steps
 
-1. **REVIEWER** `feature/gif-link-support` → awaiting GO/NO-GO on `.pipeline/review.md`.
-2. **PR** `feature/gif-link-support` → `develop`.
-3. **PR** `feature/security-remediation` → `develop`.
-4. **PR** `bugfix/presence-and-security-hardening` → `develop`.
-5. **PR** `bugfix/restrict-auto-update` → `develop`.
-6. **`feature/network-media-optim`** — media by URL, compression, cache.
-7. **Observability phase 2** — external log shipping (Loki/ELK), Docker log rotation config fine-tuning.
+1. **PR** `hotfix/youtube-regression-1.2.7` → `develop` (then cherry-pick to release line → tag `1.2.8`).
+2. **REVIEWER** `feature/gif-link-support` → awaiting GO/NO-GO on `.pipeline/review.md`.
+3. **PR** `feature/gif-link-support` → `develop`.
+4. **PR** `feature/security-remediation` → `develop`.
+5. **PR** `bugfix/presence-and-security-hardening` → `develop`.
+6. **PR** `bugfix/restrict-auto-update` → `develop`.
+7. **`feature/network-media-optim`** — media by URL, compression, cache.
+8. **Observability phase 2** — external log shipping (Loki/ELK), Docker log rotation config fine-tuning.
