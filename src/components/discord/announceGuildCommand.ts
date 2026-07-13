@@ -44,6 +44,8 @@ export const announceGuildCommand = () => ({
     }
 
     const runId = mintRunId();
+    let delivered = false;
+
     try {
       const channel = await discordClient.channels.fetch(guild.channelId);
       if (!channel || !channel.isTextBased()) throw new Error('Channel not found or not text-based');
@@ -53,8 +55,7 @@ export const announceGuildCommand = () => ({
           new EmbedBuilder().setTitle(rosetty.t('announceCommandTitle')!).setDescription(message).setColor(0x3498db),
         ],
       });
-
-      await persistBroadcastRun(runId, [{ guildId, channelId: guild.channelId, status: 'SUCCESS' }]);
+      delivered = true;
 
       await interaction.editReply({
         embeds: [
@@ -65,17 +66,24 @@ export const announceGuildCommand = () => ({
         ],
       });
     } catch (err) {
-      const { errorCode, errorReason } = classifyDiscordError(err);
-      await persistBroadcastRun(runId, [{ guildId, channelId: guild.channelId, status: 'FAILED', errorCode, errorReason }]);
+      if (!delivered) {
+        const { errorCode, errorReason } = classifyDiscordError(err);
+        await persistBroadcastRun(runId, [
+          { guildId, channelId: guild.channelId, status: 'FAILED', errorCode, errorReason },
+        ]);
+        await interaction.editReply({
+          embeds: [
+            new EmbedBuilder()
+              .setTitle(rosetty.t('error')!)
+              .setDescription(rosetty.t('commandError')!)
+              .setColor(0xe74c3c),
+          ],
+        });
+      }
+    }
 
-      await interaction.editReply({
-        embeds: [
-          new EmbedBuilder()
-            .setTitle(rosetty.t('error')!)
-            .setDescription(rosetty.t('commandError')!)
-            .setColor(0xe74c3c),
-        ],
-      });
+    if (delivered) {
+      await persistBroadcastRun(runId, [{ guildId, channelId: guild.channelId, status: 'SUCCESS' }]);
     }
   },
 });
