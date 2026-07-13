@@ -1,7 +1,7 @@
 # AI_STATE.md — LiveChat CCB
 
 ## Status
-Sprint `hotfix/youtube-regression-1.2.7` — ALL FIXES COMPLETE, version bumped to `1.2.8-rc.1`.
+Sprint `hotfix/youtube-regression-1.2.7` — RELEASED as `1.2.8` (stable).
 
 Previous: `feature/gif-link-support` — IN PROGRESS (awaiting REVIEWER).
 Previous: `feature/security-remediation` — COMPLETE (REVIEWER GO ✅).
