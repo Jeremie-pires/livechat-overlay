@@ -475,6 +475,10 @@ function normalizeReleaseNotes(notes: string | ReleaseNote[] | null | undefined)
 }
 
 function setupAutoUpdater() {
+
+  autoUpdater.channel = 'latest';
+  autoUpdater.allowPrerelease = false;
+  
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
 
