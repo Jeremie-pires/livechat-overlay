@@ -1,4 +1,5 @@
-import { ChatInputCommandInteraction, EmbedBuilder, MessageFlags, SlashCommandBuilder, TextChannel } from 'discord.js';
+import { ChatInputCommandInteraction, EmbedBuilder, MessageFlags, SlashCommandBuilder } from 'discord.js';
+import { broadcastToAllGuilds } from '../../services/broadcast';
 
 export const announceCommand = () => ({
   data: new SlashCommandBuilder()
@@ -20,37 +21,21 @@ export const announceCommand = () => ({
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     const message = interaction.options.getString('message', true);
-    const guilds = await prisma.guild.findMany({
-      where: { channelId: { not: null } },
-      select: { id: true, channelId: true },
-    });
+    const results = await broadcastToAllGuilds(rosetty.t('announceCommandTitle')!, message, 0x3498db);
 
-    let sent = 0;
-    for (const guild of guilds) {
-      try {
-        const channel = await discordClient.channels.fetch(guild.channelId!);
-        if (channel && channel.isTextBased()) {
-          await (channel as TextChannel).send({
-            embeds: [
-              new EmbedBuilder()
-                .setTitle(rosetty.t('announceCommandTitle')!)
-                .setDescription(message)
-                .setColor(0x3498db),
-            ],
-          });
-          sent++;
-        }
-      } catch {
-        // Guild may have removed the bot or deleted the channel
-      }
-    }
+    const sent = results.filter((r) => r.status === 'SUCCESS').length;
+    const failed = results.filter((r) => r.status === 'FAILED').length;
+
+    const summary =
+      rosetty.t('announceCommandAnswer', { count: String(sent) })! +
+      (failed > 0 ? '\n' + rosetty.t('announceCommandFailures', { count: String(failed) })! : '');
 
     await interaction.editReply({
       embeds: [
         new EmbedBuilder()
           .setTitle(rosetty.t('success')!)
-          .setDescription(rosetty.t('announceCommandAnswer', { count: String(sent) })!)
-          .setColor(0x2ecc71),
+          .setDescription(summary)
+          .setColor(failed > 0 ? 0xf59e0b : 0x2ecc71),
       ],
     });
   },

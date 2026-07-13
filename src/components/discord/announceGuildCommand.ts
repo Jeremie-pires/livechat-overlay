@@ -1,4 +1,5 @@
 import { ChatInputCommandInteraction, EmbedBuilder, MessageFlags, SlashCommandBuilder, TextChannel } from 'discord.js';
+import { classifyDiscordError, mintRunId, persistBroadcastRun } from '../../services/broadcastClassifier';
 
 export const announceGuildCommand = () => ({
   data: new SlashCommandBuilder()
@@ -42,6 +43,7 @@ export const announceGuildCommand = () => ({
       return;
     }
 
+    const runId = mintRunId();
     try {
       const channel = await discordClient.channels.fetch(guild.channelId);
       if (!channel || !channel.isTextBased()) throw new Error('Channel not found or not text-based');
@@ -52,6 +54,8 @@ export const announceGuildCommand = () => ({
         ],
       });
 
+      await persistBroadcastRun(runId, [{ guildId, channelId: guild.channelId, status: 'SUCCESS' }]);
+
       await interaction.editReply({
         embeds: [
           new EmbedBuilder()
@@ -60,7 +64,10 @@ export const announceGuildCommand = () => ({
             .setColor(0x2ecc71),
         ],
       });
-    } catch {
+    } catch (err) {
+      const { errorCode, errorReason } = classifyDiscordError(err);
+      await persistBroadcastRun(runId, [{ guildId, channelId: guild.channelId, status: 'FAILED', errorCode, errorReason }]);
+
       await interaction.editReply({
         embeds: [
           new EmbedBuilder()
