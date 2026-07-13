@@ -1,7 +1,7 @@
 # AI_STATE.md — LiveChat CCB
 
 ## Status
-Sprint `feature/crud-database-dashboard` — IN PROGRESS (awaiting REVIEWER).
+Sprint `feature/crud-database-dashboard` — IN PROGRESS (reviewer blockers B-1/B-2 resolved; re-submitted for GO).
 
 Previous: `hotfix/youtube-regression-1.2.7` — RELEASED as `1.2.8` (stable).
 Previous: `feature/gif-link-support` — IN PROGRESS (awaiting REVIEWER).
@@ -26,7 +26,14 @@ Previous: `bugfix/socket-room-sync` — COMPLETE.
 - **`src/components/api/adminDbRoutes.ts`** (NEW): Fastify plugin mounted at `/api/admin`. Three session-guarded endpoints: `GET /db/guilds` (Guild rows + Discord cache join + last BroadcastLog per guild), `DELETE /db/guilds/:id` (snowflake validation, BotEvent audit `DB_PURGE`), `GET /db/broadcasts/latest` (latest run summary + rows).
 - **`src/loaders/RESTLoader.ts`** (UPDATED): Mounts `AdminDbRoutes` at `/api/admin`.
 - **`src/components/dashboard/dashboardRoutes.ts`** (UPDATED): Added "Base de données" sidebar nav item (database icon), `#page-database` page block (summary strip + guild table with failure-highlighted rows), `.db-table` + `.toast` CSS, and JS functions `loadDatabase()` / `renderGuildTable()` / `deleteGuild()` / `copyText()` / `showToast()`. Lazy-loads on first navigate; refreshes on 30 s tick when active.
-- **`src/__tests__/services/broadcastClassifier.test.ts`** (NEW): 14 tests — all error code mappings, fallback, message truncation, null/undefined/non-object inputs, and BroadcastResult aggregation counts. Suite: 224 tests (was ≥210).
+- **`src/__tests__/services/broadcastClassifier.test.ts`** (UPDATED): Extended with `mintRunId` (2 tests) and `persistBroadcastRun` (4 tests incl. fail-safe contract). Old "propagates DB errors" test replaced with "resolves + logger.error" assertion.
+- **`src/__tests__/services/broadcast.test.ts`** (NEW): 8 tests — empty guilds, SUCCESS, classified FAILED, NOT_TEXT (null/non-text channel), mixed batch, single mintRunId, single persistBroadcastRun call.
+- **`src/__tests__/components/api/adminDbRoutes.test.ts`** (NEW): 12 tests — auth 401/200 on all endpoints, enriched guild rows, snowflake 400 (letters/short/long), 404, 200 + DB_PURGE audit, broadcasts/latest empty + counts.
+- **Suite total: 250 tests (was 224).**
+
+**Reliability fixes — reviewer blockers:**
+- **`src/services/broadcastClassifier.ts`** (UPDATED): B-1 fix — `persistBroadcastRun` wraps `createMany` in try/catch; on error calls `logger.error({ err, runId }, '[BroadcastClassifier] Failed to persist broadcast run')` and resolves normally. Never throws; telemetry is best-effort.
+- **`src/components/discord/announceGuildCommand.ts`** (UPDATED): B-2 fix — `delivered` flag set immediately after `channel.send()` succeeds. SUCCESS persistence moved outside the delivery try/catch. Catch block only persists FAILED and replies error when `!delivered`. Confirmed send always yields green success embed regardless of DB state.
 
 **YouTube Regression Hotfix + GIF + Telemetry — `hotfix/youtube-regression-1.2.7` → `1.2.8-rc.1`:**
 
@@ -56,7 +63,7 @@ Previous: `bugfix/socket-room-sync` — COMPLETE.
 
 | File | Role |
 |---|---|
-| `src/services/broadcastClassifier.ts` | Pure: `classifyDiscordError`, `BroadcastResult`, `persistBroadcastRun`, `mintRunId` |
+| `src/services/broadcastClassifier.ts` | Pure: `classifyDiscordError`, `BroadcastResult`, `persistBroadcastRun` (fail-safe), `mintRunId` |
 | `src/services/broadcast.ts` | `broadcastToAllGuilds()` → returns `BroadcastResult[]`; persists run; no swallowed errors |
 | `src/components/api/adminDbRoutes.ts` | Owner-only: GET /db/guilds, DELETE /db/guilds/:id, GET /db/broadcasts/latest |
 | `src/services/url-guard.ts` | SSRF guard: scheme + IP block-list + DNS check |
@@ -73,7 +80,7 @@ Previous: `bugfix/socket-room-sync` — COMPLETE.
 
 ## 3. Next steps
 
-1. **REVIEWER** `feature/crud-database-dashboard` → awaiting GO/NO-GO on `.pipeline/review.md`.
+1. **REVIEWER** `feature/crud-database-dashboard` → re-submitted; B-1/B-2 resolved, 250 tests green, lint clean.
 2. **PR** `feature/crud-database-dashboard` → `develop` (squash merge after reviewer GO).
 3. **REVIEWER** `feature/gif-link-support` → awaiting GO/NO-GO on `.pipeline/review.md`.
 4. **PR** `feature/gif-link-support` → `develop`.
