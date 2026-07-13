@@ -1,9 +1,9 @@
 # AI_STATE.md — LiveChat CCB
 
 ## Status
-Sprint `hotfix/youtube-regression-1.2.7` — COMPLETE ✅.
+Sprint `hotfix/youtube-regression-1.2.7` — REVIEWER CORRECTIVE PASS ✅.
 
-- **YouTube Regression Hotfix (P1)**: Restored YouTube classic / Shorts / youtu.be resolution broken in 1.2.7 by the `redirect: 'error'` SSRF hardening. Added `isYouTubeUrl` + `YOUTUBE_CONTENT_TYPE = 'video/youtube'` sentinel; early-return in `getContentInformationsFromUrl` bypasses fetch/ffprobe entirely for YouTube. SSRF posture unchanged. 10 new tests (T-1…T-9, T-11); total ≥203 passing.
+- **YouTube Regression Hotfix — Reviewer NO-GO remediation (B-1, N-1, N-2, N-3)**: Cleared all four findings blocking merge. `vi.clearAllMocks()` added to `beforeEach` (B-1 — cross-test fetch bleed). `isYouTubeUrl` `/watch` path changed from `startsWith('/watch')` to `=== '/watch' || startsWith('/watch?')` to reject `/watchmen` false positives (N-1). `?? false` removed from both `mediaIsShort` return sites in `content-utils.ts`; `|| false` removed in `sendCommand.ts` (N-2 — dead code). Added T-10, T-12–T-17 (N-3 — coverage gaps). Total tests: ≥210. SSRF posture, `YOUTUBE_CONTENT_TYPE` sentinel, and early-return contract unchanged.
 
 Previous: `feature/gif-link-support` — IN PROGRESS (awaiting REVIEWER).
 Previous: `feature/security-remediation` — COMPLETE (REVIEWER GO ✅).
@@ -16,8 +16,9 @@ Previous: `bugfix/socket-room-sync` — COMPLETE.
 ## 1. Accomplished (all sprints)
 
 **YouTube Regression Hotfix — `hotfix/youtube-regression-1.2.7`:**
-- **`src/services/content-utils.ts`** (UPDATED): Added `YOUTUBE_CONTENT_TYPE = 'video/youtube'` sentinel constant. Added `isYouTubeUrl(url): boolean` — pure host/path classifier matching `youtube.com`, `www/m/music.youtube.com` with `/watch`, `/shorts/`, `/embed/`, `/live/` paths, and `youtu.be` with non-empty path; wrapped in `try/catch`. Added early-return guard in `getContentInformationsFromUrl` immediately after `assertPublicHttpUrl` and `isYouTubeShortUrl` — bypasses `resolveProviderMediaUrl`, extension lookup, `fetch`, and `ffprobe` for all YouTube URLs. SSRF gate and `redirect: 'error'` fetch unchanged.
-- **`src/__tests__/services/content-utils.test.ts`** (UPDATED): 10 new tests (T-1…T-9, T-11) — www/no-www/mobile watch URLs, Shorts (www + mobile), youtu.be with/without query param, redirect-rejection independence guard, notyoutube.com negative, client contract (`video/youtube.indexOf('image') !== 0`). Total: ≥203 tests.
+- **`src/services/content-utils.ts`** (UPDATED): Added `YOUTUBE_CONTENT_TYPE = 'video/youtube'` sentinel constant. Added `isYouTubeUrl(url): boolean` — pure host/path classifier matching `youtube.com`, `www/m/music.youtube.com` with `/watch` (exact), `/shorts/`, `/embed/`, `/live/` paths, and `youtu.be` with non-empty path; wrapped in `try/catch`. Early-return guard in `getContentInformationsFromUrl` bypasses all I/O for YouTube URLs. Removed `?? false` dead code from both `mediaIsShort` return sites. SSRF gate and `redirect: 'error'` fetch unchanged.
+- **`src/components/messages/sendCommand.ts`** (UPDATED): Removed redundant `|| false` on `mediaIsShort` assignment (N-2 — `isYouTubeShortUrl` already returns strict boolean).
+- **`src/__tests__/services/content-utils.test.ts`** (UPDATED): Added `vi.clearAllMocks()` to `beforeEach` (B-1). Added T-10 (music.youtube.com/watch), T-12 (embed), T-13 (live), T-14 (/watchmen false-positive regression), T-15 (youtu.be/ empty path), T-16 (SSRF guard-ordering contract), T-17 (Tenor redirect graceful fallthrough). Total: ≥210 tests.
 
 **GIF Link Support — `feature/gif-link-support`:**
 - **`src/services/content-utils.ts`** (UPDATED): Added `isSupportedGifProvider`, `parseOpenGraph`, `resolveProviderMediaUrl` private helpers. `getContentInformationsFromUrl` calls `resolveProviderMediaUrl` after the input SSRF gate; uses resolved `effectiveUrl` for all downstream detection (extension, fetch, ffprobe). Both input URL and extracted OG URL are independently SSRF-validated. Fetch to provider HTML page is size-capped (256 KB slice) and timeout-guarded (5 s via `Promise.race`). All failure paths log via `logger.debug`.
@@ -71,8 +72,8 @@ Previous: `bugfix/socket-room-sync` — COMPLETE.
 | `desktop-client/src/overlay-preload.ts` | IPC senders for `reportPresence`, `reportUserJoined`, `reportUserLeft` |
 | `desktop-client/src/preload.ts` | `window.livechat` API; typed `PresenceEntry` with `id` |
 | `desktop-client/src/renderer/renderer.js` | Delta DOM; H1 id guards; no dead code |
-| `src/__tests__/services/content-utils.test.ts` | YouTube classification (T-1…T-9,T-11) + GIF provider extraction + redirect:error regression tests (≥203 total) |
-| `src/__tests__/` | 11 files, ≥203 tests total |
+| `src/__tests__/services/content-utils.test.ts` | YouTube classification (T-1…T-17) + GIF provider extraction (incl. T-17 redirect fallthrough) + redirect:error regression tests (≥210 total) |
+| `src/__tests__/` | 11 files, ≥210 tests total |
 
 ---
 

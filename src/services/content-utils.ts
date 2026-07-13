@@ -49,7 +49,8 @@ function isYouTubeUrl(url: string): boolean {
       hostname === 'music.youtube.com'
     ) {
       return (
-        pathname.startsWith('/watch') ||
+        pathname === '/watch' ||
+        pathname.startsWith('/watch?') ||
         pathname.startsWith('/shorts/') ||
         pathname.startsWith('/embed/') ||
         pathname.startsWith('/live/')
@@ -160,7 +161,7 @@ export const getContentInformationsFromUrl = async (url: string) => {
   const mediaIsShort = isYouTubeShortUrl(url);
 
   if (isYouTubeUrl(url)) {
-    return { contentType: YOUTUBE_CONTENT_TYPE, mediaDuration: undefined, mediaIsShort: mediaIsShort ?? false };
+    return { contentType: YOUTUBE_CONTENT_TYPE, mediaDuration: undefined, mediaIsShort };
   }
 
   let contentType: string | undefined;
@@ -206,5 +207,5 @@ export const getContentInformationsFromUrl = async (url: string) => {
     logger.debug({ err: error }, 'ffprobe duration detection failed');
   }
 
-  return { contentType, mediaDuration, mediaIsShort: mediaIsShort ?? false };
+  return { contentType, mediaDuration, mediaIsShort };
 };
