@@ -193,6 +193,31 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
     .event-msg { font-size: 0.82rem; color: var(--text); word-break: break-word; }
     .event-time { font-size: 0.67rem; color: var(--muted); margin-top: 0.2rem; font-variant-numeric: tabular-nums; }
     .event-empty { text-align: center; color: var(--muted); font-size: 0.82rem; padding: 2rem 0; }
+
+    /* DB Table */
+    .db-table-wrap { overflow-x: auto; }
+    .db-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    .db-table th { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); padding: 0.5rem 0.75rem; text-align: left; border-bottom: 1px solid var(--border); font-weight: 500; }
+    .db-table td { padding: 0.65rem 0.75rem; border-bottom: 1px solid rgba(255,255,255,0.04); vertical-align: middle; }
+    .db-table tr:last-child td { border-bottom: none; }
+    .db-table tr.row-failed { border-left: 2px solid var(--red); }
+    .db-table tr.row-failed td:first-child { padding-left: calc(0.75rem - 2px); }
+    .db-table tr:hover td { background: rgba(255,255,255,0.015); }
+    .db-guild-cell { display: flex; align-items: center; gap: 0.6rem; }
+    .db-guild-avatar { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; flex-shrink: 0; border: 1px solid var(--border); }
+    .db-guild-ph { width: 28px; height: 28px; border-radius: 50%; background: rgba(var(--accent-rgb),0.10); border: 1px solid rgba(var(--accent-rgb),0.20); display: flex; align-items: center; justify-content: center; font-size: 0.72rem; font-weight: 700; color: var(--accent); flex-shrink: 0; }
+    .db-guild-name { font-weight: 500; color: var(--text); }
+    .db-copy-btn { font-size: 0.62rem; color: var(--muted); cursor: pointer; padding: 0.1rem 0.35rem; border-radius: 4px; border: 1px solid var(--border); background: none; font-family: inherit; transition: color 0.2s, border-color 0.2s; }
+    .db-copy-btn:hover { color: var(--accent); border-color: rgba(var(--accent-rgb),0.3); }
+    .db-del-btn { font-size: 0.68rem; padding: 0.22rem 0.65rem; border-radius: 99px; border: 1px solid rgba(239,68,68,0.22); background: rgba(239,68,68,0.06); color: var(--red); cursor: pointer; font-family: inherit; font-weight: 500; transition: background 0.2s; }
+    .db-del-btn:hover { background: rgba(239,68,68,0.14); }
+    .db-del-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .db-broadcast-fail { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.67rem; color: var(--red); }
+    .db-broadcast-ok { color: var(--green); font-size: 0.78rem; }
+    .db-broadcast-none { color: var(--muted); font-size: 0.78rem; }
+    .disconnected-badge { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.67rem; color: var(--muted); background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 99px; padding: 0.15rem 0.55rem; }
+    .toast { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 100; background: rgba(16,16,16,0.95); border: 1px solid var(--border); border-radius: 12px; padding: 0.75rem 1.25rem; font-size: 0.82rem; color: var(--text); backdrop-filter: blur(16px); animation: fade-in-up 0.3s ease both; }
+    .toast.error { border-color: rgba(239,68,68,0.3); color: var(--red); }
   </style>
 </head>
 <body>
@@ -228,6 +253,10 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       <a class="nav-item" onclick="navigate('journal')" data-page="journal">
         <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
         Journal
+      </a>
+      <a class="nav-item" onclick="navigate('database')" data-page="database">
+        <svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+        Base de données
       </a>
     </nav>
     <div class="sidebar-footer">
@@ -482,6 +511,50 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
         </div>
       </div>
 
+      <!-- BASE DE DONNÉES -->
+      <div class="page" id="page-database">
+        <div class="page-header">
+          <div class="page-title">Base de données</div>
+          <div class="page-subtitle">Configuration des serveurs &amp; résultats du dernier broadcast</div>
+        </div>
+        <div class="stat-mini" style="margin-bottom:1.25rem">
+          <div class="stat-mini-item">
+            <div class="stat-mini-label">Serveurs connectés</div>
+            <div class="stat-mini-value" id="db-connected-count">—</div>
+          </div>
+          <div class="stat-mini-item">
+            <div class="stat-mini-label">Configurés en DB</div>
+            <div class="stat-mini-value" id="db-total-count">—</div>
+          </div>
+          <div class="stat-mini-item">
+            <div class="stat-mini-label">Échecs dernier /announce</div>
+            <div class="stat-mini-value" id="db-failed-count" style="color:var(--red)">—</div>
+          </div>
+        </div>
+        <div class="section">
+          <div class="section-title">Guildes configurées</div>
+          <div class="db-table-wrap">
+            <table class="db-table" id="db-guild-table">
+              <thead>
+                <tr>
+                  <th>Serveur</th>
+                  <th>Guild ID</th>
+                  <th>Channel ID</th>
+                  <th>Temps défaut / max</th>
+                  <th>Full media</th>
+                  <th>Dernier broadcast</th>
+                  <th>Connecté</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="db-guild-tbody">
+                <tr><td colspan="8" style="text-align:center;color:var(--muted);padding:2rem">Chargement...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
     </div>
   </main>
 </div>
@@ -523,6 +596,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
     document.getElementById('page-' + page).classList.add('active');
     const navEl = document.querySelector('[data-page="' + page + '"]');
     if (navEl) navEl.classList.add('active');
+    if (page === 'database' && !dbLoaded) { dbLoaded = true; loadDatabase(); }
   }
 
   const fmt = n => Number(n).toLocaleString('fr-FR');
@@ -547,6 +621,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
   var cachedGuilds = null;
   var cachedPresence = {};
   var currentGuildId = null;
+  var dbLoaded = false;
 
   function fmtDuration(ms) {
     const s = Math.floor(ms / 1000), m = Math.floor(s / 60), h = Math.floor(m / 60);
@@ -733,7 +808,109 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       document.getElementById('n-avg-payload').textContent = d.totalSent > 0 ? fmtBytes(Math.round(bytes/d.totalSent)) : '—';
       document.getElementById('n-refresh').textContent = now;
 
+      if (document.getElementById('page-database').classList.contains('active')) loadDatabase();
     } catch(e) { console.error(e); }
+  }
+
+  async function loadDatabase() {
+    try {
+      const res = await fetch('/api/admin/db/guilds');
+      if (res.status === 401) { window.top.location.href = '/dashboard'; return; }
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const rows = await res.json();
+      renderGuildTable(rows);
+    } catch(e) {
+      console.error(e);
+      document.getElementById('db-guild-tbody').innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--red);padding:2rem">Erreur de chargement.</td></tr>';
+    }
+  }
+
+  function renderGuildTable(rows) {
+    const connected = rows.filter(r => r.connected).length;
+    const total = rows.length;
+    const failed = rows.filter(r => r.lastBroadcast && r.lastBroadcast.status === 'FAILED').length;
+    document.getElementById('db-connected-count').textContent = connected;
+    document.getElementById('db-total-count').textContent = total;
+    document.getElementById('db-failed-count').textContent = failed;
+
+    if (rows.length === 0) {
+      document.getElementById('db-guild-tbody').innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:2rem">Aucune guilde configurée.</td></tr>';
+      return;
+    }
+
+    document.getElementById('db-guild-tbody').innerHTML = rows.map(r => {
+      const isFailed = r.lastBroadcast && r.lastBroadcast.status === 'FAILED';
+      const rowClass = isFailed ? 'row-failed' : '';
+      const av = r.icon
+        ? '<img class="db-guild-avatar" src="' + esc(r.icon) + '" alt="">'
+        : '<div class="db-guild-ph">' + esc((r.name || r.id).charAt(0).toUpperCase()) + '</div>';
+      const nameCell = '<div class="db-guild-cell">' + av + '<span class="db-guild-name">' + esc(r.name || r.id) + '</span></div>';
+      const copyId = '<button class="db-copy-btn" onclick="copyText(\'' + esc(r.id) + '\', this)">' + esc(r.id) + '</button>';
+      const copyChannel = r.channelId
+        ? '<button class="db-copy-btn" onclick="copyText(\'' + esc(r.channelId) + '\', this)">' + esc(r.channelId) + '</button>'
+        : '<span style="color:var(--muted)">—</span>';
+      const times = (r.defaultMediaTime != null ? r.defaultMediaTime : '—') + 's / ' + (r.maxMediaTime != null ? r.maxMediaTime : '—') + 's';
+      const fullMedia = r.displayMediaFull ? '<span class="badge green">Oui</span>' : '<span style="color:var(--muted);font-size:0.78rem">Non</span>';
+      let broadcastCell = '<span class="db-broadcast-none">—</span>';
+      if (r.lastBroadcast) {
+        if (r.lastBroadcast.status === 'SUCCESS') {
+          broadcastCell = '<span class="db-broadcast-ok">✓ OK</span>';
+        } else if (r.lastBroadcast.status === 'FAILED') {
+          const reason = r.lastBroadcast.errorReason ? ' · ' + esc(r.lastBroadcast.errorReason) : '';
+          broadcastCell = '<span class="db-broadcast-fail">✗ Échec' + reason + '</span>';
+        }
+      }
+      const connectedCell = r.connected
+        ? '<span style="color:var(--green);font-size:0.78rem">✓</span>'
+        : '<span class="disconnected-badge">Déconnecté</span>';
+      const safeId = esc(r.id);
+      const delBtn = '<button class="db-del-btn" onclick="deleteGuild(\'' + safeId + '\', this)">Supprimer</button>';
+      return '<tr class="' + rowClass + '" id="db-row-' + safeId + '">'
+        + '<td>' + nameCell + '</td>'
+        + '<td>' + copyId + '</td>'
+        + '<td>' + copyChannel + '</td>'
+        + '<td style="font-size:0.78rem">' + esc(times) + '</td>'
+        + '<td>' + fullMedia + '</td>'
+        + '<td>' + broadcastCell + '</td>'
+        + '<td>' + connectedCell + '</td>'
+        + '<td>' + delBtn + '</td>'
+        + '</tr>';
+    }).join('');
+  }
+
+  async function deleteGuild(id, btn) {
+    if (!confirm('Supprimer la configuration de la guilde ' + id + ' ?\n\nCette action est irréversible.')) return;
+    btn.disabled = true;
+    try {
+      const res = await fetch('/api/admin/db/guilds/' + encodeURIComponent(id), { method: 'DELETE' });
+      if (res.status === 401) { window.top.location.href = '/dashboard'; return; }
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const row = document.getElementById('db-row-' + id);
+      if (row) row.remove();
+      showToast('Guilde supprimée.');
+      const remaining = document.querySelectorAll('#db-guild-tbody tr[id^="db-row-"]').length;
+      document.getElementById('db-total-count').textContent = remaining;
+    } catch(e) {
+      console.error(e);
+      showToast('Erreur lors de la suppression.', true);
+      btn.disabled = false;
+    }
+  }
+
+  function copyText(text, btn) {
+    navigator.clipboard.writeText(text).then(() => {
+      const orig = btn.textContent;
+      btn.textContent = '✓';
+      setTimeout(() => { btn.textContent = orig; }, 1500);
+    });
+  }
+
+  function showToast(msg, isError) {
+    const t = document.createElement('div');
+    t.className = 'toast' + (isError ? ' error' : '');
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 3000);
   }
 
   refresh();
