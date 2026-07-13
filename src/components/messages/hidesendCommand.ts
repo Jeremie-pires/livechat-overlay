@@ -1,6 +1,6 @@
-import { ChatInputCommandInteraction, EmbedBuilder, MessageFlags, SlashCommandBuilder } from 'discord.js';
+import { ChatInputCommandInteraction, EmbedBuilder, SlashCommandBuilder } from 'discord.js';
 import { QueueType } from '../../services/prisma/loadPrisma';
-import { getContentInformationsFromUrl } from '../../services/content-utils';
+import { measureContentProcessing, ContentInfo } from '../../services/telemetry';
 import { getDurationFromGuildId } from '../../services/utils';
 
 const MAX_DURATION_SECONDS = 3600;
@@ -12,6 +12,23 @@ function isValidUrl(value: string): boolean {
   } catch {
     return false;
   }
+}
+
+function parseDuration(trimmed: string, mediaDuration: number | null | undefined): number | 'error' {
+  if (trimmed === 'full') {
+    return mediaDuration ? Math.ceil(mediaDuration) : 0;
+  }
+  const parsed = Number.parseInt(trimmed, 10);
+  if (Number.isNaN(parsed) || parsed < 1 || parsed > MAX_DURATION_SECONDS) {
+    return 'error';
+  }
+  return parsed;
+}
+
+function detectShortFromAttachment(interaction: ChatInputCommandInteraction, optionKey: string): boolean {
+  const height = interaction.options.get(optionKey)?.attachment?.height;
+  const width = interaction.options.get(optionKey)?.attachment?.width;
+  return !!(height && width && height > width);
 }
 
 export const hideSendCommand = () => ({
@@ -41,16 +58,18 @@ export const hideSendCommand = () => ({
         .setRequired(false),
     ),
   handler: async (interaction: ChatInputCommandInteraction) => {
-    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+    const discordReceivedAt = interaction.createdTimestamp;
+    await interaction.deferReply({ ephemeral: true });
 
+    const mediaKey = rosetty.t('hideSendCommandOptionMedia')!;
     const url = interaction.options.get(rosetty.t('hideSendCommandOptionURL')!)?.value as string | undefined;
     const text = interaction.options.get(rosetty.t('hideSendCommandOptionText')!)?.value as string | undefined;
-    const media = interaction.options.get(rosetty.t('hideSendCommandOptionMedia')!)?.attachment?.proxyURL;
+    const media = interaction.options.get(mediaKey)?.attachment?.proxyURL;
     const customDurationString = interaction.options.get(rosetty.t('hideSendCommandOptionDuration')!)?.value as
       | string
       | undefined;
-    let mediaContentType = interaction.options.get(rosetty.t('sendCommandOptionMedia')!)?.attachment?.contentType;
-    let mediaDuration = interaction.options.get(rosetty.t('sendCommandOptionMedia')!)?.attachment?.duration;
+    let mediaContentType = interaction.options.get(mediaKey)?.attachment?.contentType;
+    let mediaDuration = interaction.options.get(mediaKey)?.attachment?.duration;
     let mediaIsShort = false;
 
     if (!url && !media && !text) {
@@ -74,79 +93,70 @@ export const hideSendCommand = () => ({
       return;
     }
 
-    let finalDuration: number | undefined = undefined;
+    let finalDuration: number | undefined;
 
     if (customDurationString) {
-      const trimmed = customDurationString.trim().toLowerCase();
-      if (trimmed === 'full') {
-        finalDuration = mediaDuration ? Math.ceil(mediaDuration) : 0;
-      } else {
-        const parsed = parseInt(trimmed, 10);
-        if (isNaN(parsed) || parsed < 1 || parsed > MAX_DURATION_SECONDS) {
-          await interaction.editReply({
-            embeds: [
-              new EmbedBuilder()
-                .setTitle(rosetty.t('error')!)
-                .setDescription(rosetty.t('invalidDuration')!)
-                .setColor(0xe74c3c),
-            ],
-          });
-          return;
-        }
-        finalDuration = parsed;
+      const durationResult = parseDuration(customDurationString.trim().toLowerCase(), mediaDuration);
+      if (durationResult === 'error') {
+        await interaction.editReply({
+          embeds: [
+            new EmbedBuilder()
+              .setTitle(rosetty.t('error')!)
+              .setDescription(rosetty.t('invalidDuration')!)
+              .setColor(0xe74c3c),
+          ],
+        });
+        return;
       }
+      finalDuration = durationResult;
     }
 
-    let additionalContent;
+    let processingMs = 0;
+    let additionalContent: ContentInfo | undefined;
     if ((!mediaContentType || !mediaDuration) && (media || url)) {
-      additionalContent = await getContentInformationsFromUrl((media || url) as string);
+      const result = await measureContentProcessing((media ?? url) as string);
+      processingMs = result.processingMs;
+      additionalContent = result.contentInfo;
     }
 
-    if ((mediaContentType === undefined || mediaContentType === null) && additionalContent?.contentType) {
-      mediaContentType = additionalContent.contentType;
-    }
+    mediaContentType = mediaContentType ?? additionalContent?.contentType;
 
     if (mediaContentType?.startsWith('video/')) {
-      const height = interaction.options.get(rosetty.t('sendCommandOptionMedia')!)?.attachment?.height;
-      const width = interaction.options.get(rosetty.t('sendCommandOptionMedia')!)?.attachment?.width;
-      if (height && width) {
-        mediaIsShort = height > width;
-      }
+      mediaIsShort = detectShortFromAttachment(interaction, mediaKey);
     }
 
-    if ((mediaDuration === undefined || mediaDuration === null) && additionalContent?.mediaDuration) {
-      mediaDuration = additionalContent.mediaDuration;
-    }
+    mediaDuration = mediaDuration ?? additionalContent?.mediaDuration;
 
     if (additionalContent?.mediaIsShort) {
-      mediaIsShort = additionalContent.mediaIsShort || false;
+      mediaIsShort = additionalContent.mediaIsShort;
     }
 
     const isVideo = mediaContentType?.startsWith('video/') || mediaContentType?.startsWith('audio/');
 
-    if (finalDuration === undefined && isVideo) {
-      finalDuration = mediaDuration ? Math.ceil(mediaDuration) : 0;
+    if (finalDuration === undefined && isVideo && mediaDuration) {
+      finalDuration = Math.ceil(mediaDuration);
     }
+
+    const resolvedDuration = await getDurationFromGuildId(
+      finalDuration !== undefined ? Math.ceil(finalDuration) : undefined,
+      interaction.guildId!,
+    );
 
     await prisma.queue.create({
       data: {
         content: JSON.stringify({
-          url,
+          url: additionalContent?.resolvedUrl ?? url,
           text,
           media,
           mediaContentType,
-          mediaDuration: await getDurationFromGuildId(
-            finalDuration !== undefined ? Math.ceil(finalDuration) : undefined,
-            interaction.guildId!,
-          ),
+          mediaDuration: resolvedDuration,
           mediaIsShort,
         }),
         type: QueueType.MESSAGE,
         discordGuildId: interaction.guildId!,
-        duration: await getDurationFromGuildId(
-          finalDuration !== undefined ? Math.ceil(finalDuration) : undefined,
-          interaction.guildId!,
-        ),
+        duration: resolvedDuration,
+        discordReceivedAt: new Date(discordReceivedAt),
+        processingMs,
       },
     });
 

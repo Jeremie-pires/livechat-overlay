@@ -16,10 +16,13 @@ model Queue {
   author      String?
   authorImage String?
 
-  submissionDate DateTime @default(now())
-  executionDate  DateTime @default(now())
-  duration       Int
-  discordGuildId String
+  submissionDate    DateTime  @default(now())
+  executionDate     DateTime  @default(now())
+  duration          Int
+  discordGuildId    String
+  discordReceivedAt DateTime?
+  processingMs      Int?
+  busyRequeueMs     Int       @default(0)
 
   @@index([type])
 }
@@ -34,23 +37,38 @@ model Guild {
 }
 
 model Stats {
-  id                String  @id @default("singleton")
-  silentMode        Boolean @default(false)
-  totalSent         Int     @default(0)
-  imageCount        Int    @default(0)
-  videoCount        Int    @default(0)
-  audioCount        Int    @default(0)
-  linkCount         Int    @default(0)
-  textCount         Int    @default(0)
-  totalLatencyMs    Int    @default(0)
-  latencyCount      Int    @default(0)
-  totalPayloadBytes Int    @default(0)
+  id                   String  @id @default("singleton")
+  silentMode           Boolean @default(false)
+  totalSent            Int     @default(0)
+  imageCount           Int     @default(0)
+  videoCount           Int     @default(0)
+  audioCount           Int     @default(0)
+  linkCount            Int     @default(0)
+  textCount            Int     @default(0)
+  totalLatencyMs       Int     @default(0)
+  latencyCount         Int     @default(0)
+  totalPayloadBytes    Int     @default(0)
+  totalIngestionMs     Int     @default(0)
+  ingestionCount       Int     @default(0)
+  totalQueueWaitMs     Int     @default(0)
+  queueWaitCount       Int     @default(0)
+  totalProcessingMs    Int     @default(0)
+  processingCount      Int     @default(0)
+  totalEmitMs          Int     @default(0)
+  emitCount            Int     @default(0)
+  totalBackpressureMs  Int     @default(0)
 }
 
 model LatencySample {
-  id        Int      @id @default(autoincrement())
-  latencyMs Int
-  sentAt    DateTime @default(now())
+  id             Int      @id @default(autoincrement())
+  latencyMs      Int
+  sentAt         DateTime @default(now())
+  ingestionMs    Int      @default(0)
+  queueWaitMs    Int      @default(0)
+  processingMs   Int      @default(0)
+  emitMs         Int      @default(0)
+  backpressureMs Int      @default(0)
+  totalMs        Int      @default(0)
 }
 
 model BotEvent {

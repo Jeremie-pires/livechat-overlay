@@ -1,6 +1,6 @@
 import { ChatInputCommandInteraction, EmbedBuilder, SlashCommandBuilder } from 'discord.js';
 import { QueueType } from '../../services/prisma/loadPrisma';
-import { getContentInformationsFromUrl } from '../../services/content-utils';
+import { measureContentProcessing, ContentInfo } from '../../services/telemetry';
 import { getDurationFromGuildId } from '../../services/utils';
 
 const MAX_DURATION_SECONDS = 3600;
@@ -39,6 +39,7 @@ export const sendCommand = () => ({
         .setRequired(false),
     ),
   handler: async (interaction: ChatInputCommandInteraction) => {
+    const discordReceivedAt = interaction.createdTimestamp;
     await interaction.deferReply();
 
     const url = interaction.options.get(rosetty.t('sendCommandOptionURL')!)?.value as string | undefined;
@@ -95,9 +96,12 @@ export const sendCommand = () => ({
       }
     }
 
-    let additionalContent;
+    let processingMs = 0;
+    let additionalContent: ContentInfo | undefined;
     if ((!mediaContentType || !mediaDuration) && (media || url)) {
-      additionalContent = await getContentInformationsFromUrl((media || url) as string);
+      const result = await measureContentProcessing((media || url) as string);
+      processingMs = result.processingMs;
+      additionalContent = result.contentInfo;
     }
 
     if ((mediaContentType === undefined || mediaContentType === null) && additionalContent?.contentType) {
@@ -109,36 +113,36 @@ export const sendCommand = () => ({
     }
 
     if (additionalContent?.mediaIsShort) {
-      mediaIsShort = additionalContent.mediaIsShort || false;
+      mediaIsShort = additionalContent.mediaIsShort;
     }
 
     const isVideo = mediaContentType?.startsWith('video/') || mediaContentType?.startsWith('audio/');
 
-    if (finalDuration === undefined && isVideo) {
-      finalDuration = mediaDuration ? Math.ceil(mediaDuration) : 0;
+    if (finalDuration === undefined && isVideo && mediaDuration) {
+      finalDuration = Math.ceil(mediaDuration);
     }
 
+    const resolvedDuration = await getDurationFromGuildId(
+      finalDuration !== undefined ? Math.ceil(finalDuration) : undefined,
+      interaction.guildId!,
+    );
     await prisma.queue.create({
       data: {
         content: JSON.stringify({
-          url,
+          url: additionalContent?.resolvedUrl ?? url,
           text,
           media,
           mediaContentType,
-          mediaDuration: await getDurationFromGuildId(
-            finalDuration !== undefined ? Math.ceil(finalDuration) : undefined,
-            interaction.guildId!,
-          ),
+          mediaDuration: resolvedDuration,
           mediaIsShort,
         }),
         type: QueueType.MESSAGE,
         author: interaction.user.username,
         authorImage: interaction.user.avatarURL(),
         discordGuildId: interaction.guildId!,
-        duration: await getDurationFromGuildId(
-          finalDuration !== undefined ? Math.ceil(finalDuration) : undefined,
-          interaction.guildId!,
-        ),
+        duration: resolvedDuration,
+        discordReceivedAt: new Date(discordReceivedAt),
+        processingMs,
       },
     });
 
