@@ -1,43 +1,51 @@
 # AI_STATE.md — LiveChat CCB
 
 ## Status
-Sprint `bugfix/socket-room-sync` — COMPLETE. Security remediation (B1 input validation, B2 DOM XSS, B3 type fidelity, C1 trigger-test-format JS injection) applied on top of delta presence sync. All REVIEWER NO-GOs cleared. Branch ready for PR → `develop`.
+Sprint `feature/security-remediation` — COMPLETE (REVIEWER GO ✅).
+
+- **P0 (SSRF in `content-utils.ts`)**: Fixed. `assertPublicHttpUrl` guards the entry point. `fetch(url, { redirect: 'error' })` closes the redirect-bypass TOCTOU — node-fetch throws on any 3xx, preventing traversal to unvalidated redirect targets (B-1).
+- **P1 (Path Traversal in `clientRoutes.ts`)**: Fixed. `resolveWithinDir` enforces `^[\w.-]+$` charset, extension allow-list, and `resolve()`-based containment.
+- **Q-1**: Three empty `catch` blocks in `getContentInformationsFromUrl` replaced with `logger.debug` calls — SSRF blocks and probe failures are now traceable.
+- **Q-2**: `(err as Error).message` unsafe cast replaced with `instanceof Error` narrowing in `url-guard.ts` DNS catch.
+
+Previous: `bugfix/presence-and-security-hardening` — COMPLETE.
+Previous: `bugfix/restrict-auto-update` — COMPLETE.
+Previous: `bugfix/socket-room-sync` — COMPLETE.
 
 ---
 
 ## 1. Accomplished (all sprints)
 
-**Security Remediation — `bugfix/socket-room-sync` (all REVIEWER NO-GOs cleared):**
-- **B1** `desktop-client/src/main.ts`: Added `OVERLAY_POSITION_ALLOWLIST`; `normalizeSettings` now rejects any `overlayPosition` not in the allowlist, coercing to `center`. Eliminates JS injection via single-quote break in `executeJavaScript` template and untrusted URL param.
-- **B2** `src/components/client/client.html`: Replaced `generateImg`/`generateAudioVideo` HTML-string returns with DOM factory functions (`document.createElement`). `displayContent` uses `replaceChildren()`/`appendChild()`; all clear-only `innerHTML = ''` calls converted to `replaceChildren()`. No user-supplied string reaches `innerHTML`.
-- **B3** `src/services/presenceStore.ts`: Introduced `CorePresenceFields` base type; `InternalPresenceEntry` now only carries `{ CorePresenceFields & discordUserId }` (no phantom `id`); `PublicPresenceEntry` adds `id`. Inline mirror in `presenceStore.test.ts` updated to match — phantom `id: discordUserId` removed from `add()`.
-- **C1** `desktop-client/src/main.ts`: Added `FORMAT_ALLOWLIST` (`landscape`, `square`, `portrait`, `stop`) alongside `OVERLAY_POSITION_ALLOWLIST`. `overlay:trigger-test-format` IPC handler now validates `format` against `FORMAT_ALLOWLIST`, coercing unknown values to `stop` before interpolation into `executeJavaScript`. Raw `format` no longer reaches the JS template literal.
-- **Dead code** `desktop-client/src/renderer/renderer.js`: Removed unused `escapeHtml` function and its stale reference comment. All user text already uses `textContent` (XSS-safe).
+**Security Remediation — `feature/security-remediation`:**
+- **`src/services/url-guard.ts`** (NEW + Q-2): Pure, framework-free module exporting `SsrfBlockedError`, `isPrivateIp`, `assertPublicHttpUrl`. DNS catch uses `instanceof Error` narrowing (Q-2). No new deps — `node:dns`, `node:net` only.
+- **`src/services/content-utils.ts`** (B-1 + Q-1): `assertPublicHttpUrl(url)` at entry. `fetch(url, { redirect: 'error' })` closes the redirect-bypass vector. Three catch blocks log via `logger.debug`.
+- **`src/components/client/clientRoutes.ts`**: Exports `resolveWithinDir(baseDir, filename): string | null`. `IMG_DIR` computed once from `__dirname`. `/img/:filename` route uses the helper — 400 on traversal/bad-charset/disallowed-ext, 404 on missing-but-contained file.
+- **`src/__tests__/services/url-guard.test.ts`** (NEW): 49 tests covering `isPrivateIp` (IPv4 + IPv6 ranges) and `assertPublicHttpUrl` (scheme, literal IPs, DNS mocking).
+- **`src/__tests__/components/clientRoutes.test.ts`** (NEW): 22 tests covering `resolveWithinDir` (legitimate names, traversal payloads, extension allow-list).
+- **`src/__tests__/services/content-utils.test.ts`** (NEW): 7 regression tests — redirect:error wiring, redirect rejection end-to-end, logger.debug on error, normal flow.
+- **Total: 11 files, 186 tests. All passing. `pnpm lint` clean.**
+
+**Presence & Security Hardening — `bugfix/presence-and-security-hardening`:**
+- **`desktop-client/src/utils.ts`** (NEW): Pure, electron-free module exporting `AppSettings`, `PresenceEntry`, `DEFAULT_BACKEND_URL`, `DEFAULT_SETTINGS`, `OVERLAY_POSITION_ALLOWLIST`, `MIN_OVERLAY_SIZE`, `MAX_OVERLAY_SIZE`, `errMessage`, `assertHttpUrl`, `clampVolume`, `clampOverlaySize`, `isPresenceEntry`, `isPresenceArray`, `normalizeSettings`. Enables unit testing without Electron.
+- **`desktop-client/src/main.ts`**: Removed duplicated definitions (now imported from `utils.ts`). Applied M1, M2, L1, L2, L3, I1. `getOverlayUrl` uses `assertHttpUrl`. Total file footprint reduced.
+- **`src/components/dashboard/dashboardRoutes.ts`**: H3 fix — push `presenceStore.getAll()` as initial SSE `presence` event on register.
+- **`desktop-client/src/renderer/renderer.js`**: H1 fix — `buildUserItem` returns `null` on missing `id` (log-once); `addUserToList` early-returns on missing `id`; `reconcileUserList` filters to `validSnapshot` before DOM reconciliation.
+- **`src/__tests__/desktop-client/utils.test.ts`** (NEW): 43 unit tests covering `errMessage`, `assertHttpUrl`, `clampVolume`, `clampOverlaySize`, `isPresenceEntry`, `isPresenceArray`, `normalizeSettings`.
+
+**Auto-Update Stable Lock — `bugfix/restrict-auto-update`:**
+- `desktop-client/src/main.ts` `setupAutoUpdater()`: `allowPrerelease = false`, `channel = 'latest'`.
+
+**Security Remediation — `bugfix/socket-room-sync`:**
+- B1–C1 security patches; dead code removed. All REVIEWER NO-GOs cleared.
 
 **Delta Presence Sync — `bugfix/socket-room-sync`:**
-- `src/services/presenceStore.ts`: `PublicPresenceEntry` exposes `id: string` (= `discordUserId`). Added `getSocketEntries(socketId)` read-only lookup method.
-- `src/loaders/socketLoader.ts`: Replaced full-list `presence:update` broadcast with delta model:
-  - On join (valid session): sends `presence:update` snapshot to joining socket only; broadcasts `userJoined` delta to room peers.
-  - On disconnect: arms 3 s debounce timer per `${guildId}:${discordUserId}`; timer emits `userLeft` + calls `presenceStore.removeSocket()`.
-  - On reconnect within debounce window: cancels pending timer — no `userLeft`/`userJoined` emitted; seamless UX for micro-disconnects.
-- `src/components/client/client.html`: Socket.IO listeners for `userJoined` / `userLeft` forward payloads via `window.livechatOverlay`.
-- `desktop-client/src/overlay-preload.ts`: Exposes `reportUserJoined` and `reportUserLeft` IPC senders.
-- `desktop-client/src/main.ts`: Forwards `presence:userJoined` / `presence:userLeft` IPC messages from overlay window to control window.
-- `desktop-client/src/preload.ts`: `PresenceEntry` type gains `id`; added `onUserJoined` / `onUserLeft` IPC listeners to `window.livechat` API.
-- `desktop-client/src/renderer/renderer.js`: Full rewrite of presence rendering — O(1) delta DOM via `data-user-id`; fade+slide-in (180 ms) on join, collapse+fade-out (160 ms) on leave; `prefers-reduced-motion` honoured; WCAG 2.1 AA (`role="list"`, `aria-live="polite"`, `aria-label` on counter); 60 s polling fallback retained; snapshot reconciliation on re-join.
-- `desktop-client/src/renderer/index.html`: `#userList` carries `role="list"` + `aria-live="polite"` + `aria-relevant="additions removals"`.
-- `desktop-client/src/renderer/styles.css`: `userItemEnter` keyframe animation; `prefers-reduced-motion` override.
-- `src/__tests__/services/presenceStore.test.ts` (NEW): 9 unit tests for `getSocketEntries()`, `get()` id field, add/replace idempotence. 2 async tests for debounce cancel vs. fire logic. **Total: 65 tests, 7 files.**
+- Delta model (`userJoined`/`userLeft`), 3 s debounce, WCAG AA renderer, snapshot reconciliation.
 
 **Single Instance Lock — `bugfix/single-instance-lock`:**
-- `desktop-client/src/main.ts`: `app.requestSingleInstanceLock()` before `whenReady`; secondary instances quit silently.
-- `app.on('second-instance', …)`: recreates `controlWindow` if null, calls `showControlWindow()`.
+- `app.requestSingleInstanceLock()`.
 
 **Observability & Production Readiness:**
-- `GET /health` / `GET /health/ready` Fastify plugin; HEALTHCHECK in Dockerfile; structured Pino logs; correlation-id hook.
-- B1–B4 security patches; 54 prior tests across 6 files.
-
-**Trivy / ESLint / OWASP:** CVE remediations, SHA-pinned CI, XSS guards, secure cookies.
+- `GET /health`, HEALTHCHECK, Pino structured logs, correlation-id.
 
 ---
 
@@ -45,23 +53,27 @@ Sprint `bugfix/socket-room-sync` — COMPLETE. Security remediation (B1 input va
 
 | File | Role |
 |---|---|
-| `src/services/presenceStore.ts` | In-memory presence store; `CorePresenceFields` base type; `PublicPresenceEntry` exposes `id`; `InternalPresenceEntry` has no phantom `id`; `getSocketEntries()` for debounce lookup |
-| `src/loaders/socketLoader.ts` | Socket.IO handler; delta events `userJoined`/`userLeft`; 3 s disconnect debounce |
-| `src/components/client/client.html` | Browser overlay; DOM-factory media rendering (no innerHTML XSS); forwards `userJoined`/`userLeft` via `livechatOverlay` IPC bridge |
-| `desktop-client/src/overlay-preload.ts` | Exposes `reportPresence`, `reportUserJoined`, `reportUserLeft` to overlay context |
-| `desktop-client/src/main.ts` | Electron main; `OVERLAY_POSITION_ALLOWLIST` + `FORMAT_ALLOWLIST` guard all `executeJavaScript` sinks; forwards all three presence IPC events to control window |
-| `desktop-client/src/preload.ts` | `window.livechat` API; `onUserJoined`/`onUserLeft` listeners |
-| `desktop-client/src/renderer/renderer.js` | Delta DOM mutations; reconcile on snapshot; 60 s polling fallback; WCAG AA; no dead code |
-| `desktop-client/src/renderer/index.html` | `#userList` with `role="list"` + `aria-live` |
-| `desktop-client/src/renderer/styles.css` | `userItemEnter` keyframe; reduced-motion override |
-| `src/__tests__/services/presenceStore.test.ts` | 11 new tests (presenceStore delta + debounce logic) |
-| `src/__tests__/` | 7 files, 65 tests total |
+| `src/services/url-guard.ts` | SSRF guard: scheme + IP block-list + DNS check; `SsrfBlockedError`, `isPrivateIp`, `assertPublicHttpUrl` |
+| `src/services/content-utils.ts` | Media URL info; calls `assertPublicHttpUrl` at entry (P0 fix) |
+| `src/components/client/clientRoutes.ts` | Static client routes; `resolveWithinDir` containment guard for `/img/:filename` (P1 fix) |
+| `desktop-client/src/utils.ts` | Pure helpers + types; no Electron dependency; fully unit-testable |
+| `desktop-client/src/main.ts` | Electron main; imports all helpers from `utils.ts`; M1/M2/L1/L2/L3/I1 applied |
+| `src/services/presenceStore.ts` | In-memory presence store; `PublicPresenceEntry` exposes `id`; `getSocketEntries()` |
+| `src/loaders/socketLoader.ts` | Socket.IO handler; delta events `userJoined`/`userLeft`; 3 s debounce |
+| `src/components/client/client.html` | Browser overlay; DOM-factory rendering; forwards presence IPC events |
+| `src/components/dashboard/dashboardRoutes.ts` | Dashboard + SSE; initial snapshot push on register (H3 fix) |
+| `desktop-client/src/overlay-preload.ts` | IPC senders for `reportPresence`, `reportUserJoined`, `reportUserLeft` |
+| `desktop-client/src/preload.ts` | `window.livechat` API; typed `PresenceEntry` with `id` |
+| `desktop-client/src/renderer/renderer.js` | Delta DOM; H1 id guards; no dead code |
+| `src/__tests__/services/content-utils.test.ts` | Regression tests: redirect:error wiring, redirect rejection, logger.debug on catch (Q-1) |
+| `src/__tests__/` | 11 files, 186 tests total |
 
 ---
 
 ## 3. Next steps
 
-1. **PR** `bugfix/socket-room-sync` → `develop`.
-2. **`feature/security-remediation`** — fastify v5 (CVE-2026-25223 + fast-uri CVEs), tar upgrade, SRI for Tailwind CDN, pnpm v10.
-3. **`feature/network-media-optim`** — media by URL, compression, cache.
-4. **Observability phase 2** — external log shipping (Loki/ELK), Docker log rotation config fine-tuning.
+1. **PR** `feature/security-remediation` → `develop`.
+2. **PR** `bugfix/presence-and-security-hardening` → `develop`.
+3. **PR** `bugfix/restrict-auto-update` → `develop`.
+4. **`feature/network-media-optim`** — media by URL, compression, cache.
+5. **Observability phase 2** — external log shipping (Loki/ELK), Docker log rotation config fine-tuning.
