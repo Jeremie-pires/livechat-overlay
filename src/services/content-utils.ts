@@ -6,6 +6,7 @@ import { assertPublicHttpUrl } from './url-guard';
 
 const MAX_HTML_CHARS = 256 * 1024;
 const FETCH_TIMEOUT_MS = 5_000;
+const YOUTUBE_CONTENT_TYPE = 'video/youtube';
 
 interface OpenGraphResult {
   videoUrl?: string;
@@ -29,6 +30,33 @@ function isYouTubeShortUrl(url: string): boolean {
         parsed.hostname === 'm.youtube.com') &&
       parsed.pathname.startsWith('/shorts/')
     );
+  } catch {
+    return false;
+  }
+}
+
+function isYouTubeUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    const { hostname, pathname } = parsed;
+    if (hostname === 'youtu.be') {
+      return pathname.length > 1;
+    }
+    if (
+      hostname === 'youtube.com' ||
+      hostname === 'www.youtube.com' ||
+      hostname === 'm.youtube.com' ||
+      hostname === 'music.youtube.com'
+    ) {
+      return (
+        pathname === '/watch' ||
+        pathname.startsWith('/watch?') ||
+        pathname.startsWith('/shorts/') ||
+        pathname.startsWith('/embed/') ||
+        pathname.startsWith('/live/')
+      );
+    }
+    return false;
   } catch {
     return false;
   }
@@ -130,12 +158,18 @@ async function resolveProviderMediaUrl(url: string): Promise<{ url: string; cont
 export const getContentInformationsFromUrl = async (url: string) => {
   await assertPublicHttpUrl(url);
 
-  let contentType: string | undefined;
-  let mediaDuration: number | undefined;
   const mediaIsShort = isYouTubeShortUrl(url);
 
+  if (isYouTubeUrl(url)) {
+    return { contentType: YOUTUBE_CONTENT_TYPE, mediaDuration: undefined, mediaIsShort, resolvedUrl: undefined };
+  }
+
+  let contentType: string | undefined;
+  let mediaDuration: number | undefined;
+
   const providerResult = await resolveProviderMediaUrl(url);
-  const effectiveUrl = providerResult?.url ?? url;
+  const resolvedUrl = providerResult?.url;
+  const effectiveUrl = resolvedUrl ?? url;
   if (providerResult?.contentType !== undefined) {
     contentType = providerResult.contentType;
   }
@@ -174,5 +208,5 @@ export const getContentInformationsFromUrl = async (url: string) => {
     logger.debug({ err: error }, 'ffprobe duration detection failed');
   }
 
-  return { contentType, mediaDuration, mediaIsShort: mediaIsShort ?? false };
+  return { contentType, mediaDuration, mediaIsShort, resolvedUrl };
 };

@@ -336,7 +336,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
             <div class="type-row"><span class="type-dot dot-text"></span><span class="type-label">Texte</span><div class="bar-wrap"><div class="bar bar-text" id="bar-text"></div></div><span class="type-pct" id="pct-text">0%</span><span class="type-count" id="count-text">0</span></div>
           </div>
           <div class="section">
-            <div class="section-title">Attente en file — 50 derniers envois</div>
+            <div class="section-title">Latence totale — 50 derniers envois</div>
             <svg class="sparkline-svg" id="sparkline" viewBox="0 0 400 72" preserveAspectRatio="none">
               <defs>
                 <linearGradient id="spark-grad" x1="0" y1="0" x2="0" y2="1">
@@ -351,6 +351,27 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
               <span id="spark-min">min —</span>
               <span id="spark-avg">moy —</span>
               <span id="spark-max">max —</span>
+            </div>
+          </div>
+        </div>
+        <div class="section">
+          <div class="section-title">Décomposition de la latence (moyenne globale)</div>
+          <div class="stat-mini" style="grid-template-columns: repeat(4, 1fr)">
+            <div class="stat-mini-item">
+              <div class="stat-mini-label">Ingestion Discord</div>
+              <div class="stat-mini-value" id="lat-ingestion">—</div>
+            </div>
+            <div class="stat-mini-item">
+              <div class="stat-mini-label">Traitement média</div>
+              <div class="stat-mini-value" id="lat-processing">—</div>
+            </div>
+            <div class="stat-mini-item">
+              <div class="stat-mini-label">Attente en file</div>
+              <div class="stat-mini-value" id="lat-queuewait">—</div>
+            </div>
+            <div class="stat-mini-item">
+              <div class="stat-mini-label">Émission Socket</div>
+              <div class="stat-mini-value" id="lat-emit">—</div>
             </div>
           </div>
         </div>
@@ -671,6 +692,10 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
         document.getElementById('bar-'+t).style.width = pct+'%';
       }
       renderSparkline(d.latency?.samples);
+      document.getElementById('lat-ingestion').textContent = d.latency?.avgIngestionMs > 0 ? fmtMs(d.latency.avgIngestionMs) : '—';
+      document.getElementById('lat-processing').textContent = d.latency?.avgProcessingMs > 0 ? fmtMs(d.latency.avgProcessingMs) : '—';
+      document.getElementById('lat-queuewait').textContent = d.latency?.avgQueueWaitMs > 0 ? fmtMs(d.latency.avgQueueWaitMs) : '—';
+      document.getElementById('lat-emit').textContent = d.latency?.avgEmitMs > 0 ? fmtMs(d.latency.avgEmitMs) : '—';
 
       // Serveurs
       cachedPresence = d.presence || {};
