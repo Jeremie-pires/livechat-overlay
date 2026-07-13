@@ -161,14 +161,15 @@ export const getContentInformationsFromUrl = async (url: string) => {
   const mediaIsShort = isYouTubeShortUrl(url);
 
   if (isYouTubeUrl(url)) {
-    return { contentType: YOUTUBE_CONTENT_TYPE, mediaDuration: undefined, mediaIsShort };
+    return { contentType: YOUTUBE_CONTENT_TYPE, mediaDuration: undefined, mediaIsShort, resolvedUrl: undefined };
   }
 
   let contentType: string | undefined;
   let mediaDuration: number | undefined;
 
   const providerResult = await resolveProviderMediaUrl(url);
-  const effectiveUrl = providerResult?.url ?? url;
+  const resolvedUrl = providerResult?.url;
+  const effectiveUrl = resolvedUrl ?? url;
   if (providerResult?.contentType !== undefined) {
     contentType = providerResult.contentType;
   }
@@ -207,5 +208,5 @@ export const getContentInformationsFromUrl = async (url: string) => {
     logger.debug({ err: error }, 'ffprobe duration detection failed');
   }
 
-  return { contentType, mediaDuration, mediaIsShort };
+  return { contentType, mediaDuration, mediaIsShort, resolvedUrl };
 };
