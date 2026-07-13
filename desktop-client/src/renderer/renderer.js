@@ -56,6 +56,7 @@ const elements = {
   screenSummary: document.getElementById('screenSummary'),
   statusDot: document.getElementById('statusDot'),
   statusText: document.getElementById('statusText'),
+  appVersion: document.getElementById('appVersion'),
 };
 
 const noMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -270,13 +271,18 @@ function updatePositionGridActive(positionValue) {
 }
 
 async function refreshUi() {
-  const [settings, displays] = await Promise.all([
+  const [settings, displays, version] = await Promise.all([
     window.livechat.getSettings(),
     window.livechat.getDisplays(),
+    window.livechat.getVersion(),
   ]);
 
   state.settings = settings;
   populateDisplays(displays);
+
+  if (elements.appVersion) {
+    elements.appVersion.textContent = `Version : ${version}`;
+  }
 
   // Load config values
   elements.backendUrl.value = settings.backendUrl;

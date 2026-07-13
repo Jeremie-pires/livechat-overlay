@@ -1,6 +1,6 @@
 import { ChatInputCommandInteraction, EmbedBuilder, SlashCommandBuilder } from 'discord.js';
 import { QueueType } from '../../services/prisma/loadPrisma';
-import { getContentInformationsFromUrl } from '../../services/content-utils';
+import { measureContentProcessing } from '../../services/telemetry';
 import { deleteGtts, promisedGtts, readGttsAsStream } from '../../services/gtts';
 import { getDurationFromGuildId } from '../../services/utils';
 
@@ -23,6 +23,7 @@ export const talkCommand = () => ({
         .setDescription(rosetty.t('talkCommandOptionTextDescription')!),
     ),
   handler: async (interaction: ChatInputCommandInteraction) => {
+    const discordReceivedAt = interaction.createdTimestamp;
     await interaction.deferReply();
 
     const voice = interaction.options.get(rosetty.t('talkCommandOptionVoice')!)?.value as string;
@@ -56,7 +57,7 @@ export const talkCommand = () => ({
     const message = await interactionReply.fetch();
     const media = message.attachments.first()?.proxyURL;
 
-    const additionalContent = await getContentInformationsFromUrl(media as string);
+    const { processingMs, contentInfo: additionalContent } = await measureContentProcessing(media as string);
 
     await deleteGtts(filePath);
 
@@ -76,6 +77,8 @@ export const talkCommand = () => ({
         ),
         author: interaction.user.username,
         authorImage: interaction.user.avatarURL(),
+        discordReceivedAt: new Date(discordReceivedAt),
+        processingMs,
       },
     });
   },

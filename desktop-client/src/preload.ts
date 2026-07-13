@@ -25,6 +25,7 @@ type OverlayStatus = {
 
 contextBridge.exposeInMainWorld('livechat', {
   getSettings: () => ipcRenderer.invoke('app:get-settings') as Promise<AppSettings>,
+  getVersion: () => ipcRenderer.invoke('app:get-version') as Promise<string>,
   getDisplays: () => ipcRenderer.invoke('app:get-displays') as Promise<Array<{ id: number; label: string; primary: boolean }>>,
   saveSettings: (settings: Partial<AppSettings>) => ipcRenderer.invoke('app:save-settings', settings) as Promise<AppSettings>,
   connect: () => ipcRenderer.invoke('overlay:connect') as Promise<OverlayStatus>,
@@ -72,6 +73,7 @@ declare global {
   interface Window {
     livechat: {
       getSettings: () => Promise<AppSettings>;
+      getVersion: () => Promise<string>;
       getDisplays: () => Promise<Array<{ id: number; label: string; primary: boolean }>>;
       saveSettings: (settings: Partial<AppSettings>) => Promise<AppSettings>;
       connect: () => Promise<OverlayStatus>;

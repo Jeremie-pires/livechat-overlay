@@ -125,6 +125,13 @@ h1 {
   box-shadow: 0 0 8px var(--danger);
 }
 
+.version-label {
+  font-size: 0.68rem;
+  color: var(--muted);
+  opacity: 0.55;
+  letter-spacing: 0.02em;
+}
+
 /* Tabs Bar styling */
 .tab-bar {
   display: flex;

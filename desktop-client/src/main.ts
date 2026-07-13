@@ -337,6 +337,8 @@ async function connectOverlay() {
 function registerIpc() {
   ipcMain.handle('app:get-settings', async () => settings);
 
+  ipcMain.handle('app:get-version', () => app.getVersion());
+
   ipcMain.handle('app:get-displays', async () => getDisplayList());
 
   ipcMain.handle('app:save-settings', async (_event, nextSettings: Partial<AppSettings>) => {
