@@ -33,6 +33,18 @@ export const StatsRoutes = () =>
       const latencyCount = stats?.latencyCount ?? 0;
       const avgLatencyMs = latencyCount > 0 ? Math.round((stats?.totalLatencyMs ?? 0) / latencyCount) : 0;
 
+      const ingestionCount = stats?.ingestionCount ?? 0;
+      const queueWaitCount = stats?.queueWaitCount ?? 0;
+      const processingCount = stats?.processingCount ?? 0;
+      const emitCount = stats?.emitCount ?? 0;
+
+      const avgIngestionMs = ingestionCount > 0 ? Math.round((stats?.totalIngestionMs ?? 0) / ingestionCount) : 0;
+      const avgQueueWaitMs = queueWaitCount > 0 ? Math.round((stats?.totalQueueWaitMs ?? 0) / queueWaitCount) : 0;
+      const avgProcessingMs = processingCount > 0 ? Math.round((stats?.totalProcessingMs ?? 0) / processingCount) : 0;
+      const avgEmitMs = emitCount > 0 ? Math.round((stats?.totalEmitMs ?? 0) / emitCount) : 0;
+
+      const orderedSamples = latencySamples.reverse();
+
       return reply.send({
         silentMode: stats?.silentMode ?? false,
         presence: presenceStore.getAll(),
@@ -49,8 +61,13 @@ export const StatsRoutes = () =>
         },
         latency: {
           avgMs: avgLatencyMs,
+          avgIngestionMs,
+          avgQueueWaitMs,
+          avgProcessingMs,
+          avgEmitMs,
           totalPayloadBytes: stats?.totalPayloadBytes ?? 0,
-          samples: latencySamples.reverse().map((s) => s.latencyMs),
+          samples: orderedSamples.map((s) => s.totalMs),
+          queueWaitSamples: orderedSamples.map((s) => s.queueWaitMs),
         },
         guilds,
         events: botEvents,

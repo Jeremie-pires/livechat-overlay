@@ -1,6 +1,6 @@
 import { ChatInputCommandInteraction, EmbedBuilder, MessageFlags, SlashCommandBuilder } from 'discord.js';
 import { QueueType } from '../../services/prisma/loadPrisma';
-import { getContentInformationsFromUrl } from '../../services/content-utils';
+import { measureContentProcessing } from '../../services/telemetry';
 import { deleteGtts, promisedGtts, readGttsAsStream } from '../../services/gtts';
 import { getDurationFromGuildId } from '../../services/utils';
 
@@ -23,6 +23,7 @@ export const hideTalkCommand = () => ({
         .setDescription(rosetty.t('hideTalkCommandOptionTextDescription')!),
     ),
   handler: async (interaction: ChatInputCommandInteraction) => {
+    const discordReceivedAt = interaction.createdTimestamp;
     const voice = interaction.options.get(rosetty.t('hideTalkCommandOptionVoice')!)?.value as string;
     const text = interaction.options.get(rosetty.t('hideTalkCommandOptionText')!)?.value;
 
@@ -56,7 +57,7 @@ export const hideTalkCommand = () => ({
     const message = await interactionReply.fetch();
     const media = message.attachments.first()?.proxyURL;
 
-    const additionalContent = await getContentInformationsFromUrl(media as string);
+    const { processingMs, contentInfo: additionalContent } = await measureContentProcessing(media as string);
 
     await deleteGtts(filePath);
 
@@ -74,6 +75,8 @@ export const hideTalkCommand = () => ({
           additionalContent.mediaDuration ? Math.ceil(additionalContent.mediaDuration) : undefined,
           interaction.guildId!,
         ),
+        discordReceivedAt: new Date(discordReceivedAt),
+        processingMs,
       },
     });
   },

@@ -118,8 +118,8 @@ export const sendCommand = () => ({
 
     const isVideo = mediaContentType?.startsWith('video/') || mediaContentType?.startsWith('audio/');
 
-    if (finalDuration === undefined && isVideo) {
-      finalDuration = mediaDuration ? Math.ceil(mediaDuration) : 0;
+    if (finalDuration === undefined && isVideo && mediaDuration) {
+      finalDuration = Math.ceil(mediaDuration);
     }
 
     const resolvedDuration = await getDurationFromGuildId(
@@ -129,7 +129,7 @@ export const sendCommand = () => ({
     await prisma.queue.create({
       data: {
         content: JSON.stringify({
-          url,
+          url: additionalContent?.resolvedUrl ?? url,
           text,
           media,
           mediaContentType,
