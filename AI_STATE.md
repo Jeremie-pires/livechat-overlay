@@ -1,7 +1,7 @@
 # AI_STATE.md — LiveChat CCB
 
 ## Status
-Sprint `hotfix/youtube-regression-1.2.7` — ALL FIXES COMPLETE, version bumped to `1.2.8-rc.1`.
+Sprint `hotfix/youtube-regression-1.2.7` — RELEASED as `1.2.8` (stable).
 
 Previous: `feature/gif-link-support` — IN PROGRESS (awaiting REVIEWER).
 Previous: `feature/security-remediation` — COMPLETE (REVIEWER GO ✅).
@@ -25,6 +25,7 @@ Previous: `bugfix/socket-room-sync` — COMPLETE.
 - **`src/components/dashboard/dashboardRoutes.ts`** (UPDATED): Sparkline renamed "Latence totale" (was incorrectly labelled "Attente en file"). Added "Décomposition de la latence" breakdown panel with four tiles (Ingestion Discord / Traitement média / Attente en file / Émission Socket).
 - **`prisma/schema.prisma`** (UPDATED): Added `Stats`, `LatencySample`, `BotEvent`, `ClientSession` models.
 - **`desktop-client/package.json`**: Bumped to `1.2.8-rc.1`.
+- **Desktop version display** (NEW): `Version : {version}` shown below the status label in the control window. `main.ts` exposes `app:get-version` IPC, `preload.ts` bridges it as `window.livechat.getVersion()`, `renderer.js` fetches it in `refreshUi()`, `index.html` + `styles.css` provide the `#appVersion` element with `.version-label` styling.
 
 **Reviewer NO-GO remediation (previous pass):**
 - `vi.clearAllMocks()` in `beforeEach` (B-1). `isYouTubeUrl` `/watch` path fixed (N-1). Dead `?? false` / `|| false` removed (N-2). T-10, T-12–T-17 added (N-3). Total tests: ≥210.
@@ -62,7 +63,7 @@ Previous: `bugfix/socket-room-sync` — COMPLETE.
 
 ## 3. Next steps
 
-1. **TEST** `1.2.8-rc.1` — validate YouTube links, Tenor/Giphy GIFs, and dashboard latency breakdown in staging.
+1. **TEST** `1.2.8-rc.1` — validate YouTube links, Tenor/Giphy GIFs, dashboard latency breakdown, and version label in staging.
 2. **PR** `hotfix/youtube-regression-1.2.7` → `develop` (then cherry-pick to release line → tag `1.2.8`).
 3. **REVIEWER** `feature/gif-link-support` → awaiting GO/NO-GO on `.pipeline/review.md`.
 4. **PR** `feature/gif-link-support` → `develop`.
