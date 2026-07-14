@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createSession, getSessionToken, isValidSession } from '../../services/session';
+import { createSession, getSessionToken, isValidSession, createCsrfToken, evictExpiredSessions } from '../../services/session';
 
 describe('createSession', () => {
   it('returns a 64-char hex token (32 bytes)', () => {
@@ -69,5 +69,48 @@ describe('isValidSession', () => {
     const token = createSession();
     vi.advanceTimersByTime(7 * 24 * 60 * 60 * 1000 - 1000);
     expect(isValidSession(token)).toBe(true);
+  });
+});
+
+describe('evictExpiredSessions (I-07)', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('removes expired sessions and their CSRF tokens on eviction sweep', () => {
+    const token = createSession();
+    createCsrfToken(token);
+    expect(isValidSession(token)).toBe(true);
+
+    vi.advanceTimersByTime(7 * 24 * 60 * 60 * 1000 + 1);
+    evictExpiredSessions();
+
+    expect(isValidSession(token)).toBe(false);
+  });
+
+  it('preserves non-expired sessions during eviction sweep', () => {
+    const token = createSession();
+    expect(isValidSession(token)).toBe(true);
+
+    evictExpiredSessions();
+
+    expect(isValidSession(token)).toBe(true);
+  });
+
+  it('eviction sweep removes multiple expired sessions in one pass', () => {
+    const t1 = createSession();
+    const t2 = createSession();
+    const t3 = createSession();
+
+    vi.advanceTimersByTime(7 * 24 * 60 * 60 * 1000 + 1);
+    evictExpiredSessions();
+
+    expect(isValidSession(t1)).toBe(false);
+    expect(isValidSession(t2)).toBe(false);
+    expect(isValidSession(t3)).toBe(false);
   });
 });
