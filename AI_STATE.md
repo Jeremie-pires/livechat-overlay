@@ -1,35 +1,44 @@
 # AI_STATE.md — LiveChat CCB
 
 ## Status
-Branch `fix/critical-remediation-phase1` — Phase 1 critical remediations (C-01…C-04) implemented. Lockfile regenerated.
+Branch `fix/important-remediation-phase2` (cut from `fix/critical-remediation-phase1`) — Phase 1 blockers + Phase 2 IMPORTANT remediations (I-01…I-11) fully implemented.
 
 ---
 
-## 1. Accomplished (current sprint — critical remediations)
+## 1. Accomplished
 
-**Previous sprints (merged into `develop`):**
+### Previous sprints (merged into `develop`)
 - SSRF guard, streaming OG parse, IP-pinned fetch, shared `parseDuration`, 301 tests green.
 - `APP_ENV` enum, `secureFlag` cookie gate, `trustProxy`, `corsAllowedHeaders`.
 - HAProxy hardening (`X-Forwarded-Proto`, keep-alive, `/health` probe).
-- Dead dep removal (`@socket.io/postgres-emitter`), DISCORD_OWNER_ID/CLIENT_SECRET made required, lockfile regenerated.
+- Dead dep removal, DISCORD_OWNER_ID/CLIENT_SECRET made required, lockfile regenerated.
 
-**`fix/critical-remediation-phase1` (C-01…C-04) — in progress:**
+### `fix/critical-remediation-phase1` (C-01…C-04 + BLOCK-1/BLOCK-2)
 
-**C-01 — Atomic queue dequeue (`messagesWorker.ts`):**
-- Replaced non-atomic `findFirst` + late `delete` with `prisma.$transaction`: `deleteMany({ id })` first (count=0 → tick lost race, returns null), then `guild.upsert`. Emit happens only after transaction commits with claimed row. Exactly-once semantics guaranteed under SQLite's serialized write model.
+| ID | What | Files |
+|---|---|---|
+| C-01 | Atomic queue dequeue via `$transaction` | `messagesWorker.ts` |
+| C-02 | TTS temp file cleanup via `try/finally` | `talkCommand.ts`, `hidetalkCommand.ts`, `gtts.ts` |
+| C-03 | CVE dep overrides (`tar`, `yaml`, `qs`) + lockfile regen | `package.json` |
+| C-04 | CSRF synchronizer token on POST `/api/maintenance/toggle` | `session.ts`, `dashboardRoutes.ts` |
+| BLOCK-1 | CSRF validation on DELETE `/db/guilds/:id` (server + client) | `adminDbRoutes.ts`, `dashboardRoutes.ts` |
+| BLOCK-2 | Dead comment removed `messagesWorker.ts`; explicit types on `gtts.ts` | both files |
 
-**C-02 — TTS temp file cleanup (`talkCommand.ts`, `hidetalkCommand.ts`, `gtts.ts`):**
-- Wrapped generate→use in `try { ... } finally { deleteGtts(filePath).catch(...) }` so cleanup runs on both success and error paths. Removed inline `deleteGtts()` calls from happy/error paths (now handled exclusively by finally).
-- `gtts.ts`: `deleteGtts` now typed `(filePath: string): Promise<void>` and silently swallows ENOENT (throws other errors for finally `.catch()` to log).
+### `fix/important-remediation-phase2` (I-01…I-11)
 
-**C-03 — CVE dependency overrides (`package.json`, `pnpm-lock.yaml`):**
-- Added `pnpm.overrides`: `"tar": ">=6.2.1"` (CVE-2024-28863), `"yaml": ">=2.3.4"`, `"qs": ">=6.11.0"` (CVE-2022-24999).
-- Existing overrides (`form-data`, `undici`, `cross-spawn`, `find-my-way`, `ws`, `socket.io-parser`) retained.
-- Lockfile regenerated via `pnpm install`.
-
-**C-04 — CSRF on POST endpoints (`session.ts`, `dashboardRoutes.ts`):**
-- `session.ts`: Added `csrfTokens` Map (sessionToken → csrfToken); `createCsrfToken(sessionToken)`, `validateCsrfToken(sessionToken, csrfToken)` (constant-time compare via `crypto.timingSafeEqual`). CSRF tokens purged on `deleteSession` and expired-session eviction in `isValidSession`.
-- `dashboardRoutes.ts`: Import `createCsrfToken`, `validateCsrfToken`. HTML template gains `<meta name="csrf-token" content="{{CSRF_TOKEN}}">`. `/dashboard` GET generates CSRF token and injects it. Client JS reads meta tag, sends `X-CSRF-Token` header on `toggleMaintenance` POST. `/api/maintenance/toggle` validates CSRF token → 403 on mismatch.
+| ID | What | Files |
+|---|---|---|
+| I-01 | `deferReply` on slow Discord handlers | `setupCommand.ts`, `setDefaultTimeCommand.ts`, `setMaxTimeCommand.ts` |
+| I-02 | Baseline HTTP security headers via `onSend` hook | `server.ts` |
+| I-03 | DOM XSS hardening: inline onclick removed from DB table; data-attributes + delegated events | `dashboardRoutes.ts` |
+| I-04 | Error boundaries around `prisma.queue.create()` | `sendCommand.ts`, `hidesendCommand.ts`, `talkCommand.ts`, `hidetalkCommand.ts` |
+| I-05 | Docker resource limits (`cpus: 1.0`, `memory: 512M`) | `docker-compose.yml` |
+| I-06 | `tsx` moved to devDependencies; Dockerfile runner uses `--frozen-lockfile` | `package.json`, `Dockerfile` |
+| I-07 | Session TTL eviction sweep (hourly, `.unref()`); `evictExpiredSessions` exported | `session.ts` |
+| I-08 | Unit tests for Discord command handlers (defer path, admin check, I-04 boundary) | `src/__tests__/components/discord/commandHandlers.test.ts` |
+| I-09 | REST fallback (`guilds.fetch`) on guild cache miss in admin route | `adminDbRoutes.ts` |
+| I-10 | Removed `APP_ENV` disclosure from `/health` | `healthRoutes.ts` |
+| I-11 | DB probe wrapped with `Promise.race` 2 s timeout → 503 on hang | `healthRoutes.ts` |
 
 ---
 
@@ -37,30 +46,36 @@ Branch `fix/critical-remediation-phase1` — Phase 1 critical remediations (C-01
 
 | File | Role |
 |---|---|
-| `src/services/env.ts` | Zod env schema — `APP_ENV` now `production\|staging\|development` (default: `development`) |
-| `src/services/session.ts` | Session + CSRF token maps; `createCsrfToken`, `validateCsrfToken` (timing-safe) |
-| `src/services/gtts.ts` | TTS helpers; `deleteGtts` now ENOENT-resilient |
-| `src/services/url-guard.ts` | SSRF guard → `AssertedUrl { url, ip, family }`; empty-DNS guard |
+| `src/services/env.ts` | Zod env schema — `APP_ENV` enum `production\|staging\|development` |
+| `src/services/session.ts` | Session + CSRF maps; `createCsrfToken`, `validateCsrfToken` (timing-safe); `evictExpiredSessions` (hourly sweep) |
+| `src/services/gtts.ts` | TTS helpers; fully typed; ENOENT-resilient `deleteGtts` |
+| `src/services/url-guard.ts` | SSRF guard → `AssertedUrl { url, ip, family }` |
 | `src/services/content-utils.ts` | Streaming OG parse; IP-pinned fetch |
 | `src/services/utils.ts` | `parseDuration` (shared), `getDurationFromGuildId` |
 | `src/services/telemetry.ts` | `measureContentProcessing(url)` + `ContentInfo` |
-| `src/services/broadcastClassifier.ts` | `classifyDiscordError`, `persistBroadcastRun` (fail-safe), `mintRunId` |
+| `src/services/broadcastClassifier.ts` | `classifyDiscordError`, `persistBroadcastRun`, `mintRunId` |
 | `src/services/broadcast.ts` | `broadcastToAllGuilds()` → `BroadcastResult[]` |
 | `src/components/messages/messagesWorker.ts` | Atomic claim-by-delete via `$transaction`; `resolveMediaDurationMs` |
-| `src/components/messages/talkCommand.ts` | TTS file cleanup via try/finally |
-| `src/components/messages/hidetalkCommand.ts` | TTS file cleanup via try/finally |
-| `src/components/messages/sendCommand.ts` | Uses shared `parseDuration` from utils |
-| `src/components/messages/hidesendCommand.ts` | Uses shared `parseDuration` from utils |
-| `src/components/api/adminDbRoutes.ts` | Owner-only DB admin; per-guild latest broadcast |
-| `src/components/dashboard/dashboardRoutes.ts` | Dashboard + OAuth + CSRF (synchronizer token, X-CSRF-Token header) |
-| `src/server.ts` | Fastify init: `trustProxy: true`; shared `corsAllowedHeaders` const |
-| `desktop-client/src/main.ts` | Electron main; `assertHttpUrl` at all fetch sites |
+| `src/components/messages/talkCommand.ts` | TTS cleanup try/finally; Prisma error boundary |
+| `src/components/messages/hidetalkCommand.ts` | TTS cleanup try/finally; Prisma error boundary |
+| `src/components/messages/sendCommand.ts` | Prisma error boundary on queue.create |
+| `src/components/messages/hidesendCommand.ts` | Prisma error boundary on queue.create |
+| `src/components/discord/setupCommand.ts` | deferReply before async guild fetch |
+| `src/components/discord/setDefaultTimeCommand.ts` | deferReply before async guild fetch |
+| `src/components/discord/setMaxTimeCommand.ts` | deferReply before async guild fetch |
+| `src/components/api/adminDbRoutes.ts` | CSRF on DELETE; REST fallback on guild cache miss |
+| `src/components/api/healthRoutes.ts` | No APP_ENV disclosure; DB probe 2 s timeout |
+| `src/components/dashboard/dashboardRoutes.ts` | CSRF on DELETE client; no inline onclick in DB table; data-attributes + delegated events |
+| `src/server.ts` | `onSend` hook: security headers (CSP, X-Frame, HSTS prod/staging) |
+| `docker-compose.yml` | Resource limits: cpus 1.0, memory 512M |
+| `package.json` | tsx in devDependencies |
+| `Dockerfile` | Runner stage installs all deps (no `--prod`) |
 
 ---
 
 ## 3. Next steps
 
-1. **Phase 2** (`fix/important-remediation-phase2`) — I-01…I-11: `deferReply`, security headers, XSS sanitisation, Prisma error boundaries, Docker hardening, tsx move to devDeps, session TTL eviction, Discord handler tests, guild REST fallback, APP_ENV leak from /health, DB probe timeout.
-2. **Phase 3** (`chore/low-priority-phase3`) — L-01…L-07: tsconfig strict, console.error → logger, Dockerfile alpine-sdk dedup, TZ env var, socketLoader timer fix, isDeployedMode harden, non-null assertion guards.
-3. **`displayMediaFull` full implementation** (deferred): worker reads Guild row at dispatch, injects flag into Socket.IO payload, client applies CSS.
-4. **Observability phase 2** — external log shipping (Loki/ELK).
+1. **Phase 3** (`chore/low-priority-phase3`) — L-01…L-07: tsconfig strict, console.error → logger, Dockerfile alpine-sdk dedup, TZ env var, socketLoader timer fix, isDeployedMode harden, non-null assertion guards.
+2. **`displayMediaFull` full implementation** (deferred): worker reads Guild row at dispatch, injects flag into Socket.IO payload, client applies CSS.
+3. **Observability phase 2** — external log shipping (Loki/ELK).
+4. **Merge path**: `fix/important-remediation-phase2` → `develop` → `main`.

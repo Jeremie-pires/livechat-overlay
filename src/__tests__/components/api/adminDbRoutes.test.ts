@@ -5,7 +5,10 @@ import Fastify from 'fastify';
 vi.mock('../../../services/session', () => ({
   getSessionToken: vi.fn((cookie?: string) => (cookie?.includes('session=valid') ? 'valid-token' : undefined)),
   isValidSession: vi.fn((token?: string) => token === 'valid-token'),
+  validateCsrfToken: vi.fn((token?: string, csrf?: string) => token === 'valid-token' && csrf === 'valid-csrf'),
 }));
+
+const CSRF_HEADER = 'valid-csrf';
 
 import { AdminDbRoutes } from '../../../components/api/adminDbRoutes';
 
@@ -182,12 +185,36 @@ describe('DELETE /api/admin/db/guilds/:id — auth + validation', () => {
     expect(res.statusCode).toBe(401);
   });
 
+  it('returns 403 without CSRF token', async () => {
+    const res = await app.inject({
+      method: 'DELETE',
+      url: '/api/admin/db/guilds/123456789012345678',
+      headers: { cookie: AUTH_COOKIE },
+    });
+    expect(res.statusCode).toBe(403);
+    expect(JSON.parse(res.body).error).toBe('Invalid CSRF token');
+  });
+
+  it('returns 403 with wrong CSRF token', async () => {
+    const res = await app.inject({
+      method: 'DELETE',
+      url: '/api/admin/db/guilds/123456789012345678',
+      headers: { cookie: AUTH_COOKIE, 'x-csrf-token': 'wrong-token' },
+    });
+    expect(res.statusCode).toBe(403);
+    expect(JSON.parse(res.body).error).toBe('Invalid CSRF token');
+  });
+
   it.each([
     ['/api/admin/db/guilds/not-a-snowflake', 'Invalid guild ID format'],
     ['/api/admin/db/guilds/1234', null],
     ['/api/admin/db/guilds/123456789012345678901', null],
   ])('returns 400 for invalid snowflake %s', async (url, expectedError) => {
-    const res = await app.inject({ method: 'DELETE', url, headers: { cookie: AUTH_COOKIE } });
+    const res = await app.inject({
+      method: 'DELETE',
+      url,
+      headers: { cookie: AUTH_COOKIE, 'x-csrf-token': CSRF_HEADER },
+    });
     expect(res.statusCode).toBe(400);
     if (expectedError) expect(JSON.parse(res.body).error).toBe(expectedError);
   });
@@ -196,7 +223,7 @@ describe('DELETE /api/admin/db/guilds/:id — auth + validation', () => {
     const res = await app.inject({
       method: 'DELETE',
       url: '/api/admin/db/guilds/123456789012345678',
-      headers: { cookie: AUTH_COOKIE },
+      headers: { cookie: AUTH_COOKIE, 'x-csrf-token': CSRF_HEADER },
     });
     expect(res.statusCode).toBe(404);
     expect(JSON.parse(res.body).error).toBe('Guild not found');
@@ -216,7 +243,7 @@ describe('DELETE /api/admin/db/guilds/:id — auth + validation', () => {
     const res = await app.inject({
       method: 'DELETE',
       url: '/api/admin/db/guilds/123456789012345678',
-      headers: { cookie: AUTH_COOKIE },
+      headers: { cookie: AUTH_COOKIE, 'x-csrf-token': CSRF_HEADER },
     });
     expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
@@ -224,6 +251,76 @@ describe('DELETE /api/admin/db/guilds/:id — auth + validation', () => {
     expect(body.deletedId).toBe('123456789012345678');
     expect(mockCreateEvent).toHaveBeenCalledOnce();
     expect(mockCreateEvent.mock.calls[0][0].data.type).toBe('DB_PURGE');
+  });
+});
+
+describe('GET /api/admin/db/guilds — REST fallback on cache miss (I-09)', () => {
+  let app: Awaited<ReturnType<typeof buildApp>>;
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    app = await buildApp();
+  });
+
+  it('falls back to guilds.fetch when guild is not in cache', async () => {
+    const guild = {
+      id: '123456789012345678',
+      channelId: 'ch1',
+      defaultMediaTime: 10,
+      maxMediaTime: 60,
+      displayMediaFull: false,
+    };
+    const fetchedGuild = { name: 'Fetched Guild', iconURL: vi.fn(() => null) };
+    const mockFetch = vi.fn().mockResolvedValue(fetchedGuild);
+    // @ts-ignore
+    global.prisma = {
+      guild: { findMany: vi.fn().mockResolvedValue([guild]) },
+      broadcastLog: { findMany: vi.fn().mockResolvedValue([]) },
+    };
+    // @ts-ignore
+    global.discordClient = {
+      guilds: {
+        cache: { get: vi.fn().mockReturnValue(undefined) },
+        fetch: mockFetch,
+      },
+    };
+
+    const res = await app.inject({ method: 'GET', url: '/api/admin/db/guilds', headers: { cookie: AUTH_COOKIE } });
+    expect(res.statusCode).toBe(200);
+    expect(mockFetch).toHaveBeenCalledWith('123456789012345678');
+    const rows = JSON.parse(res.body);
+    expect(rows[0].name).toBe('Fetched Guild');
+    expect(rows[0].connected).toBe(true);
+  });
+
+  it('returns null name fallback and connected=false when REST fetch also fails', async () => {
+    const guild = {
+      id: '123456789012345678',
+      channelId: null,
+      defaultMediaTime: null,
+      maxMediaTime: null,
+      displayMediaFull: false,
+    };
+    // @ts-ignore
+    global.prisma = {
+      guild: { findMany: vi.fn().mockResolvedValue([guild]) },
+      broadcastLog: { findMany: vi.fn().mockResolvedValue([]) },
+    };
+    // @ts-ignore
+    global.discordClient = {
+      guilds: {
+        cache: { get: vi.fn().mockReturnValue(undefined) },
+        fetch: vi.fn().mockRejectedValue(new Error('Unknown Guild')),
+      },
+    };
+    // @ts-ignore
+    global.logger = { warn: vi.fn(), error: vi.fn(), info: vi.fn(), debug: vi.fn() };
+
+    const res = await app.inject({ method: 'GET', url: '/api/admin/db/guilds', headers: { cookie: AUTH_COOKIE } });
+    expect(res.statusCode).toBe(200);
+    const rows = JSON.parse(res.body);
+    expect(rows[0].connected).toBe(false);
+    expect(rows[0].name).toBe('123456789012345678');
   });
 });
 

@@ -1,4 +1,4 @@
-import { getSessionToken, isValidSession } from '../../services/session';
+import { getSessionToken, isValidSession, validateCsrfToken } from '../../services/session';
 
 const SNOWFLAKE_RE = /^\d{17,20}$/;
 
@@ -26,23 +26,32 @@ export const AdminDbRoutes = () =>
         }
       }
 
-      const rows = guilds.map((guild) => {
-        const discordGuild = discordClient.guilds.cache.get(guild.id);
-        const logEntry = lastBroadcastByGuild.get(guild.id);
-        return {
-          id: guild.id,
-          name: discordGuild?.name ?? guild.id,
-          icon: discordGuild?.iconURL({ size: 64 }) ?? null,
-          channelId: guild.channelId,
-          defaultMediaTime: guild.defaultMediaTime,
-          maxMediaTime: guild.maxMediaTime,
-          displayMediaFull: guild.displayMediaFull,
-          connected: !!discordGuild,
-          lastBroadcast: logEntry
-            ? { status: logEntry.status, errorReason: logEntry.errorReason, at: logEntry.createdAt }
-            : null,
-        };
-      });
+      const rows = await Promise.all(
+        guilds.map(async (guild) => {
+          let discordGuild = discordClient.guilds.cache.get(guild.id);
+          if (!discordGuild) {
+            try {
+              discordGuild = await discordClient.guilds.fetch(guild.id);
+            } catch (err) {
+              logger.warn(err, `[ADMIN] REST fallback for guild ${guild.id} failed`);
+            }
+          }
+          const logEntry = lastBroadcastByGuild.get(guild.id);
+          return {
+            id: guild.id,
+            name: discordGuild?.name ?? guild.id,
+            icon: discordGuild?.iconURL({ size: 64 }) ?? null,
+            channelId: guild.channelId,
+            defaultMediaTime: guild.defaultMediaTime,
+            maxMediaTime: guild.maxMediaTime,
+            displayMediaFull: guild.displayMediaFull,
+            connected: !!discordGuild,
+            lastBroadcast: logEntry
+              ? { status: logEntry.status, errorReason: logEntry.errorReason, at: logEntry.createdAt }
+              : null,
+          };
+        }),
+      );
 
       return reply.send(rows);
     });
@@ -50,6 +59,9 @@ export const AdminDbRoutes = () =>
     fastify.delete('/db/guilds/:id', async (req, reply) => {
       const token = getSessionToken(req.headers.cookie);
       if (!isValidSession(token)) return reply.status(401).send({ error: 'Unauthorized' });
+
+      const csrfToken = req.headers['x-csrf-token'] as string | undefined;
+      if (!validateCsrfToken(token, csrfToken)) return reply.status(403).send({ error: 'Invalid CSRF token' });
 
       const { id } = req.params as { id: string };
       if (!SNOWFLAKE_RE.test(id)) return reply.status(400).send({ error: 'Invalid guild ID format' });
