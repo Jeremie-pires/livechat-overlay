@@ -1,7 +1,7 @@
 # AI_STATE.md — LiveChat CCB
 
 ## Status
-Branch `feature/network-optimization` — 300 tests green, lint clean.
+Branch `feature/network-optimization` — 300 tests green, lint clean, SonarQube Quality Gate fixed.
 
 ---
 
@@ -15,7 +15,8 @@ Branch `feature/network-optimization` — 300 tests green, lint clean.
 - `src/components/messages/hidesendCommand.ts`: Imports `parseDuration` from utils, local copy removed.
 - `src/components/messages/talkCommand.ts` + `hidetalkCommand.ts`: null guard for missing audio attachment.
 - `src/components/messages/messagesWorker.ts`: `resolveMediaDurationMs` exported — `mediaDuration` clamped `[0, 3600]`, 5000 ms fallback. Called internally by `executeMessagesWorker`.
-- Tests (300 green): telemetry (6), url-guard return shape + edge cases (8), content-utils streaming/pin (5), worker duration clamp (14, COV-01), shared parseDuration (12, CQ-02/COV-03), url-guard empty-DNS (SEC-02 coverage).
+- Tests (300 green): telemetry (6), url-guard return shape + edge cases (8), content-utils streaming/pin (5), worker duration clamp (COV-01, refactored with it.each), shared parseDuration (CQ-02/COV-03, refactored with it.each), url-guard empty-DNS (SEC-02 coverage).
+- SonarQube Quality Gate fixes: cognitive complexity reduced (assertPublicHttpUrl → extracted resolveAndValidateHostname helper); void operator removed in content-utils.ts; test duplication eliminated via it.each.
 
 ---
 

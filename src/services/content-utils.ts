@@ -171,7 +171,7 @@ async function readHtmlStreamUntilOg(body: NodeJS.ReadableStream | null): Promis
     if (typeof (body as { destroy?: () => void }).destroy === 'function') {
       (body as { destroy: () => void }).destroy();
     } else if (typeof (body as { cancel?: () => void }).cancel === 'function') {
-      void (body as { cancel: () => void }).cancel();
+      (body as { cancel: () => void }).cancel();
     }
   }
   return accumulated;
