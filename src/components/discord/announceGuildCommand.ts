@@ -1,4 +1,5 @@
 import { ChatInputCommandInteraction, EmbedBuilder, MessageFlags, SlashCommandBuilder, TextChannel } from 'discord.js';
+import { classifyDiscordError, mintRunId, persistBroadcastRun } from '../../services/broadcastClassifier';
 
 export const announceGuildCommand = () => ({
   data: new SlashCommandBuilder()
@@ -42,6 +43,9 @@ export const announceGuildCommand = () => ({
       return;
     }
 
+    const runId = mintRunId();
+    let delivered = false;
+
     try {
       const channel = await discordClient.channels.fetch(guild.channelId);
       if (!channel || !channel.isTextBased()) throw new Error('Channel not found or not text-based');
@@ -51,6 +55,7 @@ export const announceGuildCommand = () => ({
           new EmbedBuilder().setTitle(rosetty.t('announceCommandTitle')!).setDescription(message).setColor(0x3498db),
         ],
       });
+      delivered = true;
 
       await interaction.editReply({
         embeds: [
@@ -60,15 +65,25 @@ export const announceGuildCommand = () => ({
             .setColor(0x2ecc71),
         ],
       });
-    } catch {
-      await interaction.editReply({
-        embeds: [
-          new EmbedBuilder()
-            .setTitle(rosetty.t('error')!)
-            .setDescription(rosetty.t('commandError')!)
-            .setColor(0xe74c3c),
-        ],
-      });
+    } catch (err) {
+      if (!delivered) {
+        const { errorCode, errorReason } = classifyDiscordError(err);
+        await persistBroadcastRun(runId, [
+          { guildId, channelId: guild.channelId, status: 'FAILED', errorCode, errorReason },
+        ]);
+        await interaction.editReply({
+          embeds: [
+            new EmbedBuilder()
+              .setTitle(rosetty.t('error')!)
+              .setDescription(rosetty.t('commandError')!)
+              .setColor(0xe74c3c),
+          ],
+        });
+      }
+    }
+
+    if (delivered) {
+      await persistBroadcastRun(runId, [{ guildId, channelId: guild.channelId, status: 'SUCCESS' }]);
     }
   },
 });

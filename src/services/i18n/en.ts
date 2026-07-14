@@ -99,6 +99,7 @@ export const enLang = {
   announceCommandOptionDescription: 'Message to broadcast',
   announceCommandTitle: '📢 Announcement',
   announceCommandAnswer: 'Message sent to {{count}} server(s).',
+  announceCommandFailures: '⚠️ {{count}} failure(s) recorded.',
   announceGuildCommandDescription: 'Send an announcement to a specific server (bot owner only)',
   announceGuildCommandOptionGuildId: 'Target server ID',
 
