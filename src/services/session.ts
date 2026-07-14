@@ -1,8 +1,21 @@
 import crypto from 'crypto';
 
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const EVICTION_INTERVAL_MS = 60 * 60 * 1000;
 const sessions = new Map<string, number>();
 const csrfTokens = new Map<string, string>();
+
+export const evictExpiredSessions = (): void => {
+  const now = Date.now();
+  for (const [token, exp] of sessions) {
+    if (now > exp) {
+      sessions.delete(token);
+      csrfTokens.delete(token);
+    }
+  }
+};
+
+setInterval(evictExpiredSessions, EVICTION_INTERVAL_MS).unref();
 
 export const createSession = (): string => {
   const token = crypto.randomBytes(32).toString('hex');
