@@ -7,8 +7,8 @@ const MAX_DURATION_SECONDS = 3600;
 
 function isValidUrl(value: string): boolean {
   try {
-    new URL(value);
-    return true;
+    const parsed = new URL(value);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
   } catch {
     return false;
   }
