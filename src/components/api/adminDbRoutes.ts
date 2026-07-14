@@ -8,22 +8,27 @@ export const AdminDbRoutes = () =>
       const token = getSessionToken(req.headers.cookie);
       if (!isValidSession(token)) return reply.status(401).send({ error: 'Unauthorized' });
 
-      const [guilds, latestLog] = await Promise.all([
-        prisma.guild.findMany(),
-        prisma.broadcastLog.findFirst({ orderBy: { createdAt: 'desc' }, select: { runId: true } }),
-      ]);
+      const guilds = await prisma.guild.findMany();
 
-      const lastRunLogs = latestLog
-        ? await prisma.broadcastLog.findMany({
-            where: { runId: latestLog.runId },
-            select: { guildId: true, status: true, errorReason: true, createdAt: true },
-          })
-        : [];
-      const lastRunByGuild = new Map(lastRunLogs.map((l) => [l.guildId, l]));
+      const broadcastLogs =
+        guilds.length > 0
+          ? await prisma.broadcastLog.findMany({
+              where: { guildId: { in: guilds.map((g) => g.id) } },
+              orderBy: { createdAt: 'desc' },
+              select: { guildId: true, status: true, errorReason: true, createdAt: true },
+            })
+          : [];
+
+      const lastBroadcastByGuild = new Map<string, (typeof broadcastLogs)[number]>();
+      for (const log of broadcastLogs) {
+        if (!lastBroadcastByGuild.has(log.guildId)) {
+          lastBroadcastByGuild.set(log.guildId, log);
+        }
+      }
 
       const rows = guilds.map((guild) => {
         const discordGuild = discordClient.guilds.cache.get(guild.id);
-        const logEntry = lastRunByGuild.get(guild.id);
+        const logEntry = lastBroadcastByGuild.get(guild.id);
         return {
           id: guild.id,
           name: discordGuild?.name ?? guild.id,
