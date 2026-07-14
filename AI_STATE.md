@@ -1,29 +1,23 @@
 # AI_STATE.md — LiveChat CCB
 
 ## Status
-Branch `bugfix/local-dev-dashboard` — US-1 + US-2 implemented; ENV gate + cookie fix committed.
+Branch `feature/network-optimization` — 300 tests green, lint clean, SonarQube Quality Gate fixed.
 
 ---
 
 ## 1. Accomplished (current sprint — local-dev fixes + infra hardening)
 
-**Previous sprint (`feature/network-optimization`):**
-- SSRF guard (`url-guard.ts`), streaming OG parse, IP-pinned fetch, shared `parseDuration`, 300 tests green, SonarQube Quality Gate cleared.
-
-**`bugfix/local-dev-dashboard` (US-1, US-2):**
-- `src/services/env.ts`: `APP_ENV` enum extended to `['production', 'staging', 'development']` with `.default('development')` — `pnpm dev` now boots without requiring `APP_ENV` in `.env`.
-- `src/components/dashboard/dashboardRoutes.ts`: `secureFlag` computed inside `dashboardPlugin` (`env.APP_ENV !== 'development' ? '; Secure' : ''`). All 4 `Set-Cookie` calls (`oauth_state` set/clear, `session` set/clear) now inject `${secureFlag}` instead of hardcoded `; Secure`. Dashboard login works over `http://localhost`.
-- `src/server.ts`: `trustProxy: true` added to Fastify constructor (H2/S3 — real client IP restored in logs behind HAProxy). Shared `corsAllowedHeaders` array extracted; both `fastify-socket.io` and `@fastify/cors` registrations reference the same constant (S4 — no more sync drift).
-- `.env.example`: Brought to parity with Zod schema — `APP_ENV`, `NODE_ENV`, `PORT`, `LOG`, `I18N`, `DEFAULT_DURATION`, `HIDE_COMMANDS_DISABLED` all documented (C3).
-- `src/__tests__/services/env.test.ts`: `mockEnv.APP_ENV` type updated to include `'development'`; new test case verifies `validateEnvCoherence` does not throw for `development` + any DB URL.
-- `src/__tests__/services/env.coherence.integration.test.ts`: `AppEnv` type updated to include `'development'`; new test case confirms `development` always returns `'ok'` from `checkCoherence`.
-
-**`chore/haproxy-hardening` (US-3, US-4):**
-- `.pipeline/haproxy.current.cfg`: Added `http-request set-header X-Forwarded-Proto https` and `X-Forwarded-Port 443` to `frontend livechat_https`. Both backends: `option http-server-close` replaced by `option http-keep-alive`; health probe changed from `GET /client` to `GET /health` (H1, H3, H4 cleared).
-
-**`chore/dead-code-cleanup` (US-5):**
-- `package.json`: Removed `@socket.io/postgres-emitter` (C1 — dead dependency, no Postgres anywhere).
-- `haproxy.cfg.example`: Reconciled with hardened `haproxy.current.cfg` — same `X-Forwarded-Proto`, `http-keep-alive`, `GET /health` probe pattern (C2 cleared).
+**Network optimization — `feature/network-optimization`:**
+- `src/services/url-guard.ts`: `assertPublicHttpUrl` returns `AssertedUrl { url, ip, family }` — TOCTOU-safe fetch pinning. Added empty-DNS-array guard (SEC-02): `if (addresses.length === 0) throw new SsrfBlockedError(...)`.
+- `src/services/content-utils.ts`: `resolveProviderMediaUrl` now returns `{ url, contentType, guard: AssertedUrl }` — guard is threaded through instead of discarded. `getContentInformationsFromUrl` uses `providerResult?.guard ?? urlGuard` directly, eliminating the second DNS lookup (SEC-01/CQ-03 closed). Streaming `readHtmlStreamUntilOg` (256 KB ceiling, early cancel), IP-pinned fetch at all sites.
+- `src/services/utils.ts`: Shared `parseDuration(trimmed, mediaDuration)` helper exported here — replaces duplicated inline logic in both send commands (CQ-02).
+- `src/components/messages/sendCommand.ts`: Imports `parseDuration` from utils, removes inline duration logic and `MAX_DURATION_SECONDS`. Uses `Number.isNaN` via shared helper (CQ-01).
+- `src/components/messages/hidesendCommand.ts`: Imports `parseDuration` from utils, local copy removed.
+- `src/components/messages/talkCommand.ts` + `hidetalkCommand.ts`: null guard for missing audio attachment.
+- `src/components/messages/messagesWorker.ts`: `resolveMediaDurationMs` exported — `mediaDuration` clamped `[0, 3600]`, 5000 ms fallback. Called internally by `executeMessagesWorker`.
+- Tests (300 green): telemetry (6), url-guard return shape + edge cases (8), content-utils streaming/pin (5), worker duration clamp (COV-01, refactored with it.each), shared parseDuration (CQ-02/COV-03, refactored with it.each), url-guard empty-DNS (SEC-02 coverage).
+- SonarQube Quality Gate fixes (round 1): cognitive complexity reduced; void operator removed; durationClamp + parseDuration tests refactored with it.each.
+- SonarQube Quality Gate fixes (round 2): url-guard isPrivateIp + reject suites collapsed to it.each; telemetry beforeEach eliminates repeated mock setup; adminDbRoutes DELETE beforeEach absorbs shared prisma setup + snowflakes collapsed to it.each; content-utils makeBodyResponse helper eliminates 5× inline stream response objects.
 
 ---
 
@@ -51,9 +45,7 @@ Branch `bugfix/local-dev-dashboard` — US-1 + US-2 implemented; ENV gate + cook
 
 ## 3. Next steps
 
-1. **PR** `bugfix/local-dev-dashboard` → `develop` (AC: cookie persists on localhost; pnpm dev boots with no APP_ENV).
-2. **PR** `chore/haproxy-hardening` → `develop` (AC: logs show real client IP; HAProxy reports DOWN when DB is unreachable).
-3. **PR** `chore/dead-code-cleanup` → `develop` (AC: pnpm install + 300 tests green, no unused deps).
-4. **`displayMediaFull` full implementation** (deferred): worker reads Guild row at dispatch, injects flag into Socket.IO payload, client applies CSS.
-5. **Dashboard hardening ticket** (post-merge): CSP/HSTS headers, `data-*` onclick pattern, admin-DB 401 tests (SEC-03…06).
-6. **Observability phase 2** — external log shipping (Loki/ELK).
+1. **PR** `feature/network-optimization` → `develop` (reviewer gave GO after §5 housekeeping — now cleared).
+2. **`displayMediaFull` full implementation** (deferred): worker reads Guild row at dispatch, injects flag into Socket.IO payload, client applies CSS.
+3. **Dashboard hardening ticket** (post-merge): CSP/HSTS headers, `data-*` onclick pattern, admin-DB 401 tests (SEC-03…06).
+4. **Observability phase 2** — external log shipping (Loki/ELK).
