@@ -3,9 +3,16 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { assertPublicHttpUrl, isPrivateIp, SsrfBlockedError } from '../../services/url-guard';
 
 const PUBLIC_IP = '93.184.216.34';
+const PUBLIC_IPV6 = '2001:db8::1';
 
 function mockDnsPublic() {
   return vi.spyOn(dns.promises, 'lookup').mockResolvedValue([{ address: PUBLIC_IP, family: 4 }] as dns.LookupAddress[]);
+}
+
+function mockDnsPublicV6() {
+  return vi
+    .spyOn(dns.promises, 'lookup')
+    .mockResolvedValue([{ address: PUBLIC_IPV6, family: 6 }] as dns.LookupAddress[]);
 }
 
 function mockDnsPrivate(address: string) {
@@ -55,20 +62,62 @@ describe('isPrivateIp — IPv6', () => {
     expect(isPrivateIp('::ffff:93.184.216.34')).toBe(false));
 });
 
-// ── assertPublicHttpUrl ────────────────────────────────────────────────────────
+// ── assertPublicHttpUrl — return shape ─────────────────────────────────────────
+
+describe('assertPublicHttpUrl — return shape { url, ip, family }', () => {
+  it('returns { url: URL, ip: string, family: 4|6 } for hostname resolved to IPv4', async () => {
+    mockDnsPublic();
+    const result = await assertPublicHttpUrl('https://example.com/path');
+    expect(result.url).toBeInstanceOf(URL);
+    expect(result.ip).toBe(PUBLIC_IP);
+    expect(result.family).toBe(4);
+  });
+
+  it('returns family: 6 when DNS resolves to an IPv6 address', async () => {
+    mockDnsPublicV6();
+    const result = await assertPublicHttpUrl('https://example.com/path');
+    expect(result.family).toBe(6);
+    expect(result.ip).toBe(PUBLIC_IPV6);
+  });
+
+  it('returns the literal IP when host is a public IPv4 literal (no DNS lookup)', async () => {
+    const dnsSpy = mockDnsPublic();
+    const result = await assertPublicHttpUrl(`http://${PUBLIC_IP}/path`);
+    expect(result.ip).toBe(PUBLIC_IP);
+    expect(result.family).toBe(4);
+    expect(dnsSpy).not.toHaveBeenCalled();
+  });
+
+  it('returns the literal IP when host is a public IPv6 literal (no DNS lookup)', async () => {
+    const dnsSpy = mockDnsPublic();
+    const result = await assertPublicHttpUrl(`http://[${PUBLIC_IPV6}]/path`);
+    expect(result.ip).toBe(PUBLIC_IPV6);
+    expect(result.family).toBe(6);
+    expect(dnsSpy).not.toHaveBeenCalled();
+  });
+
+  it('url.href is preserved from the original URL', async () => {
+    mockDnsPublic();
+    const original = 'https://example.com/some/path?q=1';
+    const result = await assertPublicHttpUrl(original);
+    expect(result.url.href).toBe(original);
+  });
+});
+
+// ── assertPublicHttpUrl — scheme validation ────────────────────────────────────
 
 describe('assertPublicHttpUrl — scheme validation', () => {
   beforeEach(() => mockDnsPublic());
 
   it('accepts http:// URLs', async () => {
     const result = await assertPublicHttpUrl('http://example.com/path');
-    expect(result).toBeInstanceOf(URL);
-    expect(result.protocol).toBe('http:');
+    expect(result.url).toBeInstanceOf(URL);
+    expect(result.url.protocol).toBe('http:');
   });
 
   it('accepts https:// URLs', async () => {
     const result = await assertPublicHttpUrl('https://example.com');
-    expect(result.protocol).toBe('https:');
+    expect(result.url.protocol).toBe('https:');
   });
 
   it('rejects file: scheme', async () => {
@@ -147,10 +196,12 @@ describe('assertPublicHttpUrl — loopback and private literal IPs', () => {
 });
 
 describe('assertPublicHttpUrl — DNS resolution check', () => {
-  it('accepts hostname resolving to a public IP', async () => {
+  it('accepts hostname resolving to a public IP and returns validated IP', async () => {
     mockDnsPublic();
     const result = await assertPublicHttpUrl('https://example.com');
-    expect(result).toBeInstanceOf(URL);
+    expect(result.url).toBeInstanceOf(URL);
+    expect(result.ip).toBe(PUBLIC_IP);
+    expect(result.family).toBe(4);
   });
 
   it('rejects hostname resolving to 127.0.0.1', async () => {
@@ -171,5 +222,10 @@ describe('assertPublicHttpUrl — DNS resolution check', () => {
   it('rejects on DNS failure (fail closed)', async () => {
     mockDnsFailure();
     await expect(assertPublicHttpUrl('http://nxdomain.example.com/')).rejects.toThrow(SsrfBlockedError);
+  });
+
+  it('private-only hostname still throws SsrfBlockedError and no fetch occurs', async () => {
+    mockDnsPrivate('10.0.0.1');
+    await expect(assertPublicHttpUrl('http://internal.corp/')).rejects.toThrow(SsrfBlockedError);
   });
 });
