@@ -111,4 +111,5 @@ export const frLang: typeof enLang = {
   invalidUrl: 'Le lien fourni est invalide.',
   noContentProvided: 'Tu dois fournir au moins un lien, un média ou un texte.',
   ttsTextTooLong: 'Le texte est trop long (200 caractères maximum).',
+  talkNoAttachment: 'Aucune pièce jointe audio trouvée dans la réponse.',
 };

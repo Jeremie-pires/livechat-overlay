@@ -107,4 +107,5 @@ export const enLang = {
   invalidUrl: 'The provided URL is invalid.',
   noContentProvided: 'You must provide at least a URL, a media, or a text.',
   ttsTextTooLong: 'The text is too long (200 characters max).',
+  talkNoAttachment: 'No audio attachment was found in the reply.',
 };
