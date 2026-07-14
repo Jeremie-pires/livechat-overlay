@@ -33,6 +33,8 @@ frontend livechat_https
     mode http
     option httplog
     option forwardfor
+    http-request set-header X-Forwarded-Proto https
+    http-request set-header X-Forwarded-Port  443
 
     # ACL : détecte le sous-domaine de staging
     acl is_dev hdr(host) -i dev-livechat.ton-domaine.fr
@@ -45,7 +47,8 @@ frontend livechat_https
 backend livechat_prod_backend
     mode http
     balance roundrobin
-    option httpchk GET /client
+    option http-keep-alive
+    option httpchk GET /health
     http-check expect status 200
     server livechat_prod 127.0.0.1:3000 check
 
@@ -54,6 +57,7 @@ backend livechat_prod_backend
 backend livechat_dev_backend
     mode http
     balance roundrobin
-    option httpchk GET /client
+    option http-keep-alive
+    option httpchk GET /health
     http-check expect status 200
     server livechat_dev 127.0.0.1:3001 check
