@@ -195,6 +195,27 @@ describe('assertPublicHttpUrl — loopback and private literal IPs', () => {
   });
 });
 
+describe('assertPublicHttpUrl — edge cases', () => {
+  it('throws SsrfBlockedError when DNS returns empty address array', async () => {
+    vi.spyOn(dns.promises, 'lookup').mockResolvedValue([] as unknown as dns.LookupAddress[]);
+    await expect(assertPublicHttpUrl('https://example.com/')).rejects.toThrow(SsrfBlockedError);
+  });
+
+  it('accepts 172.32.0.1 (just outside RFC1918 /12 block, public literal IP)', async () => {
+    const result = await assertPublicHttpUrl('http://172.32.0.1/');
+    expect(result.ip).toBe('172.32.0.1');
+    expect(result.family).toBe(4);
+  });
+
+  it('preserves url.pathname and url.search in returned AssertedUrl', async () => {
+    mockDnsPublic();
+    const original = 'https://example.com/some/path?q=hello&r=world';
+    const { url } = await assertPublicHttpUrl(original);
+    expect(url.pathname).toBe('/some/path');
+    expect(url.search).toBe('?q=hello&r=world');
+  });
+});
+
 describe('assertPublicHttpUrl — DNS resolution check', () => {
   it('accepts hostname resolving to a public IP and returns validated IP', async () => {
     mockDnsPublic();

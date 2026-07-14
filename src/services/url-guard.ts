@@ -90,6 +90,10 @@ export async function assertPublicHttpUrl(url: string): Promise<AssertedUrl> {
     throw new SsrfBlockedError(`DNS resolution failed: ${err instanceof Error ? err.message : String(err)}`);
   }
 
+  if (addresses.length === 0) {
+    throw new SsrfBlockedError('DNS returned no addresses');
+  }
+
   for (const { address } of addresses) {
     if (isPrivateIp(address)) {
       throw new SsrfBlockedError(`hostname resolves to private IP: ${address}`);
