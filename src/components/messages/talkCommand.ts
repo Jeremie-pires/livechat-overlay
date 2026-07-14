@@ -72,26 +72,33 @@ export const talkCommand = () => ({
 
       const { processingMs, contentInfo: additionalContent } = await measureContentProcessing(media);
 
-      await prisma.queue.create({
-        data: {
-          content: JSON.stringify({
-            text,
-            media,
-            mediaContentType: 'audio/mpeg',
-            mediaDuration: Math.ceil(additionalContent.mediaDuration ?? 0),
-          }),
-          type: QueueType.VOCAL,
-          discordGuildId: interaction.guildId!,
-          duration: await getDurationFromGuildId(
-            additionalContent.mediaDuration ? Math.ceil(additionalContent.mediaDuration) : undefined,
-            interaction.guildId!,
-          ),
-          author: interaction.user.username,
-          authorImage: interaction.user.avatarURL(),
-          discordReceivedAt: new Date(discordReceivedAt),
-          processingMs,
-        },
-      });
+      try {
+        await prisma.queue.create({
+          data: {
+            content: JSON.stringify({
+              text,
+              media,
+              mediaContentType: 'audio/mpeg',
+              mediaDuration: Math.ceil(additionalContent.mediaDuration ?? 0),
+            }),
+            type: QueueType.VOCAL,
+            discordGuildId: interaction.guildId!,
+            duration: await getDurationFromGuildId(
+              additionalContent.mediaDuration ? Math.ceil(additionalContent.mediaDuration) : undefined,
+              interaction.guildId!,
+            ),
+            author: interaction.user.username,
+            authorImage: interaction.user.avatarURL(),
+            discordReceivedAt: new Date(discordReceivedAt),
+            processingMs,
+          },
+        });
+      } catch (err) {
+        logger.error(err, '[TALK] prisma.queue.create failed');
+        await interaction.editReply({
+          embeds: [new EmbedBuilder().setTitle(rosetty.t('error')!).setColor(0xe74c3c)],
+        });
+      }
     } finally {
       await deleteGtts(filePath).catch((err) => logger.warn(err, '[TTS] Failed to delete temp file'));
     }
