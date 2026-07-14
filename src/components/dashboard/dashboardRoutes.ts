@@ -596,7 +596,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
     document.getElementById('page-' + page).classList.add('active');
     const navEl = document.querySelector('[data-page="' + page + '"]');
     if (navEl) navEl.classList.add('active');
-    if (page === 'database' && !dbLoaded) { dbLoaded = true; loadDatabase(); }
+    if (page === 'database') { loadDatabase(); }
   }
 
   const fmt = n => Number(n).toLocaleString('fr-FR');
@@ -621,7 +621,6 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
   var cachedGuilds = null;
   var cachedPresence = {};
   var currentGuildId = null;
-  var dbLoaded = false;
 
   function fmtDuration(ms) {
     const s = Math.floor(ms / 1000), m = Math.floor(s / 60), h = Math.floor(m / 60);
