@@ -1,7 +1,7 @@
 # AI_STATE.md — LiveChat CCB
 
 ## Status
-Branch `chore/dead-code-cleanup` — unused @socket.io/postgres-emitter removed; all three audit branches ready for review.
+Branch `develop` — all three audit branches merged; B2 + B4 NO-GO blockers cleared. CI lockfile up to date.
 
 ---
 
@@ -10,19 +10,23 @@ Branch `chore/dead-code-cleanup` — unused @socket.io/postgres-emitter removed;
 **Previous sprint (`feature/network-optimization`):**
 - SSRF guard, streaming OG parse, IP-pinned fetch, shared `parseDuration`, 300 tests green, SonarQube Quality Gate cleared.
 
-**`bugfix/local-dev-dashboard` (US-1, US-2):**
+**`bugfix/local-dev-dashboard` (US-1, US-2) — merged:**
 - `src/services/env.ts`: APP_ENV enum → `production|staging|development` with `.default('development')`.
 - `src/components/dashboard/dashboardRoutes.ts`: `secureFlag` env-gates the `; Secure` cookie attribute — empty on `development`.
 - `src/server.ts`: `trustProxy: true` added; `corsAllowedHeaders` extracted as shared constant (S4).
 - `.env.example`: Synced with full Zod schema (C3).
 - Tests: env type and development path cases added.
 
-**`chore/haproxy-hardening` (US-3, US-4):**
+**`chore/haproxy-hardening` (US-3, US-4) — merged:**
 - `haproxy.cfg.example`: `X-Forwarded-Proto https` + `X-Forwarded-Port 443` headers; `option http-server-close` → `option http-keep-alive`; health probe `GET /client` → `GET /health` (H1, H3, H4/S6).
 - `.pipeline/haproxy.current.cfg` (local only — gitignored): same hardening applied on disk.
 
-**`chore/dead-code-cleanup` (US-5):**
+**`chore/dead-code-cleanup` (US-5) — merged:**
 - `package.json`: Removed `@socket.io/postgres-emitter` — no Postgres anywhere in the codebase; pure supply-chain dead weight (C1).
+
+**Post-merge fixes (B2 + B4 from review.md NO-GO):**
+- `src/services/env.ts`: `DISCORD_OWNER_ID` + `DISCORD_CLIENT_SECRET` promoted from `.optional()` to `.string().min(1)` — eliminates OWASP A01 owner-gate bypass (CRIT-01/B2).
+- `pnpm-lock.yaml`: Regenerated after dep removal; `@socket.io/postgres-emitter` fully absent; `pnpm install --frozen-lockfile` now passes in CI (B4). 301 tests green.
 
 ---
 
@@ -49,9 +53,7 @@ Branch `chore/dead-code-cleanup` — unused @socket.io/postgres-emitter removed;
 
 ## 3. Next steps
 
-1. **PR** `bugfix/local-dev-dashboard` → `develop` (AC: cookie persists on localhost; `pnpm dev` boots without APP_ENV).
-2. **PR** `chore/haproxy-hardening` → `develop` (AC: logs show real client IP; HAProxy DOWN when DB unreachable).
-3. **PR** `chore/dead-code-cleanup` → `develop` (AC: `pnpm install` + 300 tests green; `@socket.io/postgres-emitter` absent).
-4. **`displayMediaFull` full implementation** (deferred).
-5. **Dashboard hardening** (post-merge): CSP/HSTS, SEC-03…06.
-6. **Observability phase 2** — external log shipping (Loki/ELK).
+1. **`displayMediaFull` full implementation** (deferred): worker reads Guild row at dispatch, injects flag into Socket.IO payload, client applies CSS.
+2. **Dashboard hardening** (post-merge): CSP/HSTS headers, `data-*` onclick pattern, admin-DB 401 tests (SEC-03…06).
+3. **Standing debt** (from review.md §3): HIGH-02 bad CORS allow-list entries; CQ-03 `isDeployedMode` dedup; MED-01 `validateEnvCoherence` fragile heuristics.
+4. **Observability phase 2** — external log shipping (Loki/ELK).
