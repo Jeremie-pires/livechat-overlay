@@ -215,6 +215,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
     .db-broadcast-fail { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.67rem; color: var(--red); }
     .db-broadcast-ok { color: var(--green); font-size: 0.78rem; }
     .db-broadcast-none { color: var(--muted); font-size: 0.78rem; }
+    .db-broadcast-time { display: block; font-size: 0.65rem; color: var(--muted); margin-top: 0.1rem; }
     .disconnected-badge { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.67rem; color: var(--muted); background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 99px; padding: 0.15rem 0.55rem; }
     .toast { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 100; background: rgba(16,16,16,0.95); border: 1px solid var(--border); border-radius: 12px; padding: 0.75rem 1.25rem; font-size: 0.82rem; color: var(--text); backdrop-filter: blur(16px); animation: fade-in-up 0.3s ease both; }
     .toast.error { border-color: rgba(239,68,68,0.3); color: var(--red); }
@@ -852,11 +853,13 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       const fullMedia = r.displayMediaFull ? '<span class="badge green">Oui</span>' : '<span style="color:var(--muted);font-size:0.78rem">Non</span>';
       let broadcastCell = '<span class="db-broadcast-none">—</span>';
       if (r.lastBroadcast) {
+        const bAt = r.lastBroadcast.at ? new Date(r.lastBroadcast.at) : null;
+        const bTime = bAt ? '<span class="db-broadcast-time">' + bAt.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' }) + ' ' + bAt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) + '</span>' : '';
         if (r.lastBroadcast.status === 'SUCCESS') {
-          broadcastCell = '<span class="db-broadcast-ok">✓ OK</span>';
+          broadcastCell = '<span class="db-broadcast-ok">✓ OK' + bTime + '</span>';
         } else if (r.lastBroadcast.status === 'FAILED') {
           const reason = r.lastBroadcast.errorReason ? ' · ' + esc(r.lastBroadcast.errorReason) : '';
-          broadcastCell = '<span class="db-broadcast-fail">✗ Échec' + reason + '</span>';
+          broadcastCell = '<span class="db-broadcast-fail">✗ Échec' + reason + bTime + '</span>';
         }
       }
       const connectedCell = r.connected

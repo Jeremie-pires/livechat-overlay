@@ -89,6 +89,82 @@ describe('GET /api/admin/db/guilds — auth guard', () => {
     expect(rows[0].connected).toBe(true);
     expect(rows[0].id).toBe('123456789012345678');
   });
+
+  it('returns lastBroadcast populated from the guild own latest BroadcastLog entry', async () => {
+    const guild = {
+      id: '123456789012345678',
+      channelId: 'ch1',
+      defaultMediaTime: null,
+      maxMediaTime: null,
+      displayMediaFull: false,
+    };
+    const broadcastLog = {
+      guildId: '123456789012345678',
+      status: 'SUCCESS',
+      errorReason: null,
+      createdAt: new Date('2026-07-14T10:00:00Z'),
+    };
+    // @ts-ignore
+    global.prisma.guild.findMany = vi.fn().mockResolvedValue([guild]);
+    // @ts-ignore
+    global.prisma.broadcastLog.findMany = vi.fn().mockResolvedValue([broadcastLog]);
+
+    const res = await app.inject({ method: 'GET', url: '/api/admin/db/guilds', headers: { cookie: AUTH_COOKIE } });
+    const rows = JSON.parse(res.body);
+    expect(rows[0].lastBroadcast).not.toBeNull();
+    expect(rows[0].lastBroadcast.status).toBe('SUCCESS');
+    expect(rows[0].lastBroadcast.at).toBeDefined();
+  });
+
+  it('returns lastBroadcast as null when no BroadcastLog entry exists for the guild', async () => {
+    const guild = {
+      id: '999888777666555444',
+      channelId: null,
+      defaultMediaTime: null,
+      maxMediaTime: null,
+      displayMediaFull: false,
+    };
+    // @ts-ignore
+    global.prisma.guild.findMany = vi.fn().mockResolvedValue([guild]);
+    // @ts-ignore
+    global.prisma.broadcastLog.findMany = vi.fn().mockResolvedValue([]);
+
+    const res = await app.inject({ method: 'GET', url: '/api/admin/db/guilds', headers: { cookie: AUTH_COOKIE } });
+    const rows = JSON.parse(res.body);
+    expect(rows[0].lastBroadcast).toBeNull();
+  });
+
+  it('returns the most recent BroadcastLog entry per guild when multiple exist', async () => {
+    const guild = {
+      id: '111222333444555666',
+      channelId: 'ch2',
+      defaultMediaTime: null,
+      maxMediaTime: null,
+      displayMediaFull: false,
+    };
+    const logs = [
+      {
+        guildId: '111222333444555666',
+        status: 'SUCCESS',
+        errorReason: null,
+        createdAt: new Date('2026-07-14T12:00:00Z'),
+      },
+      {
+        guildId: '111222333444555666',
+        status: 'FAILED',
+        errorReason: 'Missing Access',
+        createdAt: new Date('2026-07-13T10:00:00Z'),
+      },
+    ];
+    // @ts-ignore
+    global.prisma.guild.findMany = vi.fn().mockResolvedValue([guild]);
+    // @ts-ignore
+    global.prisma.broadcastLog.findMany = vi.fn().mockResolvedValue(logs);
+
+    const res = await app.inject({ method: 'GET', url: '/api/admin/db/guilds', headers: { cookie: AUTH_COOKIE } });
+    const rows = JSON.parse(res.body);
+    expect(rows[0].lastBroadcast.status).toBe('SUCCESS');
+  });
 });
 
 describe('DELETE /api/admin/db/guilds/:id — auth + validation', () => {
