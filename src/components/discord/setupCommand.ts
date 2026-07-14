@@ -21,15 +21,16 @@ export const setupCommand = () => ({
     ),
   bypassChannelCheck: true,
   handler: async (interaction: ChatInputCommandInteraction, discordClient: Client) => {
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
     const userId = interaction.user.id;
     const guildMember = await discordClient.guilds
       .fetch(interaction.guildId!)
       .then((guild) => guild.members.fetch(userId));
 
     if (!guildMember.permissions.has(PermissionFlagsBits.Administrator)) {
-      await interaction.reply({
+      await interaction.editReply({
         embeds: [new EmbedBuilder().setTitle(rosetty.t('notAllowed')!).setColor(0xe74c3c)],
-        flags: MessageFlags.Ephemeral,
       });
       return;
     }
@@ -42,14 +43,13 @@ export const setupCommand = () => ({
       update: { channelId: channel.id },
     });
 
-    await interaction.reply({
+    await interaction.editReply({
       embeds: [
         new EmbedBuilder()
           .setTitle(rosetty.t('success')!)
           .setDescription(rosetty.t('setupCommandAnswer', { channel: `<#${channel.id}>` })!)
           .setColor(0x2ecc71),
       ],
-      flags: MessageFlags.Ephemeral,
     });
   },
 });
