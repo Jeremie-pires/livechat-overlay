@@ -172,7 +172,6 @@ export const executeMessagesWorker = async (fastify: FastifyCustomInstance) => {
   return resolveMediaDurationMs(content.mediaDuration);
 };
 
-//INFO : Optimization - Can be executed into a dedicated worker ?
 export const loadMessagesWorker = async (fastify: FastifyCustomInstance) => {
   try {
     await executeMessagesWorker(fastify);

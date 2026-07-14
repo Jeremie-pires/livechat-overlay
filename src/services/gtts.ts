@@ -4,7 +4,7 @@ import { unlink } from 'fs/promises';
 import { createReadStream } from 'fs';
 import gTTS from 'gtts';
 
-export const promisedGtts = (voice, lang) =>
+export const promisedGtts = (voice: string, lang: string) =>
   new Promise<string>((resolve, reject) => {
     const gtts = new gTTS(voice, lang);
 
@@ -19,7 +19,7 @@ export const promisedGtts = (voice, lang) =>
     });
   });
 
-export const readGttsAsStream = (filePath) => {
+export const readGttsAsStream = (filePath: string) => {
   return createReadStream(filePath);
 };
 
