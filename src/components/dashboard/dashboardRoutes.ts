@@ -844,13 +844,14 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
     document.getElementById('db-guild-tbody').innerHTML = rows.map(r => {
       const isFailed = r.lastBroadcast && r.lastBroadcast.status === 'FAILED';
       const rowClass = isFailed ? 'row-failed' : '';
+      const safeId = esc(r.id);
       const av = r.icon
         ? '<img class="db-guild-avatar" src="' + esc(r.icon) + '" alt="">'
         : '<div class="db-guild-ph">' + esc((r.name || r.id).charAt(0).toUpperCase()) + '</div>';
       const nameCell = '<div class="db-guild-cell">' + av + '<span class="db-guild-name">' + esc(r.name || r.id) + '</span></div>';
-      const copyId = '<button class="db-copy-btn" onclick="copyText(\\'' + esc(r.id) + '\\', this)">' + esc(r.id) + '</button>';
+      const copyId = '<button class="db-copy-btn" data-copy="' + safeId + '">' + safeId + '</button>';
       const copyChannel = r.channelId
-        ? '<button class="db-copy-btn" onclick="copyText(\\'' + esc(r.channelId) + '\\', this)">' + esc(r.channelId) + '</button>'
+        ? '<button class="db-copy-btn" data-copy="' + esc(r.channelId) + '">' + esc(r.channelId) + '</button>'
         : '<span style="color:var(--muted)">—</span>';
       const times = (r.defaultMediaTime != null ? r.defaultMediaTime : '—') + 's / ' + (r.maxMediaTime != null ? r.maxMediaTime : '—') + 's';
       const fullMedia = r.displayMediaFull ? '<span class="badge green">Oui</span>' : '<span style="color:var(--muted);font-size:0.78rem">Non</span>';
@@ -868,8 +869,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       const connectedCell = r.connected
         ? '<span style="color:var(--green);font-size:0.78rem">✓</span>'
         : '<span class="disconnected-badge">Déconnecté</span>';
-      const safeId = esc(r.id);
-      const delBtn = '<button class="db-del-btn" onclick="deleteGuild(\\'' + safeId + '\\', this)">Supprimer</button>';
+      const delBtn = '<button class="db-del-btn" data-delete-guild="' + safeId + '">Supprimer</button>';
       return '<tr class="' + rowClass + '" id="db-row-' + safeId + '">'
         + '<td>' + nameCell + '</td>'
         + '<td>' + copyId + '</td>'
@@ -887,7 +887,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
     if (!confirm('Supprimer la configuration de la guilde ' + id + ' ?\\n\\nCette action est irréversible.')) return;
     btn.disabled = true;
     try {
-      const res = await fetch('/api/admin/db/guilds/' + encodeURIComponent(id), { method: 'DELETE' });
+      const res = await fetch('/api/admin/db/guilds/' + encodeURIComponent(id), { method: 'DELETE', headers: { 'X-CSRF-Token': _csrf } });
       if (res.status === 401) { window.top.location.href = '/dashboard'; return; }
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const row = document.getElementById('db-row-' + id);
@@ -924,6 +924,13 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
   document.getElementById('server-grid').addEventListener('click', function(e) {
     const card = e.target.closest('[data-guild-id]');
     if (card) openGuild(card.getAttribute('data-guild-id'));
+  });
+
+  document.getElementById('db-guild-tbody').addEventListener('click', async function(e) {
+    const delBtn = e.target.closest('[data-delete-guild]');
+    if (delBtn) { await deleteGuild(delBtn.getAttribute('data-delete-guild'), delBtn); return; }
+    const copyBtn = e.target.closest('.db-copy-btn[data-copy]');
+    if (copyBtn) copyText(copyBtn.getAttribute('data-copy'), copyBtn);
   });
 
   // Real-time presence updates via SSE
