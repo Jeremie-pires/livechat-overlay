@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const mockEnv = {
-  APP_ENV: 'production' as 'production' | 'staging',
+  APP_ENV: 'production' as 'production' | 'staging' | 'development',
   DATABASE_URL: 'file:./sqlite.db',
   DISCORD_CLIENT_ID: 'ABCDEF1234567890',
 };
@@ -63,5 +63,10 @@ describe('validateEnvCoherence', () => {
 
   it('accepts staging DB with absolute path containing "dev"', () => {
     expect(() => validateEnvCoherence('staging', '/var/lib/sqlite-dev-data.db', 'ABCDEF1234')).not.toThrow();
+  });
+
+  it('does not throw for development + any DB (no cross-contamination check)', () => {
+    expect(() => validateEnvCoherence('development', 'file:./sqlite.db', 'ABCDEF1234')).not.toThrow();
+    expect(() => validateEnvCoherence('development', 'file:./sqlite-dev.db', 'ABCDEF1234')).not.toThrow();
   });
 });

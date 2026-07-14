@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-type AppEnv = 'production' | 'staging';
+type AppEnv = 'production' | 'staging' | 'development';
 
 function checkCoherence(appEnv: AppEnv, dbUrl: string): 'ok' | 'prod-with-dev-db' | 'staging-without-dev-db' {
   if (appEnv === 'production' && dbUrl.includes('sqlite-dev')) return 'prod-with-dev-db';
@@ -31,5 +31,10 @@ describe('APP_ENV / DATABASE_URL coherence — edge cases (string heuristic)', (
 
   it('FRAGILE: staging + sqlite-review.db fails because no "dev"', () => {
     expect(checkCoherence('staging', 'file:./sqlite-review.db')).toBe('staging-without-dev-db');
+  });
+
+  it('PASS: development is always ok regardless of DB path', () => {
+    expect(checkCoherence('development', 'file:./sqlite.db')).toBe('ok');
+    expect(checkCoherence('development', 'file:./sqlite-dev.db')).toBe('ok');
   });
 });

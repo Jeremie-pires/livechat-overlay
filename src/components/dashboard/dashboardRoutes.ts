@@ -953,13 +953,14 @@ async function dashboardPlugin(fastify: FastifyCustomInstance) {
     `?client_id=${env.DISCORD_CLIENT_ID}` +
     `&redirect_uri=${encodeURIComponent(redirectUri)}` +
     `&response_type=code&scope=identify`;
+  const secureFlag = env.APP_ENV !== 'development' ? '; Secure' : '';
 
   fastify.get('/dashboard', async (req, reply) => {
     const token = getSessionToken(req.headers.cookie);
     if (!isValidSession(token)) {
       const state = randomBytes(16).toString('hex');
       const fullOauthUrl = `${oauthUrl}&state=${state}`;
-      reply.header('Set-Cookie', `oauth_state=${state}; HttpOnly; Secure; Path=/; SameSite=Lax; Max-Age=300`);
+      reply.header('Set-Cookie', `oauth_state=${state}; HttpOnly${secureFlag}; Path=/; SameSite=Lax; Max-Age=300`);
       const redirectPage = `<!DOCTYPE html><html><head><meta charset="UTF-8"><script>window.top.location.href=${JSON.stringify(fullOauthUrl)};</script></head><body></body></html>`;
       return reply.type('text/html').send(redirectPage);
     }
@@ -981,7 +982,7 @@ async function dashboardPlugin(fastify: FastifyCustomInstance) {
       .slice(1)
       .join('=')
       .trim();
-    reply.header('Set-Cookie', 'oauth_state=; HttpOnly; Secure; Path=/; SameSite=Lax; Max-Age=0');
+    reply.header('Set-Cookie', `oauth_state=; HttpOnly${secureFlag}; Path=/; SameSite=Lax; Max-Age=0`);
     if (!state || !oauthStateCookie || state !== oauthStateCookie) {
       logger.warn('[DASHBOARD] OAuth CSRF state mismatch — possible CSRF attack');
       return reply.status(403).send('Invalid state parameter');
@@ -1022,7 +1023,7 @@ async function dashboardPlugin(fastify: FastifyCustomInstance) {
     }
 
     const sessionToken = createSession();
-    reply.header('Set-Cookie', `session=${sessionToken}; HttpOnly; Secure; Path=/; SameSite=Lax; Max-Age=604800`);
+    reply.header('Set-Cookie', `session=${sessionToken}; HttpOnly${secureFlag}; Path=/; SameSite=Lax; Max-Age=604800`);
     return reply.redirect('/dashboard', 302);
   });
 
@@ -1100,7 +1101,7 @@ async function dashboardPlugin(fastify: FastifyCustomInstance) {
   fastify.get('/auth/logout', async (req, reply) => {
     const token = getSessionToken(req.headers.cookie);
     if (token) deleteSession(token);
-    reply.header('Set-Cookie', 'session=; HttpOnly; Secure; Path=/; SameSite=Lax; Max-Age=0');
+    reply.header('Set-Cookie', `session=; HttpOnly${secureFlag}; Path=/; SameSite=Lax; Max-Age=0`);
     return reply.redirect('/dashboard', 302);
   });
 }

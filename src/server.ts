@@ -31,6 +31,18 @@ export const runServer = async () => {
     }
   };
 
+  const corsAllowedHeaders = [
+    'Origin',
+    'X-Requested-With',
+    'Content-Type',
+    'Accept',
+    'Authorization',
+    'forest-context-url',
+    'Set-Cookie',
+    'set-cookie',
+    'Cookie',
+  ];
+
   const logLevel = env.LOG || 'info';
 
   const loggerOptions = isDeployedMode()
@@ -64,6 +76,7 @@ export const runServer = async () => {
     logger: loggerOptions,
     disableRequestLogging: true,
     genReqId: (req) => resolveCorrelationId(req.headers['x-request-id']),
+    trustProxy: true,
   });
 
   const logger = fastify.log;
@@ -97,17 +110,7 @@ export const runServer = async () => {
   try {
     await fastify.register(require('fastify-socket.io'), {
       cors: {
-        allowedHeaders: [
-          'Origin',
-          'X-Requested-With',
-          'Content-Type',
-          'Accept',
-          'Authorization',
-          'forest-context-url',
-          'Set-Cookie',
-          'set-cookie',
-          'Cookie',
-        ],
+        allowedHeaders: corsAllowedHeaders,
         origin: corsOrigin,
         credentials: true,
       },
@@ -124,17 +127,7 @@ export const runServer = async () => {
 
   await fastify.register(FastifyCORS, {
     methods: ['GET', 'PUT', 'DELETE', 'POST', 'OPTIONS', 'PATCH'],
-    allowedHeaders: [
-      'Origin',
-      'X-Requested-With',
-      'Content-Type',
-      'Accept',
-      'Authorization',
-      'forest-context-url',
-      'Set-Cookie',
-      'set-cookie',
-      'Cookie',
-    ],
+    allowedHeaders: corsAllowedHeaders,
     origin: corsOrigin,
     credentials: true,
   });
