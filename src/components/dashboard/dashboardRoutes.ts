@@ -1,4 +1,4 @@
-import { createHash } from 'crypto';
+import { createHash, randomBytes } from 'crypto';
 import fetch from 'node-fetch';
 import { createSession, deleteSession, getSessionToken, isValidSession } from '../../services/session';
 import { broadcastToAllGuilds } from '../../services/broadcast';
@@ -845,9 +845,9 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
         ? '<img class="db-guild-avatar" src="' + esc(r.icon) + '" alt="">'
         : '<div class="db-guild-ph">' + esc((r.name || r.id).charAt(0).toUpperCase()) + '</div>';
       const nameCell = '<div class="db-guild-cell">' + av + '<span class="db-guild-name">' + esc(r.name || r.id) + '</span></div>';
-      const copyId = '<button class="db-copy-btn" onclick="copyText(\'' + esc(r.id) + '\', this)">' + esc(r.id) + '</button>';
+      const copyId = '<button class="db-copy-btn" onclick="copyText(\\'' + esc(r.id) + '\\', this)">' + esc(r.id) + '</button>';
       const copyChannel = r.channelId
-        ? '<button class="db-copy-btn" onclick="copyText(\'' + esc(r.channelId) + '\', this)">' + esc(r.channelId) + '</button>'
+        ? '<button class="db-copy-btn" onclick="copyText(\\'' + esc(r.channelId) + '\\', this)">' + esc(r.channelId) + '</button>'
         : '<span style="color:var(--muted)">—</span>';
       const times = (r.defaultMediaTime != null ? r.defaultMediaTime : '—') + 's / ' + (r.maxMediaTime != null ? r.maxMediaTime : '—') + 's';
       const fullMedia = r.displayMediaFull ? '<span class="badge green">Oui</span>' : '<span style="color:var(--muted);font-size:0.78rem">Non</span>';
@@ -864,7 +864,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
         ? '<span style="color:var(--green);font-size:0.78rem">✓</span>'
         : '<span class="disconnected-badge">Déconnecté</span>';
       const safeId = esc(r.id);
-      const delBtn = '<button class="db-del-btn" onclick="deleteGuild(\'' + safeId + '\', this)">Supprimer</button>';
+      const delBtn = '<button class="db-del-btn" onclick="deleteGuild(\\'' + safeId + '\\', this)">Supprimer</button>';
       return '<tr class="' + rowClass + '" id="db-row-' + safeId + '">'
         + '<td>' + nameCell + '</td>'
         + '<td>' + copyId + '</td>'
@@ -955,7 +955,10 @@ async function dashboardPlugin(fastify: FastifyCustomInstance) {
   fastify.get('/dashboard', async (req, reply) => {
     const token = getSessionToken(req.headers.cookie);
     if (!isValidSession(token)) {
-      const redirectPage = `<!DOCTYPE html><html><head><meta charset="UTF-8"><script>window.top.location.href=${JSON.stringify(oauthUrl)};</script></head><body></body></html>`;
+      const state = randomBytes(16).toString('hex');
+      const fullOauthUrl = `${oauthUrl}&state=${state}`;
+      reply.header('Set-Cookie', `oauth_state=${state}; HttpOnly; Secure; Path=/; SameSite=Lax; Max-Age=300`);
+      const redirectPage = `<!DOCTYPE html><html><head><meta charset="UTF-8"><script>window.top.location.href=${JSON.stringify(fullOauthUrl)};</script></head><body></body></html>`;
       return reply.type('text/html').send(redirectPage);
     }
     return reply.type('text/html').send(DASHBOARD_HTML);
@@ -965,8 +968,22 @@ async function dashboardPlugin(fastify: FastifyCustomInstance) {
     if (!env.DISCORD_CLIENT_SECRET) {
       return reply.status(503).send('DISCORD_CLIENT_SECRET not configured');
     }
-    const { code } = req.query as { code?: string };
+    const { code, state } = req.query as { code?: string; state?: string };
     if (!code) return reply.status(400).send('Missing code');
+
+    const cookieHeader = req.headers.cookie;
+    const oauthStateCookie = cookieHeader
+      ?.split(';')
+      .find((c) => c.trim().startsWith('oauth_state='))
+      ?.split('=')
+      .slice(1)
+      .join('=')
+      .trim();
+    reply.header('Set-Cookie', 'oauth_state=; HttpOnly; Secure; Path=/; SameSite=Lax; Max-Age=0');
+    if (!state || !oauthStateCookie || state !== oauthStateCookie) {
+      logger.warn('[DASHBOARD] OAuth CSRF state mismatch — possible CSRF attack');
+      return reply.status(403).send('Invalid state parameter');
+    }
 
     const tokenRes = await fetch(`${DISCORD_API}/oauth2/token`, {
       method: 'POST',
