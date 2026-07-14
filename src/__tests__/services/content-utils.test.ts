@@ -42,12 +42,16 @@ function makeStreamBody(chunks: string[]): {
   };
 }
 
-function makeHtmlResponse(html: string) {
+function makeBodyResponse(body: ReturnType<typeof makeStreamBody>) {
   return {
     headers: { get: () => 'text/html' },
-    body: makeStreamBody([html]),
+    body,
     arrayBuffer: vi.fn().mockResolvedValue(new ArrayBuffer(0)),
   };
+}
+
+function makeHtmlResponse(html: string) {
+  return makeBodyResponse(makeStreamBody([html]));
 }
 
 beforeEach(() => {
@@ -250,11 +254,7 @@ describe('getContentInformationsFromUrl — streaming HTML OG extraction', () =>
     const ogHtml =
       '<meta property="og:video:url" content="https://media.tenor.com/abc.mp4"><meta property="og:video:type" content="video/mp4">';
     const body = makeStreamBody([ogHtml, 'SHOULD_NOT_READ_THIS_SECOND_CHUNK']);
-    vi.mocked(fetch).mockResolvedValueOnce({
-      headers: { get: () => 'text/html' },
-      body,
-      arrayBuffer: vi.fn().mockResolvedValue(new ArrayBuffer(0)),
-    } as never);
+    vi.mocked(fetch).mockResolvedValueOnce(makeBodyResponse(body) as never);
 
     const result = await getContentInformationsFromUrl(TENOR_PAGE_URL);
     expect(result.contentType).toBe('video/mp4');
@@ -264,11 +264,7 @@ describe('getContentInformationsFromUrl — streaming HTML OG extraction', () =>
   it('always calls destroy on the stream body after reading (cleanup)', async () => {
     const html = '<html><head><meta property="og:image" content="https://media.giphy.com/img.gif"></head></html>';
     const body = makeStreamBody([html]);
-    vi.mocked(fetch).mockResolvedValueOnce({
-      headers: { get: () => 'text/html' },
-      body,
-      arrayBuffer: vi.fn().mockResolvedValue(new ArrayBuffer(0)),
-    } as never);
+    vi.mocked(fetch).mockResolvedValueOnce(makeBodyResponse(body) as never);
 
     await getContentInformationsFromUrl('https://giphy.com/gifs/test');
     expect(body.destroy).toHaveBeenCalled();
@@ -279,11 +275,7 @@ describe('getContentInformationsFromUrl — streaming HTML OG extraction', () =>
     const bigChunk = 'x'.repeat(MAX_HTML_CHARS + 500);
     const body = makeStreamBody([bigChunk]);
     vi.mocked(fetch)
-      .mockResolvedValueOnce({
-        headers: { get: () => 'text/html' },
-        body,
-        arrayBuffer: vi.fn().mockResolvedValue(new ArrayBuffer(0)),
-      } as never)
+      .mockResolvedValueOnce(makeBodyResponse(body) as never)
       // Second call: content-type fallback fetch
       .mockResolvedValueOnce(makeResponse('image/gif') as never);
 
@@ -298,11 +290,7 @@ describe('getContentInformationsFromUrl — streaming HTML OG extraction', () =>
     const chunk1 = '<html><head>' + fullTag.slice(0, mid);
     const chunk2 = fullTag.slice(mid) + '</head></html>';
     const body = makeStreamBody([chunk1, chunk2]);
-    vi.mocked(fetch).mockResolvedValueOnce({
-      headers: { get: () => 'text/html' },
-      body,
-      arrayBuffer: vi.fn().mockResolvedValue(new ArrayBuffer(0)),
-    } as never);
+    vi.mocked(fetch).mockResolvedValueOnce(makeBodyResponse(body) as never);
 
     const result = await getContentInformationsFromUrl(TENOR_PAGE_URL);
     expect(result.resolvedUrl).toBe('https://media.tenor.com/split.mp4');
@@ -312,11 +300,7 @@ describe('getContentInformationsFromUrl — streaming HTML OG extraction', () =>
   it('provider HTML fetch is IP-pinned with Host header', async () => {
     const html =
       '<meta property="og:video:url" content="https://media.tenor.com/abc.mp4"><meta property="og:video:type" content="video/mp4">';
-    vi.mocked(fetch).mockResolvedValueOnce({
-      headers: { get: () => 'text/html' },
-      body: makeStreamBody([html]),
-      arrayBuffer: vi.fn().mockResolvedValue(new ArrayBuffer(0)),
-    } as never);
+    vi.mocked(fetch).mockResolvedValueOnce(makeBodyResponse(makeStreamBody([html])) as never);
 
     await getContentInformationsFromUrl(TENOR_PAGE_URL);
     // Provider HTML fetch should target the pinned IP, not tenor.com hostname
