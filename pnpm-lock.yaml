@@ -22,9 +22,6 @@ dependencies:
   '@prisma/client':
     specifier: ^5.10.2
     version: 5.10.2(prisma@5.10.2)
-  '@socket.io/postgres-emitter':
-    specifier: ^0.1.0
-    version: 0.1.0
   '@t3-oss/env-core':
     specifier: ^0.8.0
     version: 0.8.0(typescript@5.3.3)(zod@3.22.4)
@@ -848,11 +845,6 @@ packages:
     resolution: {integrity: sha512-cYQ9310grqxueWbl+WuIUIaiUaDcj7WOq5fVhEljNVgRfOUhY9fy2zTvfoqWsnebh8Sl70VScFbICvJnLKB0Og==}
     dev: true
 
-  /@msgpack/msgpack@2.8.0:
-    resolution: {integrity: sha512-h9u4u/jiIRKbq25PM+zymTyW6bhTzELvOoUd+AvYriWOAKpLGnIamaET3pnHYoI5iYphAHBI4ayx0MehR+VVPQ==}
-    engines: {node: '>= 10'}
-    dev: false
-
   /@napi-rs/wasm-runtime@1.1.6(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.1):
     resolution: {integrity: sha512-ZLv/JdUfkvOy9eCnnBaGfiO+XimbjebAeO+MRQqD/B+FR1tnRN0tpKSJHRbE8sFfS6aqsXZ67TQjfwfsxULVbg==}
     requiresBuild: true
@@ -1130,15 +1122,6 @@ packages:
 
   /@socket.io/component-emitter@3.1.0:
     resolution: {integrity: sha512-+9jVqKhRSpsc591z5vX+X5Yyw+he/HCB4iQ/RYxw35CEPaY1gnsNE43nf9n9AaYjAQrTiI/mOwKUKdUs9vf7Xg==}
-    dev: false
-
-  /@socket.io/postgres-emitter@0.1.0:
-    resolution: {integrity: sha512-14dPh2+mDRfIfZgTHi2BaxFpLRki1dBMwwPjtmJRlN+nIU4X5UyHGLHgsw2pevKt7hqc95q0DpL4dLQMxA1IwA==}
-    dependencies:
-      '@msgpack/msgpack': 2.8.0
-      debug: 4.3.4
-    transitivePeerDependencies:
-      - supports-color
     dev: false
 
   /@standard-schema/spec@1.1.0:
