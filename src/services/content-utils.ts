@@ -1,8 +1,9 @@
+import https from 'node:https';
 import fetch from 'node-fetch';
 import { getVideoDurationInSeconds } from 'get-video-duration';
 import { fileTypeFromBuffer } from 'file-type';
 import mime from 'mime-types';
-import { assertPublicHttpUrl } from './url-guard';
+import { assertPublicHttpUrl, type AssertedUrl } from './url-guard';
 
 const MAX_HTML_CHARS = 256 * 1024;
 const FETCH_TIMEOUT_MS = 5_000;
@@ -110,24 +111,98 @@ function parseOpenGraph(html: string): OpenGraphResult {
   return result;
 }
 
+// Builds a fetch URL pinned to the validated IP and corresponding init options.
+// Prevents DNS TOCTOU: the connection goes to the already-resolved IP while
+// the Host header carries the original hostname for virtual hosting / TLS SNI.
+function buildPinnedFetchArgs(
+  guard: AssertedUrl,
+  extraHeaders: Record<string, string>,
+  extraInit: Record<string, unknown>,
+): [string, Record<string, unknown>] {
+  const { url: originalUrl, ip, family } = guard;
+
+  const pinnedUrlObj = new URL(originalUrl.toString());
+  if (family === 6) {
+    pinnedUrlObj.host = originalUrl.port ? `[${ip}]:${originalUrl.port}` : `[${ip}]`;
+  } else {
+    pinnedUrlObj.host = originalUrl.port ? `${ip}:${originalUrl.port}` : ip;
+  }
+
+  // Strip brackets from IPv6 for SNI servername
+  const sniHostname =
+    originalUrl.hostname.startsWith('[') && originalUrl.hostname.endsWith(']')
+      ? originalUrl.hostname.slice(1, -1)
+      : originalUrl.hostname;
+
+  const agent = originalUrl.protocol === 'https:' ? new https.Agent({ servername: sniHostname }) : undefined;
+
+  const init: Record<string, unknown> = {
+    ...extraInit,
+    headers: {
+      ...extraHeaders,
+      Host: originalUrl.host,
+    },
+    ...(agent !== undefined ? { agent } : {}),
+  };
+
+  return [pinnedUrlObj.toString(), init];
+}
+
+// Reads the response body stream incrementally, stopping as soon as an OG
+// media tag is matched or MAX_HTML_CHARS bytes have been consumed.
+async function readHtmlStreamUntilOg(body: NodeJS.ReadableStream | null): Promise<string> {
+  if (!body) return '';
+  let accumulated = '';
+  try {
+    for await (const rawChunk of body as AsyncIterable<unknown>) {
+      const chunk = Buffer.isBuffer(rawChunk) ? rawChunk.toString('utf-8') : String(rawChunk);
+      accumulated += chunk;
+      if (accumulated.length >= MAX_HTML_CHARS) {
+        accumulated = accumulated.slice(0, MAX_HTML_CHARS);
+        break;
+      }
+      const og = parseOpenGraph(accumulated);
+      if (og.videoUrl !== undefined || og.imageUrl !== undefined) {
+        break;
+      }
+    }
+  } finally {
+    // Drop the underlying socket as soon as we are done reading
+    if (typeof (body as { destroy?: () => void }).destroy === 'function') {
+      (body as { destroy: () => void }).destroy();
+    } else if (typeof (body as { cancel?: () => void }).cancel === 'function') {
+      void (body as { cancel: () => void }).cancel();
+    }
+  }
+  return accumulated;
+}
+
 async function resolveProviderMediaUrl(url: string): Promise<{ url: string; contentType?: string } | null> {
   if (!isSupportedGifProvider(url)) return null;
+
+  let guard: AssertedUrl;
+  try {
+    guard = await assertPublicHttpUrl(url);
+  } catch (error) {
+    logger.debug({ err: error }, 'gif-provider: SSRF guard failed for provider URL');
+    return null;
+  }
+
+  const [pinnedUrl, pinnedInit] = buildPinnedFetchArgs(
+    guard,
+    { 'User-Agent': 'Mozilla/5.0 (compatible; LiveChatCCB/1.0)', Accept: 'text/html' },
+    { redirect: 'error' },
+  );
 
   let html: string;
   try {
     const response = await Promise.race([
-      fetch(url, {
-        redirect: 'error',
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (compatible; LiveChatCCB/1.0)',
-          Accept: 'text/html',
-        },
-      }),
+      fetch(pinnedUrl, pinnedInit as Parameters<typeof fetch>[1]),
       new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error('provider HTML fetch timeout')), FETCH_TIMEOUT_MS),
       ),
     ]);
-    html = (await response.text()).slice(0, MAX_HTML_CHARS);
+    html = await readHtmlStreamUntilOg(response.body as NodeJS.ReadableStream | null);
   } catch (error) {
     logger.debug({ err: error }, 'gif-provider: HTML fetch failed');
     return null;
@@ -156,7 +231,7 @@ async function resolveProviderMediaUrl(url: string): Promise<{ url: string; cont
 }
 
 export const getContentInformationsFromUrl = async (url: string) => {
-  await assertPublicHttpUrl(url);
+  const urlGuard = await assertPublicHttpUrl(url);
 
   const mediaIsShort = isYouTubeShortUrl(url);
 
@@ -186,13 +261,15 @@ export const getContentInformationsFromUrl = async (url: string) => {
 
   try {
     if (!contentType) {
-      const file = await fetch(effectiveUrl, { redirect: 'error' });
+      // Re-validate effectiveUrl to get a fresh IP for pinning (closes the TOCTOU window)
+      const effectiveGuard = effectiveUrl === url ? urlGuard : await assertPublicHttpUrl(effectiveUrl);
+      const [pinnedUrl, pinnedInit] = buildPinnedFetchArgs(effectiveGuard, {}, { redirect: 'error' });
+      const file = await fetch(pinnedUrl, pinnedInit as Parameters<typeof fetch>[1]);
 
       contentType = file.headers.get('Content-Type') ?? undefined;
 
       if (!contentType) {
         const res = await fileTypeFromBuffer(await file.arrayBuffer());
-
         if (res) {
           contentType = res.mime;
         }
