@@ -172,56 +172,27 @@ describe('DELETE /api/admin/db/guilds/:id — auth + validation', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
+    // @ts-ignore
+    global.prisma = { guild: mockPrismaGuild(), botEvent: { create: vi.fn() } };
     app = await buildApp();
   });
 
   it('returns 401 without session', async () => {
-    // @ts-ignore
-    global.prisma = { guild: mockPrismaGuild(), botEvent: { create: vi.fn() } };
     const res = await app.inject({ method: 'DELETE', url: '/api/admin/db/guilds/123456789012345678' });
     expect(res.statusCode).toBe(401);
   });
 
-  it('returns 400 for invalid snowflake format (letters)', async () => {
-    // @ts-ignore
-    global.prisma = { guild: mockPrismaGuild(), botEvent: { create: vi.fn() } };
-    const res = await app.inject({
-      method: 'DELETE',
-      url: '/api/admin/db/guilds/not-a-snowflake',
-      headers: { cookie: AUTH_COOKIE },
-    });
+  it.each([
+    ['/api/admin/db/guilds/not-a-snowflake', 'Invalid guild ID format'],
+    ['/api/admin/db/guilds/1234', null],
+    ['/api/admin/db/guilds/123456789012345678901', null],
+  ])('returns 400 for invalid snowflake %s', async (url, expectedError) => {
+    const res = await app.inject({ method: 'DELETE', url, headers: { cookie: AUTH_COOKIE } });
     expect(res.statusCode).toBe(400);
-    expect(JSON.parse(res.body).error).toBe('Invalid guild ID format');
-  });
-
-  it('returns 400 for snowflake too short (< 17 digits)', async () => {
-    // @ts-ignore
-    global.prisma = { guild: mockPrismaGuild(), botEvent: { create: vi.fn() } };
-    const res = await app.inject({
-      method: 'DELETE',
-      url: '/api/admin/db/guilds/1234',
-      headers: { cookie: AUTH_COOKIE },
-    });
-    expect(res.statusCode).toBe(400);
-  });
-
-  it('returns 400 for snowflake too long (> 20 digits)', async () => {
-    // @ts-ignore
-    global.prisma = { guild: mockPrismaGuild(), botEvent: { create: vi.fn() } };
-    const res = await app.inject({
-      method: 'DELETE',
-      url: '/api/admin/db/guilds/123456789012345678901',
-      headers: { cookie: AUTH_COOKIE },
-    });
-    expect(res.statusCode).toBe(400);
+    if (expectedError) expect(JSON.parse(res.body).error).toBe(expectedError);
   });
 
   it('returns 404 when guild not found in DB', async () => {
-    // @ts-ignore
-    global.prisma = {
-      guild: { findUnique: vi.fn().mockResolvedValue(null), delete: vi.fn() },
-      botEvent: { create: vi.fn() },
-    };
     const res = await app.inject({
       method: 'DELETE',
       url: '/api/admin/db/guilds/123456789012345678',
@@ -261,19 +232,17 @@ describe('GET /api/admin/db/broadcasts/latest', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
+    // @ts-ignore
+    global.prisma = { broadcastLog: mockPrismaBroadcastLog() };
     app = await buildApp();
   });
 
   it('returns 401 without session', async () => {
-    // @ts-ignore
-    global.prisma = { broadcastLog: mockPrismaBroadcastLog() };
     const res = await app.inject({ method: 'GET', url: '/api/admin/db/broadcasts/latest' });
     expect(res.statusCode).toBe(401);
   });
 
   it('returns empty summary when no broadcast runs exist', async () => {
-    // @ts-ignore
-    global.prisma = { broadcastLog: mockPrismaBroadcastLog() };
     const res = await app.inject({
       method: 'GET',
       url: '/api/admin/db/broadcasts/latest',

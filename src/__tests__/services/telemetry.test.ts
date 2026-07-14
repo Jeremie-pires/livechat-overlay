@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 vi.mock('../../services/content-utils', () => ({
   getContentInformationsFromUrl: vi.fn(),
@@ -19,22 +19,19 @@ const MOCK_CONTENT_INFO = {
 };
 
 describe('measureContentProcessing', () => {
-  it('returns an object with processingMs and contentInfo', async () => {
+  beforeEach(() => {
     vi.mocked(getContentInformationsFromUrl).mockResolvedValue(MOCK_CONTENT_INFO);
+  });
+
+  it('returns an object with processingMs and contentInfo', async () => {
     const result = await measureContentProcessing('https://example.com/video.mp4');
     expect(result).toHaveProperty('processingMs');
     expect(result).toHaveProperty('contentInfo');
   });
 
-  it('processingMs is >= 0', async () => {
-    vi.mocked(getContentInformationsFromUrl).mockResolvedValue(MOCK_CONTENT_INFO);
+  it('processingMs is a non-negative finite number', async () => {
     const result = await measureContentProcessing('https://example.com/video.mp4');
     expect(result.processingMs).toBeGreaterThanOrEqual(0);
-  });
-
-  it('processingMs is finite', async () => {
-    vi.mocked(getContentInformationsFromUrl).mockResolvedValue(MOCK_CONTENT_INFO);
-    const result = await measureContentProcessing('https://example.com/video.mp4');
     expect(Number.isFinite(result.processingMs)).toBe(true);
   });
 
@@ -56,7 +53,6 @@ describe('measureContentProcessing', () => {
       callCount++;
       return callCount === 1 ? 1000 : 1075;
     });
-    vi.mocked(getContentInformationsFromUrl).mockResolvedValue(MOCK_CONTENT_INFO);
     const result = await measureContentProcessing('https://example.com/test');
     expect(result.processingMs).toBe(75);
     dateSpy.mockRestore();
@@ -72,9 +68,8 @@ describe('measureContentProcessing', () => {
     let callCount = 0;
     const dateSpy = vi.spyOn(Date, 'now').mockImplementation(() => {
       callCount++;
-      return callCount === 1 ? 1000 : 999; // end < start
+      return callCount === 1 ? 1000 : 999;
     });
-    vi.mocked(getContentInformationsFromUrl).mockResolvedValue(MOCK_CONTENT_INFO);
     const result = await measureContentProcessing('https://example.com/test');
     expect(result.processingMs).toBe(0);
     dateSpy.mockRestore();

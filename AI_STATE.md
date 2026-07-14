@@ -16,7 +16,8 @@ Branch `feature/network-optimization` — 300 tests green, lint clean, SonarQube
 - `src/components/messages/talkCommand.ts` + `hidetalkCommand.ts`: null guard for missing audio attachment.
 - `src/components/messages/messagesWorker.ts`: `resolveMediaDurationMs` exported — `mediaDuration` clamped `[0, 3600]`, 5000 ms fallback. Called internally by `executeMessagesWorker`.
 - Tests (300 green): telemetry (6), url-guard return shape + edge cases (8), content-utils streaming/pin (5), worker duration clamp (COV-01, refactored with it.each), shared parseDuration (CQ-02/COV-03, refactored with it.each), url-guard empty-DNS (SEC-02 coverage).
-- SonarQube Quality Gate fixes: cognitive complexity reduced (assertPublicHttpUrl → extracted resolveAndValidateHostname helper); void operator removed in content-utils.ts; test duplication eliminated via it.each.
+- SonarQube Quality Gate fixes (round 1): cognitive complexity reduced; void operator removed; durationClamp + parseDuration tests refactored with it.each.
+- SonarQube Quality Gate fixes (round 2): url-guard isPrivateIp + reject suites collapsed to it.each; telemetry beforeEach eliminates repeated mock setup; adminDbRoutes DELETE beforeEach absorbs shared prisma setup + snowflakes collapsed to it.each; content-utils makeBodyResponse helper eliminates 5× inline stream response objects.
 
 ---
 
