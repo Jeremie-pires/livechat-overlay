@@ -177,7 +177,9 @@ async function readHtmlStreamUntilOg(body: NodeJS.ReadableStream | null): Promis
   return accumulated;
 }
 
-async function resolveProviderMediaUrl(url: string): Promise<{ url: string; contentType?: string } | null> {
+async function resolveProviderMediaUrl(
+  url: string,
+): Promise<{ url: string; contentType?: string; guard: AssertedUrl } | null> {
   if (!isSupportedGifProvider(url)) return null;
 
   let guard: AssertedUrl;
@@ -216,8 +218,9 @@ async function resolveProviderMediaUrl(url: string): Promise<{ url: string; cont
     return null;
   }
 
+  let ogGuard: AssertedUrl;
   try {
-    await assertPublicHttpUrl(rawUrl);
+    ogGuard = await assertPublicHttpUrl(rawUrl);
   } catch (error) {
     logger.debug({ err: error, rawUrl }, 'gif-provider: extracted URL failed SSRF guard');
     return null;
@@ -227,7 +230,7 @@ async function resolveProviderMediaUrl(url: string): Promise<{ url: string; cont
   const ext = getFileTypeWithRegex(rawUrl);
   const derivedContentType = ogContentType ?? (mime.lookup(ext) || undefined);
 
-  return { url: rawUrl, contentType: derivedContentType };
+  return { url: rawUrl, contentType: derivedContentType, guard: ogGuard };
 }
 
 export const getContentInformationsFromUrl = async (url: string) => {
@@ -261,8 +264,7 @@ export const getContentInformationsFromUrl = async (url: string) => {
 
   try {
     if (!contentType) {
-      // Re-validate effectiveUrl to get a fresh IP for pinning (closes the TOCTOU window)
-      const effectiveGuard = effectiveUrl === url ? urlGuard : await assertPublicHttpUrl(effectiveUrl);
+      const effectiveGuard = providerResult?.guard ?? urlGuard;
       const [pinnedUrl, pinnedInit] = buildPinnedFetchArgs(effectiveGuard, {}, { redirect: 'error' });
       const file = await fetch(pinnedUrl, pinnedInit as Parameters<typeof fetch>[1]);
 

@@ -1,9 +1,7 @@
 import { ChatInputCommandInteraction, EmbedBuilder, SlashCommandBuilder } from 'discord.js';
 import { QueueType } from '../../services/prisma/loadPrisma';
 import { measureContentProcessing, ContentInfo } from '../../services/telemetry';
-import { getDurationFromGuildId } from '../../services/utils';
-
-const MAX_DURATION_SECONDS = 3600;
+import { getDurationFromGuildId, parseDuration } from '../../services/utils';
 
 function isValidUrl(value: string): boolean {
   try {
@@ -76,24 +74,19 @@ export const sendCommand = () => ({
     let finalDuration: number | undefined = undefined;
 
     if (customDurationString) {
-      const trimmed = customDurationString.trim().toLowerCase();
-      if (trimmed === 'full') {
-        finalDuration = mediaDuration ? Math.ceil(mediaDuration) : 0;
-      } else {
-        const parsed = parseInt(trimmed, 10);
-        if (isNaN(parsed) || parsed < 1 || parsed > MAX_DURATION_SECONDS) {
-          await interaction.editReply({
-            embeds: [
-              new EmbedBuilder()
-                .setTitle(rosetty.t('error')!)
-                .setDescription(rosetty.t('invalidDuration')!)
-                .setColor(0xe74c3c),
-            ],
-          });
-          return;
-        }
-        finalDuration = parsed;
+      const durationResult = parseDuration(customDurationString.trim().toLowerCase(), mediaDuration);
+      if (durationResult === 'error') {
+        await interaction.editReply({
+          embeds: [
+            new EmbedBuilder()
+              .setTitle(rosetty.t('error')!)
+              .setDescription(rosetty.t('invalidDuration')!)
+              .setColor(0xe74c3c),
+          ],
+        });
+        return;
       }
+      finalDuration = durationResult;
     }
 
     let processingMs = 0;

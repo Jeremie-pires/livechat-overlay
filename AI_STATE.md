@@ -1,32 +1,21 @@
 # AI_STATE.md — LiveChat CCB
 
 ## Status
-Sprint `feature/network-optimization` — IN PROGRESS (all acceptance criteria met; 268 tests green, lint clean).
-
-Previous: `feature/crud-database-dashboard` — IN PROGRESS (awaiting REVIEWER GO).
-Previous: `hotfix/youtube-regression-1.2.7` — RELEASED as `1.2.8` (stable).
-Previous: `feature/security-remediation` — COMPLETE (REVIEWER GO ✅).
+Branch `feature/network-optimization` — 300 tests green, lint clean.
 
 ---
 
-## 1. Accomplished (all sprints)
+## 1. Accomplished (current sprint — network optimization + final reviewer cleanup)
 
-**Network optimization + security hardening — `feature/network-optimization`:**
-- **`src/services/url-guard.ts`** (UPDATED): `assertPublicHttpUrl` now returns `AssertedUrl { url: URL; ip: string; family: 4|6 }` — validated IP returned to caller, enabling TOCTOU-safe fetch pinning. Literal-IP path returns IP directly without DNS; hostname path returns first public resolved address.
-- **`src/services/content-utils.ts`** (UPDATED):
-  - `buildPinnedFetchArgs`: helper builds IP-pinned URL + `Host` header + `https.Agent` with SNI servername; used at all `fetch()` call sites.
-  - `readHtmlStreamUntilOg`: streams provider HTML body incrementally; breaks on first OG media match (early cancel via `destroy()`); enforces 256 KB ceiling; handles chunk-boundary-split tags.
-  - `resolveProviderMediaUrl`: now calls `assertPublicHttpUrl` for the provider URL itself; uses IP-pinned fetch for HTML; uses streaming via `readHtmlStreamUntilOg`.
-  - `getContentInformationsFromUrl`: uses `urlGuard` from initial `assertPublicHttpUrl`; content-type fetch pinned to validated IP (re-validates `effectiveUrl` when it differs from `url`).
-- **`src/components/messages/talkCommand.ts`** (UPDATED): null guard for missing audio attachment (early return + cleanup + localized error embed); `mediaDuration ?? 0` prevents `NaN` in DB write; removed unsafe `as string` cast.
-- **`src/components/messages/hidetalkCommand.ts`** (UPDATED): same null guard as `talkCommand`; ephemeral `editReply` path for error display.
-- **`src/components/messages/messagesWorker.ts`** (UPDATED): `MAX_MEDIA_DURATION_S = 3600` constant; `mediaDuration` narrowed to finite then clamped to `[0, 3600]`; falls back to 5000 ms for invalid/zero values.
-- **`src/services/i18n/en.ts` + `fr.ts`** (UPDATED): `talkNoAttachment` key added to both languages.
-- **`src/__tests__/services/telemetry.test.ts`** (NEW): 6 tests — return shape, `processingMs ≥ 0`, finite check, passthrough of `contentInfo`, `Date.now` spy for elapsed time, negative-clock clamp to 0, rejection propagation.
-- **`src/__tests__/services/url-guard.test.ts`** (UPDATED): new `assertPublicHttpUrl — return shape` describe block (5 tests) asserting `{ url, ip, family }` for hostname/IPv4/IPv6 literal inputs; scheme/loopback/DNS suites updated to use `.url` property.
-- **`src/__tests__/services/content-utils.test.ts`** (UPDATED): `makeHtmlResponse` now provides async-iterable `.body`; redirect policy test asserts IP-pinned URL + `Host` header; new streaming suite (5 tests): early cancel on OG hit, always-destroy cleanup, 256 KB ceiling, chunk-boundary split, provider fetch is IP-pinned.
-
-**Prior sprints:** DB Viewer + Broadcast Logging, YouTube hotfix (1.2.8), GIF/Tenor/Giphy OG extraction, telemetry service, SSRF url-guard, presence delta model — all complete.
+**Network optimization — `feature/network-optimization`:**
+- `src/services/url-guard.ts`: `assertPublicHttpUrl` returns `AssertedUrl { url, ip, family }` — TOCTOU-safe fetch pinning. Added empty-DNS-array guard (SEC-02): `if (addresses.length === 0) throw new SsrfBlockedError(...)`.
+- `src/services/content-utils.ts`: `resolveProviderMediaUrl` now returns `{ url, contentType, guard: AssertedUrl }` — guard is threaded through instead of discarded. `getContentInformationsFromUrl` uses `providerResult?.guard ?? urlGuard` directly, eliminating the second DNS lookup (SEC-01/CQ-03 closed). Streaming `readHtmlStreamUntilOg` (256 KB ceiling, early cancel), IP-pinned fetch at all sites.
+- `src/services/utils.ts`: Shared `parseDuration(trimmed, mediaDuration)` helper exported here — replaces duplicated inline logic in both send commands (CQ-02).
+- `src/components/messages/sendCommand.ts`: Imports `parseDuration` from utils, removes inline duration logic and `MAX_DURATION_SECONDS`. Uses `Number.isNaN` via shared helper (CQ-01).
+- `src/components/messages/hidesendCommand.ts`: Imports `parseDuration` from utils, local copy removed.
+- `src/components/messages/talkCommand.ts` + `hidetalkCommand.ts`: null guard for missing audio attachment.
+- `src/components/messages/messagesWorker.ts`: `resolveMediaDurationMs` exported — `mediaDuration` clamped `[0, 3600]`, 5000 ms fallback. Called internally by `executeMessagesWorker`.
+- Tests (300 green): telemetry (6), url-guard return shape + edge cases (8), content-utils streaming/pin (5), worker duration clamp (14, COV-01), shared parseDuration (12, CQ-02/COV-03), url-guard empty-DNS (SEC-02 coverage).
 
 ---
 
@@ -34,26 +23,24 @@ Previous: `feature/security-remediation` — COMPLETE (REVIEWER GO ✅).
 
 | File | Role |
 |---|---|
-| `src/services/url-guard.ts` | SSRF guard → `AssertedUrl { url, ip, family }`; scheme + IP blocklist + DNS check |
-| `src/services/content-utils.ts` | Streaming OG parse; IP-pinned fetch at all sites; YouTube early-return; ReDoS-safe regex |
-| `src/services/telemetry.ts` | `measureContentProcessing(url)` + `ContentInfo`; used by all 4 message commands |
-| `src/components/messages/talkCommand.ts` | Null-attachment guard; `mediaDuration ?? 0`; no unsafe cast |
-| `src/components/messages/hidetalkCommand.ts` | Same null guard; ephemeral editReply error path |
-| `src/components/messages/messagesWorker.ts` | `mediaDuration` clamped `[0, 3600]`; 5 s fallback for invalid |
-| `src/services/broadcastClassifier.ts` | Pure: `classifyDiscordError`, `persistBroadcastRun` (fail-safe), `mintRunId` |
-| `src/services/broadcast.ts` | `broadcastToAllGuilds()` → `BroadcastResult[]`; no swallowed errors |
-| `src/components/api/adminDbRoutes.ts` | Owner-only DB admin endpoints |
-| `src/components/dashboard/dashboardRoutes.ts` | Dashboard + SSE; latency breakdown; DB page |
-| `desktop-client/src/main.ts` | Electron main; `assertHttpUrl` used at every fetch-URL construction site |
+| `src/services/url-guard.ts` | SSRF guard → `AssertedUrl { url, ip, family }`; empty-DNS guard |
+| `src/services/content-utils.ts` | Streaming OG parse; IP-pinned fetch; guard threaded from resolveProviderMediaUrl |
+| `src/services/utils.ts` | `parseDuration` (shared), `getDurationFromGuildId` |
+| `src/services/telemetry.ts` | `measureContentProcessing(url)` + `ContentInfo` |
+| `src/services/broadcastClassifier.ts` | `classifyDiscordError`, `persistBroadcastRun` (fail-safe), `mintRunId` |
+| `src/services/broadcast.ts` | `broadcastToAllGuilds()` → `BroadcastResult[]` |
+| `src/components/messages/messagesWorker.ts` | `resolveMediaDurationMs` (exported); `executeMessagesWorker` |
+| `src/components/messages/sendCommand.ts` | Uses shared `parseDuration` from utils |
+| `src/components/messages/hidesendCommand.ts` | Uses shared `parseDuration` from utils |
+| `src/components/api/adminDbRoutes.ts` | Owner-only DB admin; per-guild latest broadcast |
+| `src/components/dashboard/dashboardRoutes.ts` | Dashboard + CSRF OAuth + DB page with timestamps |
+| `desktop-client/src/main.ts` | Electron main; `assertHttpUrl` at all fetch sites |
 
 ---
 
 ## 3. Next steps
 
-1. **REVIEWER** `feature/network-optimization` → SonarQube gate + 268 tests green; submit for GO.
-2. **PR** `feature/network-optimization` → `develop` (squash merge after GO).
-3. **REVIEWER** `feature/crud-database-dashboard` → re-submit for final GO.
-4. **PR** `feature/crud-database-dashboard` → `develop`.
-5. **PR** `feature/gif-link-support` → `develop`.
-6. **PR** `feature/security-remediation` → `develop`.
-7. **Observability phase 2** — external log shipping (Loki/ELK).
+1. **PR** `feature/network-optimization` → `develop` (reviewer gave GO after §5 housekeeping — now cleared).
+2. **`displayMediaFull` full implementation** (deferred): worker reads Guild row at dispatch, injects flag into Socket.IO payload, client applies CSS.
+3. **Dashboard hardening ticket** (post-merge): CSP/HSTS headers, `data-*` onclick pattern, admin-DB 401 tests (SEC-03…06).
+4. **Observability phase 2** — external log shipping (Loki/ELK).

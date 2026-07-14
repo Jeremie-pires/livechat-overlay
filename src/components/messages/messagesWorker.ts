@@ -6,6 +6,13 @@ const MESSAGE_SYNC_LEAD_TIME_MS = 1200;
 const REQUEUE_INTERVAL_MS = 250;
 const MAX_MEDIA_DURATION_S = 3600;
 
+export function resolveMediaDurationMs(mediaDuration: unknown): number {
+  const rawDuration = Number(mediaDuration);
+  const finiteDuration = Number.isFinite(rawDuration) ? rawDuration : 0;
+  const seconds = Math.min(Math.max(finiteDuration, 0), MAX_MEDIA_DURATION_S);
+  return seconds * 1000 || 5000;
+}
+
 type MediaType = 'image' | 'video' | 'audio' | 'link' | 'text';
 
 const getMediaType = (type: string, content: { url?: string; mediaContentType?: string }): MediaType => {
@@ -153,10 +160,7 @@ export const executeMessagesWorker = async (fastify: FastifyCustomInstance) => {
     }),
   ]);
 
-  const rawDuration = Number(content.mediaDuration);
-  const finiteDuration = Number.isFinite(rawDuration) ? rawDuration : 0;
-  const seconds = Math.min(Math.max(finiteDuration, 0), MAX_MEDIA_DURATION_S);
-  return seconds * 1000 || 5000;
+  return resolveMediaDurationMs(content.mediaDuration);
 };
 
 //INFO : Optimization - Can be executed into a dedicated worker ?
