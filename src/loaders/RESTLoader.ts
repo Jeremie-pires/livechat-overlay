@@ -1,11 +1,17 @@
 import { startCase } from 'lodash';
 import { ClientRoutes } from '../components/client/clientRoutes';
 import { StatsRoutes } from '../components/api/statsRoutes';
+import { AdminDbRoutes } from '../components/api/adminDbRoutes';
 import { HealthRoutes } from '../components/api/healthRoutes';
 import { DashboardRoutes } from '../components/dashboard/dashboardRoutes';
 
 export const loadRoutes = (fastify: FastifyCustomInstance) => {
-  const routes = [{ '/client': ClientRoutes }, { '/api': StatsRoutes }, { '/': DashboardRoutes }];
+  const routes = [
+    { '/client': ClientRoutes },
+    { '/api': StatsRoutes },
+    { '/api/admin': AdminDbRoutes },
+    { '/': DashboardRoutes },
+  ];
 
   const healthPlugin = HealthRoutes();
   fastify.register(healthPlugin, { prefix: '/' });

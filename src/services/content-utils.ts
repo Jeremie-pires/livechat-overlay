@@ -78,7 +78,7 @@ function isSupportedGifProvider(url: string): boolean {
 
 function parseOpenGraph(html: string): OpenGraphResult {
   const result: OpenGraphResult = {};
-  const tagRe = /<meta\b([^>]+)(?:\s*\/)?>/gi;
+  const tagRe = /<meta\b([^>]*)>/gi;
   const attrRe = /\b(property|content)\s*=\s*(?:"([^"]*)"|'([^']*)')/gi;
 
   let tagMatch: RegExpExecArray | null;
