@@ -42,57 +42,58 @@ export const talkCommand = () => ({
     }
 
     const filePath = await promisedGtts(voice, rosetty.getCurrentLang());
-    const fileStream = readGttsAsStream(filePath);
+    try {
+      const fileStream = readGttsAsStream(filePath);
 
-    const interactionReply = await interaction.editReply({
-      embeds: [
-        new EmbedBuilder()
-          .setTitle(rosetty.t('success')!)
-          .setDescription(rosetty.t('talkCommandAnswer')!)
-          .setColor(0x2ecc71),
-      ],
-      files: [fileStream],
-    });
-
-    const message = await interactionReply.fetch();
-    const media = message.attachments.first()?.proxyURL;
-
-    if (!media) {
-      await deleteGtts(filePath);
-      await interaction.editReply({
+      const interactionReply = await interaction.editReply({
         embeds: [
           new EmbedBuilder()
-            .setTitle(rosetty.t('error')!)
-            .setDescription(rosetty.t('talkNoAttachment')!)
-            .setColor(0xe74c3c),
+            .setTitle(rosetty.t('success')!)
+            .setDescription(rosetty.t('talkCommandAnswer')!)
+            .setColor(0x2ecc71),
         ],
+        files: [fileStream],
       });
-      return;
+
+      const message = await interactionReply.fetch();
+      const media = message.attachments.first()?.proxyURL;
+
+      if (!media) {
+        await interaction.editReply({
+          embeds: [
+            new EmbedBuilder()
+              .setTitle(rosetty.t('error')!)
+              .setDescription(rosetty.t('talkNoAttachment')!)
+              .setColor(0xe74c3c),
+          ],
+        });
+        return;
+      }
+
+      const { processingMs, contentInfo: additionalContent } = await measureContentProcessing(media);
+
+      await prisma.queue.create({
+        data: {
+          content: JSON.stringify({
+            text,
+            media,
+            mediaContentType: 'audio/mpeg',
+            mediaDuration: Math.ceil(additionalContent.mediaDuration ?? 0),
+          }),
+          type: QueueType.VOCAL,
+          discordGuildId: interaction.guildId!,
+          duration: await getDurationFromGuildId(
+            additionalContent.mediaDuration ? Math.ceil(additionalContent.mediaDuration) : undefined,
+            interaction.guildId!,
+          ),
+          author: interaction.user.username,
+          authorImage: interaction.user.avatarURL(),
+          discordReceivedAt: new Date(discordReceivedAt),
+          processingMs,
+        },
+      });
+    } finally {
+      await deleteGtts(filePath).catch((err) => logger.warn(err, '[TTS] Failed to delete temp file'));
     }
-
-    const { processingMs, contentInfo: additionalContent } = await measureContentProcessing(media);
-
-    await deleteGtts(filePath);
-
-    await prisma.queue.create({
-      data: {
-        content: JSON.stringify({
-          text,
-          media,
-          mediaContentType: 'audio/mpeg',
-          mediaDuration: Math.ceil(additionalContent.mediaDuration ?? 0),
-        }),
-        type: QueueType.VOCAL,
-        discordGuildId: interaction.guildId!,
-        duration: await getDurationFromGuildId(
-          additionalContent.mediaDuration ? Math.ceil(additionalContent.mediaDuration) : undefined,
-          interaction.guildId!,
-        ),
-        author: interaction.user.username,
-        authorImage: interaction.user.avatarURL(),
-        discordReceivedAt: new Date(discordReceivedAt),
-        processingMs,
-      },
-    });
   },
 });

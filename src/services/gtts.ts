@@ -23,6 +23,10 @@ export const readGttsAsStream = (filePath) => {
   return createReadStream(filePath);
 };
 
-export const deleteGtts = async (filePath) => {
-  await unlink(filePath);
+export const deleteGtts = async (filePath: string): Promise<void> => {
+  try {
+    await unlink(filePath);
+  } catch (err: unknown) {
+    if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
+  }
 };
