@@ -129,23 +129,31 @@ export const hideSendCommand = () => ({
       interaction.guildId!,
     );
 
-    await prisma.queue.create({
-      data: {
-        content: JSON.stringify({
-          url: additionalContent?.resolvedUrl ?? url,
-          text,
-          media,
-          mediaContentType,
-          mediaDuration: resolvedDuration,
-          mediaIsShort,
-        }),
-        type: QueueType.MESSAGE,
-        discordGuildId: interaction.guildId!,
-        duration: resolvedDuration,
-        discordReceivedAt: new Date(discordReceivedAt),
-        processingMs,
-      },
-    });
+    try {
+      await prisma.queue.create({
+        data: {
+          content: JSON.stringify({
+            url: additionalContent?.resolvedUrl ?? url,
+            text,
+            media,
+            mediaContentType,
+            mediaDuration: resolvedDuration,
+            mediaIsShort,
+          }),
+          type: QueueType.MESSAGE,
+          discordGuildId: interaction.guildId!,
+          duration: resolvedDuration,
+          discordReceivedAt: new Date(discordReceivedAt),
+          processingMs,
+        },
+      });
+    } catch (err) {
+      logger.error(err, '[HIDESEND] prisma.queue.create failed');
+      await interaction.editReply({
+        embeds: [new EmbedBuilder().setTitle(rosetty.t('error')!).setColor(0xe74c3c)],
+      });
+      return;
+    }
 
     await interaction.editReply({
       embeds: [
