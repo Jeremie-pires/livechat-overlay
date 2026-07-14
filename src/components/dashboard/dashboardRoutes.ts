@@ -879,7 +879,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
   }
 
   async function deleteGuild(id, btn) {
-    if (!confirm('Supprimer la configuration de la guilde ' + id + ' ?\n\nCette action est irréversible.')) return;
+    if (!confirm('Supprimer la configuration de la guilde ' + id + ' ?\\n\\nCette action est irréversible.')) return;
     btn.disabled = true;
     try {
       const res = await fetch('/api/admin/db/guilds/' + encodeURIComponent(id), { method: 'DELETE' });
