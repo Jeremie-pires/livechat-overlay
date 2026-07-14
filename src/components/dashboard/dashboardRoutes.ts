@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from 'crypto';
 import fetch from 'node-fetch';
-import { createSession, deleteSession, getSessionToken, isValidSession } from '../../services/session';
+import { createCsrfToken, createSession, deleteSession, getSessionToken, isValidSession, validateCsrfToken } from '../../services/session';
 import { broadcastToAllGuilds } from '../../services/broadcast';
 import { presenceStore } from '../../services/presenceStore';
 import { presenceSse } from '../../services/presenceSse';
@@ -14,6 +14,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="csrf-token" content="{{CSRF_TOKEN}}">
   <title>LiveChat CCB — Dashboard</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -560,6 +561,8 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
   </main>
 </div>
 <script>
+  const _csrf = document.querySelector('meta[name="csrf-token"]').content;
+
   function updateMaintenanceUI(silentMode) {
     const badge = document.getElementById('status-badge');
     const btn = document.getElementById('maint-btn');
@@ -576,7 +579,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
     const btn = document.getElementById('maint-btn');
     btn.disabled = true;
     try {
-      const res = await fetch('/api/maintenance/toggle', { method: 'POST' });
+      const res = await fetch('/api/maintenance/toggle', { method: 'POST', headers: { 'X-CSRF-Token': _csrf } });
       if (res.ok) { const d = await res.json(); updateMaintenanceUI(d.silentMode); }
     } catch(e) { console.error(e); }
     finally { btn.disabled = false; }
@@ -964,7 +967,8 @@ async function dashboardPlugin(fastify: FastifyCustomInstance) {
       const redirectPage = `<!DOCTYPE html><html><head><meta charset="UTF-8"><script>window.top.location.href=${JSON.stringify(fullOauthUrl)};</script></head><body></body></html>`;
       return reply.type('text/html').send(redirectPage);
     }
-    return reply.type('text/html').send(DASHBOARD_HTML);
+    const csrfToken = createCsrfToken(token!);
+    return reply.type('text/html').send(DASHBOARD_HTML.replace('{{CSRF_TOKEN}}', csrfToken));
   });
 
   fastify.get('/auth/callback', async (req, reply) => {
@@ -1030,6 +1034,8 @@ async function dashboardPlugin(fastify: FastifyCustomInstance) {
   fastify.post('/api/maintenance/toggle', async (req, reply) => {
     const token = getSessionToken(req.headers.cookie);
     if (!isValidSession(token)) return reply.status(401).send({ error: 'Unauthorized' });
+    const csrfToken = req.headers['x-csrf-token'] as string | undefined;
+    if (!validateCsrfToken(token, csrfToken)) return reply.status(403).send({ error: 'Invalid CSRF token' });
 
     const stats = await prisma.stats.findUnique({ where: { id: 'singleton' } });
     const silentMode = !(stats?.silentMode ?? false);
