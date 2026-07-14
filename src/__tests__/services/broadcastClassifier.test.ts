@@ -111,54 +111,58 @@ describe('mintRunId', () => {
 });
 
 describe('persistBroadcastRun', () => {
-  const mockCreateMany = vi.fn().mockResolvedValue({ count: 2 });
+  const mockCreate = vi.fn().mockResolvedValue({});
+  const mockTransaction = vi.fn().mockResolvedValue([]);
 
   beforeEach(() => {
     vi.clearAllMocks();
     // @ts-ignore
-    global.prisma = { broadcastLog: { createMany: mockCreateMany } };
+    global.prisma = { broadcastLog: { create: mockCreate }, $transaction: mockTransaction };
     // @ts-ignore
     global.logger = { error: vi.fn() };
   });
 
-  it('calls createMany with correctly shaped data', async () => {
+  it('calls $transaction with correctly shaped create calls', async () => {
     const results: BroadcastResult[] = [
       { guildId: '111', channelId: 'c1', status: 'SUCCESS' },
       { guildId: '222', channelId: null, status: 'FAILED', errorCode: '50001', errorReason: 'Missing Access' },
     ];
     await persistBroadcastRun('run-1', results);
-    expect(mockCreateMany).toHaveBeenCalledOnce();
-    expect(mockCreateMany).toHaveBeenCalledWith({
-      data: [
-        { runId: 'run-1', guildId: '111', channelId: 'c1', status: 'SUCCESS', errorCode: null, errorReason: null },
-        {
-          runId: 'run-1',
-          guildId: '222',
-          channelId: null,
-          status: 'FAILED',
-          errorCode: '50001',
-          errorReason: 'Missing Access',
-        },
-      ],
+    expect(mockTransaction).toHaveBeenCalledOnce();
+    expect(mockCreate).toHaveBeenCalledTimes(2);
+    expect(mockCreate).toHaveBeenNthCalledWith(1, {
+      data: { runId: 'run-1', guildId: '111', channelId: 'c1', status: 'SUCCESS', errorCode: null, errorReason: null },
+    });
+    expect(mockCreate).toHaveBeenNthCalledWith(2, {
+      data: {
+        runId: 'run-1',
+        guildId: '222',
+        channelId: null,
+        status: 'FAILED',
+        errorCode: '50001',
+        errorReason: 'Missing Access',
+      },
     });
   });
 
-  it('short-circuits and does not call createMany when results is empty', async () => {
+  it('short-circuits and does not call $transaction when results is empty', async () => {
     await persistBroadcastRun('run-2', []);
-    expect(mockCreateMany).not.toHaveBeenCalled();
+    expect(mockTransaction).not.toHaveBeenCalled();
+    expect(mockCreate).not.toHaveBeenCalled();
   });
 
   it('sets errorCode and errorReason to null when undefined', async () => {
     const results: BroadcastResult[] = [{ guildId: '333', channelId: 'c3', status: 'SUCCESS' }];
     await persistBroadcastRun('run-3', results);
-    const [call] = mockCreateMany.mock.calls;
-    expect(call[0].data[0].errorCode).toBeNull();
-    expect(call[0].data[0].errorReason).toBeNull();
+    expect(mockCreate).toHaveBeenCalledOnce();
+    expect(mockCreate).toHaveBeenCalledWith({
+      data: { runId: 'run-3', guildId: '333', channelId: 'c3', status: 'SUCCESS', errorCode: null, errorReason: null },
+    });
   });
 
-  it('resolves without throwing when createMany rejects (fail-safe)', async () => {
+  it('resolves without throwing when $transaction rejects (fail-safe)', async () => {
     const dbError = new Error('DB locked');
-    mockCreateMany.mockRejectedValueOnce(dbError);
+    mockTransaction.mockRejectedValueOnce(dbError);
     const mockLoggerError = vi.fn();
     // @ts-ignore
     global.logger = { error: mockLoggerError };
