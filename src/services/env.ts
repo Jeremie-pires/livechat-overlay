@@ -7,7 +7,7 @@ import { z } from 'zod';
 export const env = createEnv({
   server: {
     NODE_ENV: z.string().default('development'),
-    APP_ENV: z.enum(['production', 'staging']),
+    APP_ENV: z.enum(['production', 'staging', 'development']).default('development'),
     LOG: z.enum(['info', 'debug', 'error', 'silent', 'warning']).default('info'),
     PORT: z
       .string()
