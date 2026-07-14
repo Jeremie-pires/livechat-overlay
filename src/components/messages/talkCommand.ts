@@ -57,7 +57,20 @@ export const talkCommand = () => ({
     const message = await interactionReply.fetch();
     const media = message.attachments.first()?.proxyURL;
 
-    const { processingMs, contentInfo: additionalContent } = await measureContentProcessing(media as string);
+    if (!media) {
+      await deleteGtts(filePath);
+      await interaction.editReply({
+        embeds: [
+          new EmbedBuilder()
+            .setTitle(rosetty.t('error')!)
+            .setDescription(rosetty.t('talkNoAttachment')!)
+            .setColor(0xe74c3c),
+        ],
+      });
+      return;
+    }
+
+    const { processingMs, contentInfo: additionalContent } = await measureContentProcessing(media);
 
     await deleteGtts(filePath);
 
@@ -67,7 +80,7 @@ export const talkCommand = () => ({
           text,
           media,
           mediaContentType: 'audio/mpeg',
-          mediaDuration: Math.ceil(additionalContent.mediaDuration),
+          mediaDuration: Math.ceil(additionalContent.mediaDuration ?? 0),
         }),
         type: QueueType.VOCAL,
         discordGuildId: interaction.guildId!,
