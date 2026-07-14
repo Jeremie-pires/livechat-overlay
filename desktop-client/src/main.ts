@@ -358,13 +358,14 @@ function registerIpc() {
   });
 
   ipcMain.handle('app:test-connection', async (_event, { backendUrl, guildId }) => {
+    let validatedBase: string;
     try {
-      assertHttpUrl(backendUrl as string);
+      validatedBase = assertHttpUrl(backendUrl as string).href.replace(/\/$/, '');
     } catch {
       return false;
     }
     try {
-      const url = `${(backendUrl as string).replace(/\/$/, '')}/client?guildId=${encodeURIComponent(guildId as string)}`;
+      const url = `${validatedBase}/client?guildId=${encodeURIComponent(guildId as string)}`;
       const controller = new AbortController();
       const id = setTimeout(() => controller.abort(), 4000);
       const response = await fetch(url, { signal: controller.signal });
@@ -412,7 +413,7 @@ function registerIpc() {
   ipcMain.handle('app:get-presence', async (): Promise<PresenceEntry[]> => {
     if (!settings.clientToken || !settings.guildId) return [];
     try {
-      const base = settings.backendUrl.replace(/\/$/, '');
+      const base = assertHttpUrl(settings.backendUrl).href.replace(/\/$/, '');
       const url = `${base}/api/presence/${encodeURIComponent(settings.guildId)}?token=${encodeURIComponent(settings.clientToken)}`;
       const controller = new AbortController();
       const id = setTimeout(() => controller.abort(), 3000);

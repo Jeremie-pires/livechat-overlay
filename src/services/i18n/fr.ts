@@ -103,6 +103,7 @@ export const frLang: typeof enLang = {
   announceCommandOptionDescription: 'Message à diffuser',
   announceCommandTitle: '📢 Annonce',
   announceCommandAnswer: 'Message envoyé à {{count}} serveur(s).',
+  announceCommandFailures: '⚠️ {{count}} échec(s) enregistré(s).',
   announceGuildCommandDescription: 'Envoyer une annonce à un serveur précis (propriétaire du bot uniquement)',
   announceGuildCommandOptionGuildId: 'ID du serveur cible',
 
