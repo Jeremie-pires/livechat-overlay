@@ -25,6 +25,7 @@ export const env = createEnv({
 
     DATABASE_URL: z.string().url(),
 
+    TZ: z.string().optional(),
     HIDE_COMMANDS_DISABLED: z.string().default('false'),
     DEFAULT_DURATION: z
       .string()
