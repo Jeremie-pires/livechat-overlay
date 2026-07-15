@@ -195,6 +195,10 @@ describe('setMaxTimeCommand handler', () => {
 describe('sendCommand — I-04 prisma.queue.create error boundary', () => {
   it('editReply with error embed when prisma.queue.create throws', async () => {
     vi.resetModules();
+    vi.doMock('../../../services/prisma/loadPrisma', () => ({
+      QueueType: { MESSAGE: 'message', VOCAL: 'vocal' },
+      loadPrismaClient: vi.fn(),
+    }));
     vi.doMock('../../../services/telemetry', () => ({
       measureContentProcessing: vi.fn().mockResolvedValue({ processingMs: 0, contentInfo: {} }),
     }));
@@ -240,6 +244,7 @@ describe('sendCommand — I-04 prisma.queue.create error boundary', () => {
     const lastCall = interaction.editReply.mock.calls.at(-1)?.[0] as { embeds: Array<{ data: { color: number } }> };
     expect(lastCall?.embeds?.[0]?.data?.color).toBe(0xe74c3c);
 
+    vi.doUnmock('../../../services/prisma/loadPrisma');
     vi.doUnmock('../../../services/telemetry');
     vi.doUnmock('../../../services/utils');
   });
