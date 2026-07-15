@@ -1,6 +1,13 @@
 import { createHash, randomBytes } from 'crypto';
 import fetch from 'node-fetch';
-import { createCsrfToken, createSession, deleteSession, getSessionToken, isValidSession, validateCsrfToken } from '../../services/session';
+import {
+  createCsrfToken,
+  createSession,
+  deleteSession,
+  getSessionToken,
+  isValidSession,
+  validateCsrfToken,
+} from '../../services/session';
 import { broadcastToAllGuilds } from '../../services/broadcast';
 import { presenceStore } from '../../services/presenceStore';
 import { presenceSse } from '../../services/presenceSse';

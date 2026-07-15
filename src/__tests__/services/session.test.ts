@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createSession, getSessionToken, isValidSession, createCsrfToken, evictExpiredSessions } from '../../services/session';
+import {
+  createSession,
+  getSessionToken,
+  isValidSession,
+  createCsrfToken,
+  evictExpiredSessions,
+} from '../../services/session';
 
 describe('createSession', () => {
   it('returns a 64-char hex token (32 bytes)', () => {
