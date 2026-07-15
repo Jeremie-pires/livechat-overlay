@@ -1,36 +1,52 @@
 # AI_STATE.md — LiveChat CCB
 
 ## Status
-Sprint `feature/crud-database-dashboard` — IN PROGRESS (all known bugs fixed; 250 tests green, lint clean).
-
-Previous: `hotfix/youtube-regression-1.2.7` — RELEASED as `1.2.8` (stable).
-Previous: `feature/gif-link-support` — IN PROGRESS (awaiting REVIEWER).
-Previous: `feature/security-remediation` — COMPLETE (REVIEWER GO ✅).
+Branch `docs/security-audit-full` (off `develop`) — Full DevSecOps static-analysis audit committed to `.pipeline/full_security_audit.md`. 29 findings: 2 CRITICAL, 7 HIGH, 8 MEDIUM, 7 LOW, 5 OPTIMIZATION. No source files modified; audit is read-only.
 
 ---
 
-## 1. Accomplished (all sprints)
+## 1. Accomplished
 
-**Client-side JS syntax fix (this session):**
-- **`src/components/dashboard/dashboardRoutes.ts`** (UPDATED): `\n\n` → `\\n\\n` in `deleteGuild`'s `confirm()` call (line 882).
-  - Root cause: `\n` inside a TypeScript template literal is processed as an actual newline character. The browser received a literal newline inside a single-quoted JS string → `SyntaxError: Unexpected string` → entire `<script>` block failed to parse → `navigate` undefined.
-  - Fix: `\\n\\n` in TS source produces `\n\n` (JS escape sequences) in the browser.
+### Previous sprints (merged into `develop`)
+- SSRF guard, streaming OG parse, IP-pinned fetch, shared `parseDuration`, 301 tests green.
+- `APP_ENV` enum, `secureFlag` cookie gate, `trustProxy`, `corsAllowedHeaders`.
+- HAProxy hardening (`X-Forwarded-Proto`, keep-alive, `/health` probe).
+- Dead dep removal, DISCORD_OWNER_ID/CLIENT_SECRET made required, lockfile regenerated.
 
-**SonarQube Quality Gate fixes (prior session):**
-- **`desktop-client/src/main.ts`**: SSRF fix × 2 (`app:test-connection` + `app:get-presence` — use `assertHttpUrl().href` not raw tainted string).
-- **`src/services/content-utils.ts`**: ReDoS fix — `parseOpenGraph` regex `[^>]+(?:\s*\/)?` → `[^>]*`.
-- **`src/__tests__/services/content-utils.test.ts`**: T-1…T-7 and T-10/T-12/T-13 → two `it.each` tables.
+### `fix/critical-remediation-phase1` (C-01…C-04 + BLOCK-1/BLOCK-2)
 
-**DB Viewer + Broadcast Logging — `feature/crud-database-dashboard`:**
-- `prisma/schema.prisma`: `BroadcastLog` model + migration.
-- `src/services/broadcastClassifier.ts`: `classifyDiscordError`, `mintRunId`, `persistBroadcastRun` (fail-safe).
-- `src/services/broadcast.ts`: `broadcastToAllGuilds()` returns `BroadcastResult[]`.
-- `src/components/discord/announceCommand.ts` / `announceGuildCommand.ts`: structured results + DB logging.
-- `src/components/api/adminDbRoutes.ts`: owner-only GET /db/guilds, DELETE /db/guilds/:id, GET /db/broadcasts/latest.
-- `src/components/dashboard/dashboardRoutes.ts`: "Base de données" page, guild table, toast, lazy-load, delete action.
-- Reviewer blockers B-1 (persistBroadcastRun fail-safe) and B-2 (delivered flag ordering) resolved.
+| ID | What | Files |
+|---|---|---|
+| C-01 | Atomic queue dequeue via `$transaction` | `messagesWorker.ts` |
+| C-02 | TTS temp file cleanup via `try/finally` | `talkCommand.ts`, `hidetalkCommand.ts`, `gtts.ts` |
+| C-03 | CVE dep overrides (`tar`, `yaml`, `qs`) + lockfile regen | `package.json` |
+| C-04 | CSRF synchronizer token on POST `/api/maintenance/toggle` | `session.ts`, `dashboardRoutes.ts` |
+| BLOCK-1 | CSRF validation on DELETE `/db/guilds/:id` (server + client) | `adminDbRoutes.ts`, `dashboardRoutes.ts` |
+| BLOCK-2 | Dead comment removed `messagesWorker.ts`; explicit types on `gtts.ts` | both files |
 
-**Prior sprints:** YouTube hotfix (1.2.8), GIF/Tenor/Giphy OG extraction, telemetry service, SSRF url-guard, presence delta model — all complete.
+### `fix/important-remediation-phase2` (I-01…I-11 + Phase 3 applicable)
+
+| ID | What | Files |
+|---|---|---|
+| I-01 | `deferReply` on slow Discord handlers | `setupCommand.ts`, `setDefaultTimeCommand.ts`, `setMaxTimeCommand.ts` |
+| I-02 | Baseline HTTP security headers via `onSend` hook | `server.ts` |
+| I-03 | DOM XSS hardening: inline onclick removed; data-attributes + delegated events | `dashboardRoutes.ts` |
+| I-04 | Error boundaries around `prisma.queue.create()` | `sendCommand.ts`, `hidesendCommand.ts`, `talkCommand.ts`, `hidetalkCommand.ts` |
+| I-05 | Docker resource limits (`cpus: 1.0`, `memory: 512M`) | `docker-compose.yml` |
+| I-06 | `tsx` moved to devDependencies; Dockerfile runner uses `--frozen-lockfile` | `package.json`, `Dockerfile` |
+| I-07 | Session TTL eviction sweep (hourly, `.unref()`) | `session.ts` |
+| I-08 | Unit tests for Discord command handlers + test bug fixes | `commandHandlers.test.ts`, `adminDbRoutes.test.ts` |
+| I-09 | REST fallback (`guilds.fetch`) on guild cache miss in admin route | `adminDbRoutes.ts` |
+| I-10 | Removed `APP_ENV` disclosure from `/health` | `healthRoutes.ts` |
+| I-11 | DB probe wrapped with `Promise.race` 2 s timeout → 503 on hang | `healthRoutes.ts` |
+| L-04 | `TZ` added to Zod env schema as optional | `env.ts` |
+| L-05 | socketLoader stale-reference already fixed (`capturedSocketId`) | `socketLoader.ts` |
+| L-06 | `isDeployedEnv` already uses enum-based whitelist | `env.ts` |
+
+### Test fixes (part of this session)
+- `commandHandlers.test.ts`: `makeRosetty` mock now returns `key.toLowerCase()` so Discord's `validateName` accepts the command names.
+- `adminDbRoutes.test.ts`: auth-guard `beforeEach` now includes `global.logger` mock and `guilds.fetch` rejection stub, fixing 3 `lastBroadcast`-related failures.
+- Upsert assertion corrected from `{ data: ... }` to `{ update: ... }` shape.
 
 ---
 
@@ -38,24 +54,41 @@ Previous: `feature/security-remediation` — COMPLETE (REVIEWER GO ✅).
 
 | File | Role |
 |---|---|
-| `src/services/broadcastClassifier.ts` | Pure: `classifyDiscordError`, `persistBroadcastRun` (fail-safe), `mintRunId` |
-| `src/services/broadcast.ts` | `broadcastToAllGuilds()` → `BroadcastResult[]`; no swallowed errors |
-| `src/components/api/adminDbRoutes.ts` | Owner-only DB admin endpoints |
-| `src/services/url-guard.ts` | SSRF guard: scheme + IP block-list + DNS check |
-| `src/services/content-utils.ts` | Media URL info; YouTube early-return; GIF OG extraction; ReDoS-safe regex |
-| `src/services/telemetry.ts` | `measureContentProcessing(url)` + `ContentInfo`; used by all 4 message commands |
-| `src/components/dashboard/dashboardRoutes.ts` | Dashboard + SSE; latency breakdown; DB page (syntax-fixed) |
-| `desktop-client/src/main.ts` | Electron main; `assertHttpUrl` used at every fetch-URL construction site |
+| `src/services/env.ts` | Zod env schema — `APP_ENV` enum `production\|staging\|development`; `TZ` optional |
+| `src/services/session.ts` | Session + CSRF maps; `createCsrfToken`, `validateCsrfToken` (timing-safe); `evictExpiredSessions` (hourly sweep) |
+| `src/services/gtts.ts` | TTS helpers; fully typed; ENOENT-resilient `deleteGtts` |
+| `src/services/url-guard.ts` | SSRF guard → `AssertedUrl { url, ip, family }` |
+| `src/services/content-utils.ts` | Streaming OG parse; IP-pinned fetch |
+| `src/services/utils.ts` | `parseDuration` (shared), `getDurationFromGuildId` |
+| `src/services/telemetry.ts` | `measureContentProcessing(url)` + `ContentInfo` |
+| `src/services/broadcastClassifier.ts` | `classifyDiscordError`, `persistBroadcastRun`, `mintRunId` |
+| `src/services/broadcast.ts` | `broadcastToAllGuilds()` → `BroadcastResult[]` |
+| `src/components/messages/messagesWorker.ts` | Atomic claim-by-delete via `$transaction`; `resolveMediaDurationMs` |
+| `src/components/messages/talkCommand.ts` | TTS cleanup try/finally; Prisma error boundary |
+| `src/components/messages/hidetalkCommand.ts` | TTS cleanup try/finally; Prisma error boundary |
+| `src/components/messages/sendCommand.ts` | Prisma error boundary on queue.create |
+| `src/components/messages/hidesendCommand.ts` | Prisma error boundary on queue.create |
+| `src/components/discord/setupCommand.ts` | deferReply before async guild fetch |
+| `src/components/discord/setDefaultTimeCommand.ts` | deferReply before async guild fetch |
+| `src/components/discord/setMaxTimeCommand.ts` | deferReply before async guild fetch |
+| `src/components/api/adminDbRoutes.ts` | CSRF on DELETE; REST fallback on guild cache miss; lastBroadcast enrichment |
+| `src/components/api/healthRoutes.ts` | No APP_ENV disclosure; DB probe 2 s timeout |
+| `src/components/dashboard/dashboardRoutes.ts` | CSRF on DELETE client; no inline onclick; data-attributes + delegated events |
+| `src/server.ts` | `onSend` hook: security headers (CSP, X-Frame, HSTS prod/staging) |
+| `docker-compose.yml` | Resource limits: cpus 1.0, memory 512M |
+| `package.json` | tsx in devDependencies |
+| `Dockerfile` | Runner stage installs all deps via `--frozen-lockfile` |
 
 ---
 
 ## 3. Next steps
 
-1. **REVIEWER** `feature/crud-database-dashboard` → SonarQube gate clear + JS syntax fix applied; re-submit for final GO.
-2. **PR** `feature/crud-database-dashboard` → `develop` (squash merge after GO).
-3. **REVIEWER** `feature/gif-link-support` → awaiting GO/NO-GO on `.pipeline/review.md`.
-4. **PR** `feature/gif-link-support` → `develop`.
-5. **PR** `feature/security-remediation` → `develop`.
-6. **PR** `bugfix/presence-and-security-hardening` → `develop`.
-7. **`feature/network-media-optim`** — media by URL, compression, cache.
-8. **Observability phase 2** — external log shipping (Loki/ELK).
+1. **Merge path**: `docs/security-audit-full` → `develop` → `main`.
+2. **Audit remediation phase 3** — address findings from `.pipeline/full_security_audit.md`:
+   - CRITICAL: C-AUD-01 (rate limiting via `@fastify/rate-limit`), C-AUD-02 (ffprobe DNS rebinding — pass IP-pinned URL or disable remote ffprobe)
+   - HIGH: H-AUD-01 (Content-Security-Policy), H-AUD-02 (Docker runner dev-dep bloat), H-AUD-03 (process.env overwrite), H-AUD-04 (trustProxy IP restriction), H-AUD-05 (busyGuild TOCTOU in transaction), H-AUD-06 (scope Socket.IO emit payload), H-AUD-07 (log redaction dev mode)
+3. **`displayMediaFull` full implementation** (deferred): worker reads Guild row at dispatch, injects flag into Socket.IO payload, client applies CSS.
+4. **Observability phase 2** — external log shipping (Loki/ELK).
+5. **Remaining L-series** (low-priority, deferred):
+   - L-01: tsconfig explicit strict flags (blocked by `ignoreDeprecations: "6.0"` preventing `tsc --noEmit` validation)
+   - L-03: Dockerfile native-module double-build (requires architecture refactor — tracked as O-AUD-01)

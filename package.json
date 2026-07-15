@@ -31,21 +31,23 @@
     "lint-staged": "15.2.2",
     "pino-pretty": "10.3.1",
     "prettier": "3.2.5",
+    "tsx": "^4.7.1",
     "types-fastify-socket.io": "0.0.1",
     "typescript": "5.3.3",
     "vitest": "^4.1.10"
   },
   "dependencies": {
+    "@fastify/cors": "9.0.1",
+    "@fastify/rate-limit": "^9.1.0",
     "@gquittet/graceful-server": "^4.0.8",
     "@prisma/client": "^5.10.2",
-    "@socket.io/postgres-emitter": "^0.1.0",
     "@t3-oss/env-core": "^0.8.0",
+    "concat-map": "^0.0.2",
     "date-fns": "^3.3.1",
     "discord.js": "^14.14.1",
     "dotenv": "^16.4.2",
     "fastify": "^4.26.1",
     "fastify-socket.io": "5.0.0",
-    "@fastify/cors": "9.0.1",
     "file-type": "16.5.4",
     "get-video-duration": "^4.1.0",
     "gtts": "^0.2.1",
@@ -65,8 +67,7 @@
     "youtubei.js": "^15.1.1",
     "zlib-sync": "^0.1.9",
     "zod": "^3.22.4",
-    "zod-validation-error": "^3.0.1",
-    "tsx": "^4.7.1"
+    "zod-validation-error": "^3.0.1"
   },
   "optionalDependencies": {
     "bufferutil": "^4.0.8",
@@ -80,7 +81,14 @@
       "undici": "^6.27.0",
       "find-my-way": "^8.2.2",
       "ws": ">=8.21.0",
-      "socket.io-parser": ">=4.2.6"
+      "socket.io-parser": ">=4.2.6",
+      "tar": ">=6.2.1",
+      "yaml": ">=2.3.4",
+      "qs": ">=6.11.0",
+      "braces": ">=3.0.3",
+      "flatted": ">=3.4.2",
+      "minimatch": ">=9.0.7",
+      "picomatch": ">=2.3.2"
     }
   }
 }

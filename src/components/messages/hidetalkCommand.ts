@@ -41,43 +41,64 @@ export const hideTalkCommand = () => ({
     }
 
     const filePath = await promisedGtts(voice, rosetty.getCurrentLang());
-    const fileStream = readGttsAsStream(filePath);
+    try {
+      const fileStream = readGttsAsStream(filePath);
 
-    const interactionReply = await interaction.reply({
-      embeds: [
-        new EmbedBuilder()
-          .setTitle(rosetty.t('success')!)
-          .setDescription(rosetty.t('hideTalkCommandAnswer')!)
-          .setColor(0x2ecc71),
-      ],
-      files: [fileStream],
-      flags: MessageFlags.Ephemeral,
-    });
+      const interactionReply = await interaction.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setTitle(rosetty.t('success')!)
+            .setDescription(rosetty.t('hideTalkCommandAnswer')!)
+            .setColor(0x2ecc71),
+        ],
+        files: [fileStream],
+        flags: MessageFlags.Ephemeral,
+      });
 
-    const message = await interactionReply.fetch();
-    const media = message.attachments.first()?.proxyURL;
+      const message = await interactionReply.fetch();
+      const media = message.attachments.first()?.proxyURL;
 
-    const { processingMs, contentInfo: additionalContent } = await measureContentProcessing(media as string);
+      if (!media) {
+        await interaction.editReply({
+          embeds: [
+            new EmbedBuilder()
+              .setTitle(rosetty.t('error')!)
+              .setDescription(rosetty.t('talkNoAttachment')!)
+              .setColor(0xe74c3c),
+          ],
+        });
+        return;
+      }
 
-    await deleteGtts(filePath);
+      const { processingMs, contentInfo: additionalContent } = await measureContentProcessing(media);
 
-    await prisma.queue.create({
-      data: {
-        content: JSON.stringify({
-          text,
-          media,
-          mediaContentType: 'audio/mpeg',
-          mediaDuration: Math.ceil(additionalContent.mediaDuration),
-        }),
-        type: QueueType.VOCAL,
-        discordGuildId: interaction.guildId!,
-        duration: await getDurationFromGuildId(
-          additionalContent.mediaDuration ? Math.ceil(additionalContent.mediaDuration) : undefined,
-          interaction.guildId!,
-        ),
-        discordReceivedAt: new Date(discordReceivedAt),
-        processingMs,
-      },
-    });
+      try {
+        await prisma.queue.create({
+          data: {
+            content: JSON.stringify({
+              text,
+              media,
+              mediaContentType: 'audio/mpeg',
+              mediaDuration: Math.ceil(additionalContent.mediaDuration ?? 0),
+            }),
+            type: QueueType.VOCAL,
+            discordGuildId: interaction.guildId!,
+            duration: await getDurationFromGuildId(
+              additionalContent.mediaDuration ? Math.ceil(additionalContent.mediaDuration) : undefined,
+              interaction.guildId!,
+            ),
+            discordReceivedAt: new Date(discordReceivedAt),
+            processingMs,
+          },
+        });
+      } catch (err) {
+        logger.error(err, '[HIDETALK] prisma.queue.create failed');
+        await interaction.editReply({
+          embeds: [new EmbedBuilder().setTitle(rosetty.t('error')!).setColor(0xe74c3c)],
+        });
+      }
+    } finally {
+      await deleteGtts(filePath).catch((err) => logger.warn(err, '[TTS] Failed to delete temp file'));
+    }
   },
 });

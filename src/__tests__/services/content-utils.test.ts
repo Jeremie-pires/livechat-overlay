@@ -27,12 +27,31 @@ function makeResponse(contentType: string | null) {
   };
 }
 
-function makeHtmlResponse(html: string) {
+// Creates an async-iterable stream body yielding the given HTML chunks.
+function makeStreamBody(chunks: string[]): {
+  [Symbol.asyncIterator](): AsyncGenerator<Buffer, void, unknown>;
+  destroy: ReturnType<typeof vi.fn>;
+} {
+  return {
+    async *[Symbol.asyncIterator]() {
+      for (const chunk of chunks) {
+        yield Buffer.from(chunk, 'utf-8');
+      }
+    },
+    destroy: vi.fn(),
+  };
+}
+
+function makeBodyResponse(body: ReturnType<typeof makeStreamBody>) {
   return {
     headers: { get: () => 'text/html' },
-    text: vi.fn().mockResolvedValue(html),
+    body,
     arrayBuffer: vi.fn().mockResolvedValue(new ArrayBuffer(0)),
   };
+}
+
+function makeHtmlResponse(html: string) {
+  return makeBodyResponse(makeStreamBody([html]));
 }
 
 beforeEach(() => {
@@ -57,10 +76,16 @@ afterEach(() => {
 // ── redirect policy (B-1) ──────────────────────────────────────────────────────
 
 describe('getContentInformationsFromUrl — redirect policy (B-1)', () => {
-  it('calls fetch with { redirect: "error" } to prevent SSRF redirect bypass', async () => {
+  it('calls fetch with redirect: "error", IP-pinned URL, and Host header', async () => {
     vi.mocked(fetch).mockResolvedValue(makeResponse('image/jpeg') as never);
     await getContentInformationsFromUrl(EXT_LESS_URL);
-    expect(vi.mocked(fetch)).toHaveBeenCalledWith(EXT_LESS_URL, { redirect: 'error' });
+    expect(vi.mocked(fetch)).toHaveBeenCalledWith(
+      `https://${PUBLIC_IP}/api/media`,
+      expect.objectContaining({
+        redirect: 'error',
+        headers: expect.objectContaining({ Host: 'example.com' }),
+      }),
+    );
   });
 
   it('returns undefined contentType when fetch throws a redirect error', async () => {
@@ -166,11 +191,15 @@ describe('getContentInformationsFromUrl — GIF provider extraction (Tenor / Gip
     expect(result.contentType).toBeUndefined();
   });
 
-  it('leaves behavior unchanged for non-provider URLs (regression)', async () => {
+  it('non-provider URLs still resolve content type correctly (regression)', async () => {
     vi.mocked(fetch).mockResolvedValueOnce(makeResponse('image/jpeg') as never);
     const result = await getContentInformationsFromUrl(EXT_LESS_URL);
-    expect(vi.mocked(fetch)).toHaveBeenCalledWith(EXT_LESS_URL, { redirect: 'error' });
     expect(result.contentType).toBe('image/jpeg');
+    // Fetch is IP-pinned — verify Host header is present
+    expect(vi.mocked(fetch)).toHaveBeenCalledWith(
+      expect.stringContaining(PUBLIC_IP),
+      expect.objectContaining({ redirect: 'error' }),
+    );
   });
 
   it('gracefully falls through to legacy path when HTML contains no OG tags', async () => {
@@ -190,7 +219,6 @@ describe('getContentInformationsFromUrl — GIF provider extraction (Tenor / Gip
   it('does not treat eviltenor.com as a supported provider', async () => {
     vi.mocked(fetch).mockResolvedValueOnce(makeResponse('text/html') as never);
     const result = await getContentInformationsFromUrl(EVIL_TENOR_URL);
-    expect(vi.mocked(fetch)).toHaveBeenCalledWith(EVIL_TENOR_URL, { redirect: 'error' });
     expect(result.contentType).toBe('text/html');
   });
 
@@ -213,6 +241,76 @@ describe('getContentInformationsFromUrl — GIF provider extraction (Tenor / Gip
       vi.mocked((global as Record<string, { debug: ReturnType<typeof vi.fn> }>).logger.debug),
     ).toHaveBeenCalledWith(expect.objectContaining({ err: redirectErr }), 'gif-provider: HTML fetch failed');
     expect(result.contentType).toBeUndefined();
+  });
+});
+
+// ── Streaming HTML OG extraction ──────────────────────────────────────────────
+
+describe('getContentInformationsFromUrl — streaming HTML OG extraction', () => {
+  const TENOR_PAGE_URL = 'https://tenor.com/view/test-gif-12345';
+  const MAX_HTML_CHARS = 256 * 1024;
+
+  it('cancels stream (calls destroy) after OG URL found in first chunk', async () => {
+    const ogHtml =
+      '<meta property="og:video:url" content="https://media.tenor.com/abc.mp4"><meta property="og:video:type" content="video/mp4">';
+    const body = makeStreamBody([ogHtml, 'SHOULD_NOT_READ_THIS_SECOND_CHUNK']);
+    vi.mocked(fetch).mockResolvedValueOnce(makeBodyResponse(body) as never);
+
+    const result = await getContentInformationsFromUrl(TENOR_PAGE_URL);
+    expect(result.contentType).toBe('video/mp4');
+    expect(body.destroy).toHaveBeenCalled();
+  });
+
+  it('always calls destroy on the stream body after reading (cleanup)', async () => {
+    const html = '<html><head><meta property="og:image" content="https://media.giphy.com/img.gif"></head></html>';
+    const body = makeStreamBody([html]);
+    vi.mocked(fetch).mockResolvedValueOnce(makeBodyResponse(body) as never);
+
+    await getContentInformationsFromUrl('https://giphy.com/gifs/test');
+    expect(body.destroy).toHaveBeenCalled();
+  });
+
+  it('stops reading at 256 KB ceiling when no OG URL is found and returns null provider result', async () => {
+    // Generate HTML bigger than MAX_HTML_CHARS with no OG tags
+    const bigChunk = 'x'.repeat(MAX_HTML_CHARS + 500);
+    const body = makeStreamBody([bigChunk]);
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(makeBodyResponse(body) as never)
+      // Second call: content-type fallback fetch
+      .mockResolvedValueOnce(makeResponse('image/gif') as never);
+
+    const result = await getContentInformationsFromUrl(TENOR_PAGE_URL);
+    expect(result.contentType).toBe('image/gif');
+    expect(body.destroy).toHaveBeenCalled();
+  });
+
+  it('parses OG tag split across two chunk boundaries', async () => {
+    const fullTag = '<meta property="og:video:url" content="https://media.tenor.com/split.mp4">';
+    const mid = Math.floor(fullTag.length / 2);
+    const chunk1 = '<html><head>' + fullTag.slice(0, mid);
+    const chunk2 = fullTag.slice(mid) + '</head></html>';
+    const body = makeStreamBody([chunk1, chunk2]);
+    vi.mocked(fetch).mockResolvedValueOnce(makeBodyResponse(body) as never);
+
+    const result = await getContentInformationsFromUrl(TENOR_PAGE_URL);
+    expect(result.resolvedUrl).toBe('https://media.tenor.com/split.mp4');
+    expect(body.destroy).toHaveBeenCalled();
+  });
+
+  it('provider HTML fetch is IP-pinned with Host header', async () => {
+    const html =
+      '<meta property="og:video:url" content="https://media.tenor.com/abc.mp4"><meta property="og:video:type" content="video/mp4">';
+    vi.mocked(fetch).mockResolvedValueOnce(makeBodyResponse(makeStreamBody([html])) as never);
+
+    await getContentInformationsFromUrl(TENOR_PAGE_URL);
+    // Provider HTML fetch should target the pinned IP, not tenor.com hostname
+    expect(vi.mocked(fetch)).toHaveBeenCalledWith(
+      expect.stringContaining(PUBLIC_IP),
+      expect.objectContaining({
+        redirect: 'error',
+        headers: expect.objectContaining({ Host: 'tenor.com' }),
+      }),
+    );
   });
 });
 

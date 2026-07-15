@@ -7,7 +7,7 @@ import { z } from 'zod';
 export const env = createEnv({
   server: {
     NODE_ENV: z.string().default('development'),
-    APP_ENV: z.enum(['production', 'staging']),
+    APP_ENV: z.enum(['production', 'staging', 'development']).default('development'),
     LOG: z.enum(['info', 'debug', 'error', 'silent', 'warning']).default('info'),
     PORT: z
       .string()
@@ -20,11 +20,12 @@ export const env = createEnv({
 
     DISCORD_TOKEN: z.string(),
     DISCORD_CLIENT_ID: z.string(),
-    DISCORD_CLIENT_SECRET: z.string().optional(),
-    DISCORD_OWNER_ID: z.string().optional(),
+    DISCORD_CLIENT_SECRET: z.string().min(1),
+    DISCORD_OWNER_ID: z.string().min(1),
 
     DATABASE_URL: z.string().url(),
 
+    TZ: z.string().optional(),
     HIDE_COMMANDS_DISABLED: z.string().default('false'),
     DEFAULT_DURATION: z
       .string()

@@ -1,6 +1,13 @@
 import { createHash, randomBytes } from 'crypto';
 import fetch from 'node-fetch';
-import { createSession, deleteSession, getSessionToken, isValidSession } from '../../services/session';
+import {
+  createCsrfToken,
+  createSession,
+  deleteSession,
+  getSessionToken,
+  isValidSession,
+  validateCsrfToken,
+} from '../../services/session';
 import { broadcastToAllGuilds } from '../../services/broadcast';
 import { presenceStore } from '../../services/presenceStore';
 import { presenceSse } from '../../services/presenceSse';
@@ -14,6 +21,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="csrf-token" content="{{CSRF_TOKEN}}">
   <title>LiveChat CCB — Dashboard</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -560,6 +568,8 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
   </main>
 </div>
 <script>
+  const _csrf = document.querySelector('meta[name="csrf-token"]').content;
+
   function updateMaintenanceUI(silentMode) {
     const badge = document.getElementById('status-badge');
     const btn = document.getElementById('maint-btn');
@@ -576,7 +586,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
     const btn = document.getElementById('maint-btn');
     btn.disabled = true;
     try {
-      const res = await fetch('/api/maintenance/toggle', { method: 'POST' });
+      const res = await fetch('/api/maintenance/toggle', { method: 'POST', headers: { 'X-CSRF-Token': _csrf } });
       if (res.ok) { const d = await res.json(); updateMaintenanceUI(d.silentMode); }
     } catch(e) { console.error(e); }
     finally { btn.disabled = false; }
@@ -841,13 +851,14 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
     document.getElementById('db-guild-tbody').innerHTML = rows.map(r => {
       const isFailed = r.lastBroadcast && r.lastBroadcast.status === 'FAILED';
       const rowClass = isFailed ? 'row-failed' : '';
+      const safeId = esc(r.id);
       const av = r.icon
         ? '<img class="db-guild-avatar" src="' + esc(r.icon) + '" alt="">'
         : '<div class="db-guild-ph">' + esc((r.name || r.id).charAt(0).toUpperCase()) + '</div>';
       const nameCell = '<div class="db-guild-cell">' + av + '<span class="db-guild-name">' + esc(r.name || r.id) + '</span></div>';
-      const copyId = '<button class="db-copy-btn" onclick="copyText(\\'' + esc(r.id) + '\\', this)">' + esc(r.id) + '</button>';
+      const copyId = '<button class="db-copy-btn" data-copy="' + safeId + '">' + safeId + '</button>';
       const copyChannel = r.channelId
-        ? '<button class="db-copy-btn" onclick="copyText(\\'' + esc(r.channelId) + '\\', this)">' + esc(r.channelId) + '</button>'
+        ? '<button class="db-copy-btn" data-copy="' + esc(r.channelId) + '">' + esc(r.channelId) + '</button>'
         : '<span style="color:var(--muted)">—</span>';
       const times = (r.defaultMediaTime != null ? r.defaultMediaTime : '—') + 's / ' + (r.maxMediaTime != null ? r.maxMediaTime : '—') + 's';
       const fullMedia = r.displayMediaFull ? '<span class="badge green">Oui</span>' : '<span style="color:var(--muted);font-size:0.78rem">Non</span>';
@@ -865,8 +876,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       const connectedCell = r.connected
         ? '<span style="color:var(--green);font-size:0.78rem">✓</span>'
         : '<span class="disconnected-badge">Déconnecté</span>';
-      const safeId = esc(r.id);
-      const delBtn = '<button class="db-del-btn" onclick="deleteGuild(\\'' + safeId + '\\', this)">Supprimer</button>';
+      const delBtn = '<button class="db-del-btn" data-delete-guild="' + safeId + '">Supprimer</button>';
       return '<tr class="' + rowClass + '" id="db-row-' + safeId + '">'
         + '<td>' + nameCell + '</td>'
         + '<td>' + copyId + '</td>'
@@ -884,7 +894,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
     if (!confirm('Supprimer la configuration de la guilde ' + id + ' ?\\n\\nCette action est irréversible.')) return;
     btn.disabled = true;
     try {
-      const res = await fetch('/api/admin/db/guilds/' + encodeURIComponent(id), { method: 'DELETE' });
+      const res = await fetch('/api/admin/db/guilds/' + encodeURIComponent(id), { method: 'DELETE', headers: { 'X-CSRF-Token': _csrf } });
       if (res.status === 401) { window.top.location.href = '/dashboard'; return; }
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const row = document.getElementById('db-row-' + id);
@@ -923,6 +933,13 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
     if (card) openGuild(card.getAttribute('data-guild-id'));
   });
 
+  document.getElementById('db-guild-tbody').addEventListener('click', async function(e) {
+    const delBtn = e.target.closest('[data-delete-guild]');
+    if (delBtn) { await deleteGuild(delBtn.getAttribute('data-delete-guild'), delBtn); return; }
+    const copyBtn = e.target.closest('.db-copy-btn[data-copy]');
+    if (copyBtn) copyText(copyBtn.getAttribute('data-copy'), copyBtn);
+  });
+
   // Real-time presence updates via SSE
   (function initPresenceSse() {
     function connect() {
@@ -953,20 +970,22 @@ async function dashboardPlugin(fastify: FastifyCustomInstance) {
     `?client_id=${env.DISCORD_CLIENT_ID}` +
     `&redirect_uri=${encodeURIComponent(redirectUri)}` +
     `&response_type=code&scope=identify`;
+  const secureFlag = env.APP_ENV !== 'development' ? '; Secure' : '';
 
   fastify.get('/dashboard', async (req, reply) => {
     const token = getSessionToken(req.headers.cookie);
     if (!isValidSession(token)) {
       const state = randomBytes(16).toString('hex');
       const fullOauthUrl = `${oauthUrl}&state=${state}`;
-      reply.header('Set-Cookie', `oauth_state=${state}; HttpOnly; Secure; Path=/; SameSite=Lax; Max-Age=300`);
+      reply.header('Set-Cookie', `oauth_state=${state}; HttpOnly${secureFlag}; Path=/; SameSite=Lax; Max-Age=300`);
       const redirectPage = `<!DOCTYPE html><html><head><meta charset="UTF-8"><script>window.top.location.href=${JSON.stringify(fullOauthUrl)};</script></head><body></body></html>`;
       return reply.type('text/html').send(redirectPage);
     }
-    return reply.type('text/html').send(DASHBOARD_HTML);
+    const csrfToken = createCsrfToken(token!);
+    return reply.type('text/html').send(DASHBOARD_HTML.replace('{{CSRF_TOKEN}}', csrfToken));
   });
 
-  fastify.get('/auth/callback', async (req, reply) => {
+  fastify.get('/auth/callback', { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } }, async (req, reply) => {
     if (!env.DISCORD_CLIENT_SECRET) {
       return reply.status(503).send('DISCORD_CLIENT_SECRET not configured');
     }
@@ -981,7 +1000,7 @@ async function dashboardPlugin(fastify: FastifyCustomInstance) {
       .slice(1)
       .join('=')
       .trim();
-    reply.header('Set-Cookie', 'oauth_state=; HttpOnly; Secure; Path=/; SameSite=Lax; Max-Age=0');
+    reply.header('Set-Cookie', `oauth_state=; HttpOnly${secureFlag}; Path=/; SameSite=Lax; Max-Age=0`);
     if (!state || !oauthStateCookie || state !== oauthStateCookie) {
       logger.warn('[DASHBOARD] OAuth CSRF state mismatch — possible CSRF attack');
       return reply.status(403).send('Invalid state parameter');
@@ -1022,13 +1041,15 @@ async function dashboardPlugin(fastify: FastifyCustomInstance) {
     }
 
     const sessionToken = createSession();
-    reply.header('Set-Cookie', `session=${sessionToken}; HttpOnly; Secure; Path=/; SameSite=Lax; Max-Age=604800`);
+    reply.header('Set-Cookie', `session=${sessionToken}; HttpOnly${secureFlag}; Path=/; SameSite=Lax; Max-Age=604800`);
     return reply.redirect('/dashboard', 302);
   });
 
   fastify.post('/api/maintenance/toggle', async (req, reply) => {
     const token = getSessionToken(req.headers.cookie);
     if (!isValidSession(token)) return reply.status(401).send({ error: 'Unauthorized' });
+    const csrfToken = req.headers['x-csrf-token'] as string | undefined;
+    if (!validateCsrfToken(token, csrfToken)) return reply.status(403).send({ error: 'Invalid CSRF token' });
 
     const stats = await prisma.stats.findUnique({ where: { id: 'singleton' } });
     const silentMode = !(stats?.silentMode ?? false);
@@ -1100,7 +1121,7 @@ async function dashboardPlugin(fastify: FastifyCustomInstance) {
   fastify.get('/auth/logout', async (req, reply) => {
     const token = getSessionToken(req.headers.cookie);
     if (token) deleteSession(token);
-    reply.header('Set-Cookie', 'session=; HttpOnly; Secure; Path=/; SameSite=Lax; Max-Age=0');
+    reply.header('Set-Cookie', `session=; HttpOnly${secureFlag}; Path=/; SameSite=Lax; Max-Age=0`);
     return reply.redirect('/dashboard', 302);
   });
 }

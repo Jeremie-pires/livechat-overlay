@@ -8,6 +8,12 @@ export class SsrfBlockedError extends Error {
   }
 }
 
+export interface AssertedUrl {
+  url: URL;
+  ip: string;
+  family: 4 | 6;
+}
+
 function isPrivateIpv4(addr: string): boolean {
   const parts = addr.split('.').map(Number);
   if (parts.length !== 4 || parts.some((p) => Number.isNaN(p) || p < 0 || p > 255)) return false;
@@ -54,7 +60,29 @@ export function isPrivateIp(addr: string): boolean {
   return false;
 }
 
-export async function assertPublicHttpUrl(url: string): Promise<URL> {
+async function resolveAndValidateHostname(hostname: string): Promise<{ ip: string; family: 4 | 6 }> {
+  let addresses: dns.LookupAddress[];
+  try {
+    addresses = await dns.promises.lookup(hostname, { all: true });
+  } catch (err) {
+    throw new SsrfBlockedError(`DNS resolution failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
+  if (addresses.length === 0) {
+    throw new SsrfBlockedError('DNS returned no addresses');
+  }
+
+  for (const { address } of addresses) {
+    if (isPrivateIp(address)) {
+      throw new SsrfBlockedError(`hostname resolves to private IP: ${address}`);
+    }
+  }
+
+  const first = addresses[0];
+  return { ip: first.address, family: first.family === 4 ? 4 : 6 };
+}
+
+export async function assertPublicHttpUrl(url: string): Promise<AssertedUrl> {
   let parsed: URL;
   try {
     parsed = new URL(url);
@@ -73,21 +101,10 @@ export async function assertPublicHttpUrl(url: string): Promise<URL> {
 
   if (net.isIP(rawHost) !== 0) {
     if (isPrivateIp(rawHost)) throw new SsrfBlockedError(`private IP: ${rawHost}`);
-    return parsed;
+    const family: 4 | 6 = net.isIPv4(rawHost) ? 4 : 6;
+    return { url: parsed, ip: rawHost, family };
   }
 
-  let addresses: dns.LookupAddress[];
-  try {
-    addresses = await dns.promises.lookup(rawHost, { all: true });
-  } catch (err) {
-    throw new SsrfBlockedError(`DNS resolution failed: ${err instanceof Error ? err.message : String(err)}`);
-  }
-
-  for (const { address } of addresses) {
-    if (isPrivateIp(address)) {
-      throw new SsrfBlockedError(`hostname resolves to private IP: ${address}`);
-    }
-  }
-
-  return parsed;
+  const { ip, family } = await resolveAndValidateHostname(rawHost);
+  return { url: parsed, ip, family };
 }

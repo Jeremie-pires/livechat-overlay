@@ -3,6 +3,7 @@ import 'reflect-metadata';
 import crypto from 'crypto';
 import Fastify from 'fastify';
 import FastifyCORS from '@fastify/cors';
+import FastifyRateLimit from '@fastify/rate-limit';
 import GracefulServer from '@gquittet/graceful-server';
 import unifyFastifyPlugin from 'unify-fastify';
 import { loadRoutes } from './loaders/RESTLoader';
@@ -30,6 +31,18 @@ export const runServer = async () => {
       callback(new Error('CORS not allowed'), false);
     }
   };
+
+  const corsAllowedHeaders = [
+    'Origin',
+    'X-Requested-With',
+    'Content-Type',
+    'Accept',
+    'Authorization',
+    'forest-context-url',
+    'Set-Cookie',
+    'set-cookie',
+    'Cookie',
+  ];
 
   const logLevel = env.LOG || 'info';
 
@@ -64,6 +77,7 @@ export const runServer = async () => {
     logger: loggerOptions,
     disableRequestLogging: true,
     genReqId: (req) => resolveCorrelationId(req.headers['x-request-id']),
+    trustProxy: 1,
   });
 
   const logger = fastify.log;
@@ -71,6 +85,16 @@ export const runServer = async () => {
 
   fastify.addHook('onRequest', (req, _reply, done) => {
     req.log = req.log.child({ correlation_id: req.id });
+    done();
+  });
+
+  fastify.addHook('onSend', (_req, reply, _payload, done) => {
+    reply.header('X-Content-Type-Options', 'nosniff');
+    reply.header('X-Frame-Options', 'DENY');
+    reply.header('Referrer-Policy', 'strict-origin-when-cross-origin');
+    if (isDeployedMode()) {
+      reply.header('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    }
     done();
   });
 
@@ -97,17 +121,7 @@ export const runServer = async () => {
   try {
     await fastify.register(require('fastify-socket.io'), {
       cors: {
-        allowedHeaders: [
-          'Origin',
-          'X-Requested-With',
-          'Content-Type',
-          'Accept',
-          'Authorization',
-          'forest-context-url',
-          'Set-Cookie',
-          'set-cookie',
-          'Cookie',
-        ],
+        allowedHeaders: corsAllowedHeaders,
         origin: corsOrigin,
         credentials: true,
       },
@@ -115,6 +129,12 @@ export const runServer = async () => {
   } catch (error) {
     logger.fatal(error, '[SERVER] Failed to register socket.io');
   }
+
+  // Prevent unify-fastify's 404 handler from intercepting Socket.IO HTTP-polling requests.
+  // reply.hijack() cedes response ownership to socket.io's own Node HTTP listener.
+  fastify.all('/socket.io/*', (_req, reply) => {
+    reply.hijack();
+  });
 
   fastify.addHook('onClose', async () => {
     await global.prisma.$disconnect();
@@ -124,19 +144,15 @@ export const runServer = async () => {
 
   await fastify.register(FastifyCORS, {
     methods: ['GET', 'PUT', 'DELETE', 'POST', 'OPTIONS', 'PATCH'],
-    allowedHeaders: [
-      'Origin',
-      'X-Requested-With',
-      'Content-Type',
-      'Accept',
-      'Authorization',
-      'forest-context-url',
-      'Set-Cookie',
-      'set-cookie',
-      'Cookie',
-    ],
+    allowedHeaders: corsAllowedHeaders,
     origin: corsOrigin,
     credentials: true,
+  });
+
+  await fastify.register(FastifyRateLimit, {
+    max: 100,
+    timeWindow: '1 minute',
+    keyGenerator: (req) => req.ip,
   });
 
   loadRosetty();

@@ -4,6 +4,14 @@ import { QueueType } from '../../services/prisma/loadPrisma';
 
 const MESSAGE_SYNC_LEAD_TIME_MS = 1200;
 const REQUEUE_INTERVAL_MS = 250;
+const MAX_MEDIA_DURATION_S = 3600;
+
+export function resolveMediaDurationMs(mediaDuration: unknown): number {
+  const rawDuration = Number(mediaDuration);
+  const finiteDuration = Number.isFinite(rawDuration) ? rawDuration : 0;
+  const seconds = Math.min(Math.max(finiteDuration, 0), MAX_MEDIA_DURATION_S);
+  return seconds * 1000 || 5000;
+}
 
 type MediaType = 'image' | 'video' | 'audio' | 'link' | 'text';
 
@@ -16,7 +24,7 @@ const getMediaType = (type: string, content: { url?: string; mediaContentType?: 
 };
 
 export const executeMessagesWorker = async (fastify: FastifyCustomInstance) => {
-  const lastMessage = await prisma.queue.findFirst({
+  const candidate = await prisma.queue.findFirst({
     where: {
       executionDate: {
         lte: new Date(),
@@ -27,46 +35,57 @@ export const executeMessagesWorker = async (fastify: FastifyCustomInstance) => {
     },
   });
 
-  if (lastMessage === null) {
+  if (candidate === null) {
     logger.debug(`[SOCKET] No new message`);
     return;
   }
 
-  const guild = await prisma.guild.findFirst({
+  const busyGuild = await prisma.guild.findFirst({
     where: {
-      id: lastMessage.discordGuildId,
+      id: candidate.discordGuildId,
       busyUntil: {
         gte: new Date(),
       },
     },
   });
 
-  if (guild) {
+  if (busyGuild) {
     await prisma.queue.update({
-      where: { id: lastMessage.id },
+      where: { id: candidate.id },
       data: {
         executionDate: addMilliseconds(new Date(), REQUEUE_INTERVAL_MS),
         busyRequeueMs: { increment: REQUEUE_INTERVAL_MS },
       },
     });
     return;
-  } else {
-    let busyUntil = addSeconds(new Date(), lastMessage.duration);
+  }
+
+  // Atomic claim: delete the row first, then set guild busy.
+  // deleteMany returns count=0 if another concurrent tick already claimed this row,
+  // ensuring exactly-once emit under SQLite's serialized write model.
+  const lastMessage = await prisma.$transaction(async (tx) => {
+    const { count } = await tx.queue.deleteMany({ where: { id: candidate.id } });
+    if (count === 0) return null;
+
+    let busyUntil = addSeconds(new Date(), candidate.duration);
     busyUntil = addMilliseconds(busyUntil, REQUEUE_INTERVAL_MS + MESSAGE_SYNC_LEAD_TIME_MS);
 
-    await prisma.guild.upsert({
-      where: { id: lastMessage.discordGuildId },
-      create: { id: lastMessage.discordGuildId, busyUntil },
+    await tx.guild.upsert({
+      where: { id: candidate.discordGuildId },
+      create: { id: candidate.discordGuildId, busyUntil },
       update: { busyUntil },
     });
-  }
+
+    return candidate;
+  });
+
+  if (lastMessage === null) return;
 
   let content: Record<string, unknown>;
   try {
     content = JSON.parse(lastMessage.content);
   } catch {
     logger.error(`[WORKER] Malformed JSON for message ${lastMessage.id} — discarding`);
-    await prisma.queue.delete({ where: { id: lastMessage.id } });
     return;
   }
 
@@ -79,8 +98,6 @@ export const executeMessagesWorker = async (fastify: FastifyCustomInstance) => {
   logger.debug(`[SOCKET] New message ${lastMessage.id} (guild: ${lastMessage.discordGuildId}): ${lastMessage.content}`);
 
   const emittedAt = Date.now();
-
-  await prisma.queue.delete({ where: { id: lastMessage.id } });
 
   const enqueuedAt = lastMessage.submissionDate.getTime();
   const busyRequeueMs = lastMessage.busyRequeueMs;
@@ -152,10 +169,9 @@ export const executeMessagesWorker = async (fastify: FastifyCustomInstance) => {
     }),
   ]);
 
-  return content.mediaDuration * 1000 || 5000;
+  return resolveMediaDurationMs(content.mediaDuration);
 };
 
-//INFO : Optimization - Can be executed into a dedicated worker ?
 export const loadMessagesWorker = async (fastify: FastifyCustomInstance) => {
   try {
     await executeMessagesWorker(fastify);
