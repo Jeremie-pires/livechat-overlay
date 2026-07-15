@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const makeRosetty = () => ({
-  t: vi.fn((key: string) => key),
+  t: vi.fn((key: string) => key.toLowerCase()),
   getCurrentLang: vi.fn(() => 'fr'),
 });
 
@@ -141,7 +141,7 @@ describe('setDefaultTimeCommand handler', () => {
     await setDefaultTimeCommand().handler(interaction as never, client as never);
 
     expect(mockUpsert).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ defaultMediaTime: 15 }) }),
+      expect.objectContaining({ update: expect.objectContaining({ defaultMediaTime: 15 }) }),
     );
     const embed = (interaction.editReply.mock.calls[0][0] as { embeds: Array<{ data: { color: number } }> }).embeds[0];
     expect(embed.data.color).toBe(0x2ecc71);
@@ -185,7 +185,7 @@ describe('setMaxTimeCommand handler', () => {
     await setMaxTimeCommand().handler(interaction as never, client as never);
 
     expect(mockUpsert).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ maxMediaTime: 300 }) }),
+      expect.objectContaining({ update: expect.objectContaining({ maxMediaTime: 300 }) }),
     );
   });
 });
@@ -223,7 +223,8 @@ describe('sendCommand — I-04 prisma.queue.create error boundary', () => {
 
     const cmd = sendCommand();
     const optionsGet = vi.fn((key: string) => {
-      if (key === (global as Record<string, unknown>).rosetty?.t?.('sendCommandOptionURL')) return { value: 'https://example.com', attachment: null };
+      if (key === (global as Record<string, unknown>).rosetty?.t?.('sendCommandOptionURL'))
+        return { value: 'https://example.com', attachment: null };
       return null;
     });
     (interaction as Record<string, unknown>).options = {
