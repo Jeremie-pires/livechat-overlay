@@ -1,7 +1,7 @@
 # AI_STATE.md — LiveChat CCB
 
 ## Status
-Branch `fix/important-remediation-phase2` — Phase 1 blockers + Phase 2 IMPORTANT remediations (I-01…I-11) fully committed. Phase 3 LOW PRIORITY items assessed: L-04/L-05/L-06 resolved; L-01/L-02/L-03/L-07 deferred or N/A. Test suite green (327/327). Lint clean.
+Branch `docs/security-audit-full` (off `develop`) — Full DevSecOps static-analysis audit committed to `.pipeline/full_security_audit.md`. 29 findings: 2 CRITICAL, 7 HIGH, 8 MEDIUM, 7 LOW, 5 OPTIMIZATION. No source files modified; audit is read-only.
 
 ---
 
@@ -83,9 +83,12 @@ Branch `fix/important-remediation-phase2` — Phase 1 blockers + Phase 2 IMPORTA
 
 ## 3. Next steps
 
-1. **Merge path**: `fix/important-remediation-phase2` → `develop` → `main`.
-2. **`displayMediaFull` full implementation** (deferred): worker reads Guild row at dispatch, injects flag into Socket.IO payload, client applies CSS.
-3. **Observability phase 2** — external log shipping (Loki/ELK).
-4. **Remaining L-series** (low-priority, deferred):
+1. **Merge path**: `docs/security-audit-full` → `develop` → `main`.
+2. **Audit remediation phase 3** — address findings from `.pipeline/full_security_audit.md`:
+   - CRITICAL: C-AUD-01 (rate limiting via `@fastify/rate-limit`), C-AUD-02 (ffprobe DNS rebinding — pass IP-pinned URL or disable remote ffprobe)
+   - HIGH: H-AUD-01 (Content-Security-Policy), H-AUD-02 (Docker runner dev-dep bloat), H-AUD-03 (process.env overwrite), H-AUD-04 (trustProxy IP restriction), H-AUD-05 (busyGuild TOCTOU in transaction), H-AUD-06 (scope Socket.IO emit payload), H-AUD-07 (log redaction dev mode)
+3. **`displayMediaFull` full implementation** (deferred): worker reads Guild row at dispatch, injects flag into Socket.IO payload, client applies CSS.
+4. **Observability phase 2** — external log shipping (Loki/ELK).
+5. **Remaining L-series** (low-priority, deferred):
    - L-01: tsconfig explicit strict flags (blocked by `ignoreDeprecations: "6.0"` preventing `tsc --noEmit` validation)
-   - L-03: Dockerfile native-module double-build (requires architecture refactor)
+   - L-03: Dockerfile native-module double-build (requires architecture refactor — tracked as O-AUD-01)
