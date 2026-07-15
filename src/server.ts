@@ -91,10 +91,6 @@ export const runServer = async () => {
     reply.header('X-Content-Type-Options', 'nosniff');
     reply.header('X-Frame-Options', 'DENY');
     reply.header('Referrer-Policy', 'strict-origin-when-cross-origin');
-    reply.header(
-      'Content-Security-Policy',
-      "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' https://cdn.discordapp.com data:; connect-src 'self'; frame-ancestors 'none'",
-    );
     if (isDeployedMode()) {
       reply.header('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
     }
@@ -132,6 +128,12 @@ export const runServer = async () => {
   } catch (error) {
     logger.fatal(error, '[SERVER] Failed to register socket.io');
   }
+
+  // Prevent unify-fastify's 404 handler from intercepting Socket.IO HTTP-polling requests.
+  // reply.hijack() cedes response ownership to socket.io's own Node HTTP listener.
+  fastify.all('/socket.io/*', (_req, reply) => {
+    reply.hijack();
+  });
 
   fastify.addHook('onClose', async () => {
     await global.prisma.$disconnect();
