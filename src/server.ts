@@ -3,6 +3,7 @@ import 'reflect-metadata';
 import crypto from 'crypto';
 import Fastify from 'fastify';
 import FastifyCORS from '@fastify/cors';
+import FastifyRateLimit from '@fastify/rate-limit';
 import GracefulServer from '@gquittet/graceful-server';
 import unifyFastifyPlugin from 'unify-fastify';
 import { loadRoutes } from './loaders/RESTLoader';
@@ -76,7 +77,7 @@ export const runServer = async () => {
     logger: loggerOptions,
     disableRequestLogging: true,
     genReqId: (req) => resolveCorrelationId(req.headers['x-request-id']),
-    trustProxy: true,
+    trustProxy: 1,
   });
 
   const logger = fastify.log;
@@ -146,6 +147,12 @@ export const runServer = async () => {
     allowedHeaders: corsAllowedHeaders,
     origin: corsOrigin,
     credentials: true,
+  });
+
+  await fastify.register(FastifyRateLimit, {
+    max: 100,
+    timeWindow: '1 minute',
+    keyGenerator: (req) => req.ip,
   });
 
   loadRosetty();

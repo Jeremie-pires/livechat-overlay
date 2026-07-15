@@ -985,7 +985,7 @@ async function dashboardPlugin(fastify: FastifyCustomInstance) {
     return reply.type('text/html').send(DASHBOARD_HTML.replace('{{CSRF_TOKEN}}', csrfToken));
   });
 
-  fastify.get('/auth/callback', async (req, reply) => {
+  fastify.get('/auth/callback', { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } }, async (req, reply) => {
     if (!env.DISCORD_CLIENT_SECRET) {
       return reply.status(503).send('DISCORD_CLIENT_SECRET not configured');
     }

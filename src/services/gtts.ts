@@ -1,4 +1,5 @@
 import { join } from 'path';
+import { randomUUID } from 'crypto';
 
 import { unlink } from 'fs/promises';
 import { createReadStream } from 'fs';
@@ -8,7 +9,7 @@ export const promisedGtts = (voice: string, lang: string) =>
   new Promise<string>((resolve, reject) => {
     const gtts = new gTTS(voice, lang);
 
-    const filePath = join(__dirname, `${Date.now()}-${Math.ceil(Math.random() * 100)}.mp3`);
+    const filePath = join(__dirname, `${randomUUID()}.mp3`);
 
     gtts.save(filePath, function (err) {
       if (err) {

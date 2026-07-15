@@ -262,9 +262,10 @@ export const getContentInformationsFromUrl = async (url: string) => {
     logger.debug({ err: error }, 'content-type from URL extension failed');
   }
 
+  const effectiveGuard = providerResult?.guard ?? urlGuard;
+
   try {
     if (!contentType) {
-      const effectiveGuard = providerResult?.guard ?? urlGuard;
       const [pinnedUrl, pinnedInit] = buildPinnedFetchArgs(effectiveGuard, {}, { redirect: 'error' });
       const file = await fetch(pinnedUrl, pinnedInit as Parameters<typeof fetch>[1]);
 
@@ -282,7 +283,8 @@ export const getContentInformationsFromUrl = async (url: string) => {
   }
 
   try {
-    mediaDuration = await getVideoDurationInSeconds(effectiveUrl, 'ffprobe');
+    const [pinnedFfprobeUrl] = buildPinnedFetchArgs(effectiveGuard, {}, {});
+    mediaDuration = await getVideoDurationInSeconds(pinnedFfprobeUrl, 'ffprobe');
   } catch (error) {
     logger.debug({ err: error }, 'ffprobe duration detection failed');
   }
