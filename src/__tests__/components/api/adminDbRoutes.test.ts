@@ -47,7 +47,14 @@ describe('GET /api/admin/db/guilds — auth guard', () => {
       broadcastLog: mockPrismaBroadcastLog(),
     };
     // @ts-ignore
-    global.discordClient = { guilds: { cache: { get: vi.fn().mockReturnValue(undefined) } } };
+    global.discordClient = {
+      guilds: {
+        cache: { get: vi.fn().mockReturnValue(undefined) },
+        fetch: vi.fn().mockRejectedValue(new Error('Unknown Guild')),
+      },
+    };
+    // @ts-ignore
+    global.logger = { warn: vi.fn(), error: vi.fn(), info: vi.fn(), debug: vi.fn() };
     app = await buildApp();
   });
 
