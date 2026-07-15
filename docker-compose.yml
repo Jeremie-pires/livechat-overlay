@@ -4,6 +4,11 @@ services:
     restart: unless-stopped
     ports:
       - '3000:3000'
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
     environment:
       DATABASE_URL: file:/data/sqlite.db
       APP_ENV: ${APP_ENV:-production}
