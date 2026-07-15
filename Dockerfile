@@ -27,7 +27,7 @@ LABEL maintainer="Quentin Laffont <contact@qlaffont.com>"
 
 WORKDIR /app
 COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile --prod
+RUN pnpm install --frozen-lockfile
 
 COPY --from=builder /app/prisma ./prisma
 RUN pnpm generate
