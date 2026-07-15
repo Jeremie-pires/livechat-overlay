@@ -46,8 +46,8 @@ export const persistBroadcastRun = async (runId: string, results: BroadcastResul
             errorCode: r.errorCode ?? null,
             errorReason: r.errorReason ?? null,
           },
-        })
-      )
+        }),
+      ),
     );
   } catch (err) {
     logger.error({ err, runId }, '[BroadcastClassifier] Failed to persist broadcast run');
