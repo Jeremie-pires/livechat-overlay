@@ -35,13 +35,13 @@ describe('GET /health', () => {
 
   afterEach(() => app.close());
 
-  it('returns 200 with status ok', async () => {
+  it('returns 200 with status ok and uptime, no APP_ENV disclosure', async () => {
     const res = await app.inject({ method: 'GET', url: '/health' });
     expect(res.statusCode).toBe(200);
-    const body = JSON.parse(res.body) as { status: string; env: string; uptime: number };
+    const body = JSON.parse(res.body) as { status: string; uptime: number; env?: string };
     expect(body.status).toBe('ok');
-    expect(body.env).toBe('production');
     expect(typeof body.uptime).toBe('number');
+    expect(body.env).toBeUndefined();
   });
 });
 
@@ -172,6 +172,23 @@ describe('Correlation ID propagation', () => {
     expect(id).not.toBe(v1Uuid);
     expect(id).toMatch(UUID_V4_RE);
   });
+});
+
+describe('GET /health/ready — DB probe timeout (I-11)', () => {
+  it('returns 503 when DB probe hangs longer than 2 s', async () => {
+    (global as Record<string, unknown>).env = { APP_ENV: 'production' };
+    (global as Record<string, unknown>).prisma = {
+      $queryRaw: vi.fn(() => new Promise((resolve) => setTimeout(resolve, 5000))),
+    };
+    (global as Record<string, unknown>).discordClient = { isReady: () => true };
+    const app = await buildApp();
+    const res = await app.inject({ method: 'GET', url: '/health/ready' });
+    await app.close();
+    expect(res.statusCode).toBe(503);
+    const body = JSON.parse(res.body) as { status: string; checks: Record<string, { ok: boolean }> };
+    expect(body.status).toBe('degraded');
+    expect(body.checks.db.ok).toBe(false);
+  }, 10000);
 });
 
 describe('GET /health/ready — DB error sanitization (B4)', () => {
