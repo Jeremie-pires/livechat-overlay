@@ -1,5 +1,5 @@
 import { join } from 'path';
-import { randomUUID } from 'crypto';
+import { randomUUID } from 'node:crypto';
 
 import { unlink } from 'fs/promises';
 import { createReadStream } from 'fs';

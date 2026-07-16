@@ -30,22 +30,14 @@ describe('Security headers (I-02)', () => {
 
   afterEach(() => app?.close());
 
-  it('sets X-Content-Type-Options: nosniff on all responses', async () => {
+  it.each([
+    ['x-content-type-options', 'nosniff'],
+    ['x-frame-options', 'DENY'],
+    ['referrer-policy', 'strict-origin-when-cross-origin'],
+  ])('sets %s header on all responses', async (header, expected) => {
     app = await buildAppWithHeaders('development');
     const res = await app.inject({ method: 'GET', url: '/test' });
-    expect(res.headers['x-content-type-options']).toBe('nosniff');
-  });
-
-  it('sets X-Frame-Options: DENY on all responses', async () => {
-    app = await buildAppWithHeaders('development');
-    const res = await app.inject({ method: 'GET', url: '/test' });
-    expect(res.headers['x-frame-options']).toBe('DENY');
-  });
-
-  it('sets Referrer-Policy: strict-origin-when-cross-origin', async () => {
-    app = await buildAppWithHeaders('development');
-    const res = await app.inject({ method: 'GET', url: '/test' });
-    expect(res.headers['referrer-policy']).toBe('strict-origin-when-cross-origin');
+    expect(res.headers[header]).toBe(expected);
   });
 
   it('sets Content-Security-Policy header', async () => {

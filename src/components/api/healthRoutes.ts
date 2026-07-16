@@ -1,5 +1,10 @@
 const DB_PROBE_TIMEOUT_MS = 2000;
 
+const dbProbeTimeout = () =>
+  new Promise<never>((_, reject) =>
+    setTimeout(() => reject(new Error('DB probe timeout')), DB_PROBE_TIMEOUT_MS),
+  );
+
 export const HealthRoutes = () =>
   async function (fastify: FastifyCustomInstance) {
     fastify.get('/health', { config: { skipRequestLogging: true } }, async (_req, reply) => {
@@ -10,12 +15,7 @@ export const HealthRoutes = () =>
       const checks: Record<string, { ok: boolean; reason?: string }> = {};
 
       try {
-        await Promise.race([
-          global.prisma.$queryRaw`SELECT 1`,
-          new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error('DB probe timeout')), DB_PROBE_TIMEOUT_MS),
-          ),
-        ]);
+        await Promise.race([global.prisma.$queryRaw`SELECT 1`, dbProbeTimeout()]);
         checks.db = { ok: true };
       } catch (err) {
         fastify.log.error(err, '[HEALTH] Prisma readiness probe failed');
