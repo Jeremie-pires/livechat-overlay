@@ -18,9 +18,8 @@ COPY . .
 FROM node:20-alpine AS runner
 
 RUN apk update && apk upgrade --no-cache && \
-    apk add --no-cache ffmpeg python3 py3-pip py3-setuptools alpine-sdk
-
-RUN corepack enable && corepack prepare pnpm@8.15.9 --activate
+    apk add --no-cache ffmpeg python3 py3-pip py3-setuptools alpine-sdk && \
+    corepack enable && corepack prepare pnpm@8.15.9 --activate
 
 ENV HUSKY=0
 ENV PORT=3000
