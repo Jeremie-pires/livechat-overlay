@@ -87,3 +87,5 @@ package-lock.json
 
 #Pipeline multi agents workflow files
 .pipeline/
+
+config/
