@@ -27,7 +27,10 @@ async function proxyAsset(req: IncomingMessage, res: ServerResponse, remoteBase:
       res.end();
       return;
     }
-    const upstream = await fetch(`${remoteBase}${reqUrl.pathname}${reqUrl.search}`);
+    const targetUrl = new URL(remoteBase);
+    targetUrl.pathname = reqUrl.pathname;
+    targetUrl.search = reqUrl.search;
+    const upstream = await fetch(targetUrl);
     const ct = upstream.headers.get('content-type');
     if (ct) res.setHeader('Content-Type', ct);
     res.writeHead(upstream.status);
