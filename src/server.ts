@@ -46,24 +46,26 @@ export const runServer = async () => {
 
   const logLevel = env.LOG || 'info';
 
+  const redact = {
+    paths: [
+      'DISCORD_TOKEN',
+      'DISCORD_CLIENT_SECRET',
+      '*.DISCORD_TOKEN',
+      '*.DISCORD_CLIENT_SECRET',
+      'req.headers.cookie',
+      'req.headers.authorization',
+    ],
+    censor: '[REDACTED]',
+  };
+
   const loggerOptions = isDeployedMode()
     ? {
         level: logLevel,
         base: { env: env.APP_ENV, service: 'livechatccb', version },
         timestamp: () => `,"time":"${new Date().toISOString()}"`,
-        redact: {
-          paths: [
-            'DISCORD_TOKEN',
-            'DISCORD_CLIENT_SECRET',
-            '*.DISCORD_TOKEN',
-            '*.DISCORD_CLIENT_SECRET',
-            'req.headers.cookie',
-            'req.headers.authorization',
-          ],
-          censor: '[REDACTED]',
-        },
+        redact,
       }
-    : { level: logLevel };
+    : { level: logLevel, redact };
 
   const UUID_V4_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
