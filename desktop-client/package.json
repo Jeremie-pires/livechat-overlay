@@ -1,7 +1,7 @@
 {
   "name": "livechat-ccb-desktop",
-  "version": "1.2.9",
-  "private": true,
+  "version": "1.2.10",
+  "private": false,
   "description": "Desktop overlay client for LiveChat CCB",
   "repository": {
     "type": "git",
@@ -16,7 +16,8 @@
     "build:renderer": "node scripts/copy-renderer.mjs",
     "dist": "npm run build && electron-builder --win nsis",
     "pack": "npm run build && electron-builder --dir",
-    "release": "npm run build && electron-builder --win nsis --publish always"
+    "release": "npm run build && electron-builder --win nsis --publish always",
+    "tag": "git tag -a"
   },
   "build": {
     "appId": "fr.livechat.ccb.desktop",
@@ -59,7 +60,9 @@
     }
   },
   "dependencies": {
-    "electron-updater": "^6.3.9"
+    "electron-updater": "^6.3.9",
+    "socket.io": "^4.7.4",
+    "socket.io-client": "^4.7.4"
   },
   "devDependencies": {
     "@types/node": "20.11.17",

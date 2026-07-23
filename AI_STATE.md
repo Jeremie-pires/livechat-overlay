@@ -81,7 +81,34 @@ Branch `docs/security-audit-full` (off `develop`) — Full DevSecOps static-anal
 
 ---
 
-## 3. Next steps
+## 3. Local OBS Server (desktop-client)
+
+Added a local HTTP + Socket.IO server inside the Electron app so streamers can use `http://localhost:PORT/client?guildId=xxx` as an OBS Browser Source — no remote URL or token ever appears in OBS.
+
+### New / modified files
+
+| File | Change |
+|---|---|
+| `desktop-client/src/local-server.ts` | **NEW** — HTTP + Socket.IO server; bridges remote Fastify events; proxies `/client/*` assets |
+| `desktop-client/src/utils.ts` | Added `localServerPort: number` (default 3001) to `AppSettings` + `normalizeSettings` |
+| `desktop-client/src/main.ts` | Imports `startLocalServer / stopLocalServer / getLocalObsUrl`; starts on connect, stops on disconnect/quit; restarts on relevant settings change; `local-server:get-url` IPC handler; `local-server:url-changed` IPC push |
+| `desktop-client/src/preload.ts` | Added `getObsUrl()` + `onObsUrlChanged()` to `window.livechat` bridge; `localServerPort` in type |
+| `desktop-client/src/renderer/index.html` | OBS URL card in Control tab; port field in Config tab |
+| `desktop-client/src/renderer/renderer.js` | `setObsUrl()`, copy button, `onObsUrlChanged` listener, `localServerPort` in form |
+| `desktop-client/src/renderer/styles.css` | `.obs-url-section`, `.obs-url-row` styles |
+| `desktop-client/package.json` | `socket.io ^4.7.4`, `socket.io-client ^4.7.4` added to dependencies |
+
+### How it works
+1. On overlay connect, `startLocalServer(settings)` starts a local HTTP server on port 3001 (auto-increment if busy)
+2. Main process connects to remote Fastify as a Socket.IO **client** using existing credentials (token + guildId)
+3. Receives `new-message` / `stop` from remote → re-emits to local Socket.IO clients
+4. HTTP handler proxies `/client/*` routes from the remote server for assets (client.html, vidstack, images)
+5. OBS Browser Source loads `http://localhost:3001/client?guildId=xxx` — `io()` auto-connects to local Socket.IO
+6. Token never appears in OBS URL; remote server address stays hidden
+
+---
+
+## 4. Next steps
 
 1. **Merge path**: `docs/security-audit-full` → `develop` → `main`.
 2. **Audit remediation phase 3** — address findings from `.pipeline/full_security_audit.md`:

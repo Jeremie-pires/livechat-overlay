@@ -3,16 +3,22 @@ name: Desktop Release
 on:
   push:
     tags:
-      - 'v*' # Se déclenche uniquement pour les tags commençant par "v"
-  workflow_dispatch: # Permet de déclencher manuellement le workflow depuis l'interface GitHub
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      prerelease:
+        description: 'Publish as pre-release'
+        required: false
+        default: 'false'
+        type: boolean
 
 permissions:
-  contents: write # Obligatoire pour autoriser GitHub à publier une "Release"
+  contents: write
 
 jobs:
   build-and-publish:
     name: Build & Publish Windows App
-    runs-on: windows-latest # Nécessaire pour compiler un .exe natif sous Windows
+    runs-on: windows-latest
 
     steps:
       - name: Checkout repo
@@ -27,8 +33,40 @@ jobs:
         working-directory: desktop-client
         run: npm install
 
+      - name: Detect release type
+        id: detect
+        shell: bash
+        run: |
+          TAG="${{ github.ref_name }}"
+          MANUAL="${{ github.event.inputs.prerelease }}"
+          if [[ "$TAG" =~ -rc\.[0-9]+$ ]] || [[ "$MANUAL" == "true" ]]; then
+            echo "type=prerelease" >> $GITHUB_OUTPUT
+          else
+            echo "type=release" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create GitHub Release from tag annotation
+        if: github.event_name == 'push'
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ github.ref_name }}"
+          NOTES=$(git tag -l --format='%(contents)' "$TAG")
+          FLAGS=""
+          if [ "${{ steps.detect.outputs.type }}" = "prerelease" ]; then
+            FLAGS="--prerelease"
+          fi
+          gh release create "$TAG" --title "$TAG" --notes "$NOTES" $FLAGS
+
       - name: Build and Publish Electron App
         working-directory: desktop-client
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npm run release
+        shell: bash
+        run: |
+          if [ "${{ steps.detect.outputs.type }}" = "prerelease" ]; then
+            npm run build && npx electron-builder --win nsis --publish always -c.publish.releaseType=prerelease
+          else
+            npm run release
+          fi
