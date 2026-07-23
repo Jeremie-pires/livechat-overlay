@@ -18,8 +18,9 @@ COPY . .
 FROM node:20-alpine AS runner
 
 # No build toolchain (alpine-sdk / gcc / make) — native modules are copied pre-compiled from builder
+# openssl is required by the Prisma schema engine at runtime
 RUN apk update && apk upgrade --no-cache && \
-    apk add --no-cache ffmpeg python3 py3-pip py3-setuptools && \
+    apk add --no-cache ffmpeg python3 py3-pip py3-setuptools openssl && \
     corepack enable && corepack prepare pnpm@8.15.9 --activate
 
 ENV HUSKY=0
