@@ -14,6 +14,7 @@ import {
   type AppSettings,
   type PresenceEntry,
 } from './utils';
+import { startLocalServer, stopLocalServer, getLocalObsUrl } from './local-server';
 
 type OverlayStatusType = 'idle' | 'loading' | 'connected' | 'error';
 
@@ -34,6 +35,7 @@ let isQuitting = false;
 let statusType: OverlayStatusType = 'idle';
 let statusMessage = 'Prêt';
 let settings = { ...DEFAULT_SETTINGS };
+let isLocalServerRunning = false;
 
 function getSettingsPath() {
   return path.join(app.getPath('userData'), 'settings.json');
@@ -323,6 +325,18 @@ async function connectOverlay() {
   applyOverlayPlacement();
   updateStatus('loading', `Connexion à ${settings.backendUrl}`);
   overlayWindow.showInactive();
+
+  if (!isLocalServerRunning && settings.guildId) {
+    startLocalServer(settings)
+      .then(() => {
+        isLocalServerRunning = true;
+        controlWindow?.webContents.send('local-server:url-changed', getLocalObsUrl());
+      })
+      .catch((err: unknown) => {
+        console.error('[LocalServer] Failed to start:', errMessage(err));
+      });
+  }
+
   try {
     await overlayWindow.loadURL(getOverlayUrl());
   } catch (err: unknown) {
@@ -342,6 +356,7 @@ function registerIpc() {
   ipcMain.handle('app:get-displays', async () => getDisplayList());
 
   ipcMain.handle('app:save-settings', async (_event, nextSettings: Partial<AppSettings>) => {
+    const prev = settings;
     settings = normalizeSettings(nextSettings);
     await saveSettingsToDisk();
     applyLoginItemSettings();
@@ -352,6 +367,21 @@ function registerIpc() {
       }
       const js = `if (typeof window.__updateLayoutSettings === 'function') { window.__updateLayoutSettings(${settings.overlaySize}, '${settings.overlayPosition}'); }`;
       overlayWindow.webContents.executeJavaScript(js).catch(() => undefined);
+    }
+    if (
+      isLocalServerRunning &&
+      (settings.backendUrl !== prev.backendUrl ||
+        settings.guildId !== prev.guildId ||
+        settings.clientToken !== prev.clientToken ||
+        settings.localServerPort !== prev.localServerPort)
+    ) {
+      startLocalServer(settings)
+        .then(() => {
+          controlWindow?.webContents.send('local-server:url-changed', getLocalObsUrl());
+        })
+        .catch((err: unknown) => {
+          console.error('[LocalServer] Failed to restart:', errMessage(err));
+        });
     }
     controlWindow?.webContents.send('overlay:settings-changed', settings);
     return settings;
@@ -393,9 +423,16 @@ function registerIpc() {
 
   ipcMain.handle('overlay:disconnect', async () => {
     destroyOverlayWindow();
+    if (isLocalServerRunning) {
+      isLocalServerRunning = false;
+      await stopLocalServer();
+      controlWindow?.webContents.send('local-server:url-changed', '');
+    }
     updateStatus('idle', 'Fenêtre overlay fermée');
     return { type: statusType, message: statusMessage };
   });
+
+  ipcMain.handle('local-server:get-url', () => getLocalObsUrl());
 
   ipcMain.handle('overlay:set-volume', async (_event, nextVolume: number) => {
     settings.volume = clampVolume(nextVolume);
@@ -522,6 +559,10 @@ async function bootstrap() {
 
 app.on('before-quit', () => {
   isQuitting = true;
+  if (isLocalServerRunning) {
+    isLocalServerRunning = false;
+    stopLocalServer().catch(() => undefined);
+  }
 });
 
 const gotLock = app.requestSingleInstanceLock();

@@ -113,6 +113,15 @@
         </div>
 
 
+        <!-- OBS Browser Source URL (visible when connected) -->
+        <div class="obs-url-section hidden" id="obsUrlSection">
+          <span>URL OBS Browser Source</span>
+          <div class="obs-url-row">
+            <input id="obsUrlDisplay" type="text" readonly />
+            <button id="obsUrlCopyBtn" class="small-btn">Copier</button>
+          </div>
+        </div>
+
         <!-- Quick Summary Grid inside Control Panel -->
         <div class="summary-grid">
           <div>
@@ -154,6 +163,11 @@
         <label class="field">
           <span>Token client (depuis /client)</span>
           <input id="clientToken" type="password" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" autocomplete="off" />
+        </label>
+
+        <label class="field">
+          <span>Port serveur OBS local</span>
+          <input id="localServerPort" type="number" min="1024" max="65535" placeholder="3001" />
         </label>
 
         <div class="toggles">

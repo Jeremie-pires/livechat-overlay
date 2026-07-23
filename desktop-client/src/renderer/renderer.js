@@ -50,6 +50,12 @@ const elements = {
   testResultIcon: document.getElementById('testResultIcon'),
   testResultText: document.getElementById('testResultText'),
 
+  // OBS local server
+  obsUrlSection: document.getElementById('obsUrlSection'),
+  obsUrlDisplay: document.getElementById('obsUrlDisplay'),
+  obsUrlCopyBtn: document.getElementById('obsUrlCopyBtn'),
+  localServerPort: document.getElementById('localServerPort'),
+
   // Summary Metrics
   statusSummary: document.getElementById('statusSummary'),
   windowSummary: document.getElementById('windowSummary'),
@@ -82,8 +88,10 @@ function renderStatus(status) {
 
   if (status.type === 'connected') {
     startPresencePolling();
+    window.livechat.getObsUrl().then(setObsUrl);
   } else {
     stopPresencePolling();
+    if (status.type !== 'loading') setObsUrl('');
   }
 
   // Render main toggle button
@@ -144,6 +152,17 @@ function renderSize(value) {
   elements.sizeValue.textContent = `${value}px`;
 }
 
+function setObsUrl(url) {
+  if (!elements.obsUrlSection || !elements.obsUrlDisplay) return;
+  if (url) {
+    elements.obsUrlDisplay.value = url;
+    elements.obsUrlSection.classList.remove('hidden');
+  } else {
+    elements.obsUrlDisplay.value = '';
+    elements.obsUrlSection.classList.add('hidden');
+  }
+}
+
 function populateDisplays(displays) {
   state.displays = displays;
   elements.screenId.innerHTML = '';
@@ -170,7 +189,8 @@ function readFormValues() {
     autoConnect: elements.autoConnect.checked,
     launchAtStartup: elements.launchAtStartup.checked,
     startMinimized: elements.startMinimized.checked,
-    clickThrough: true, // Click-through is now forced to true for user convenience
+    clickThrough: true,
+    localServerPort: Number(elements.localServerPort?.value) || 3001,
   };
 }
 
@@ -291,6 +311,7 @@ async function refreshUi() {
   elements.autoConnect.checked = settings.autoConnect;
   elements.launchAtStartup.checked = settings.launchAtStartup;
   elements.startMinimized.checked = settings.startMinimized;
+  if (elements.localServerPort) elements.localServerPort.value = String(settings.localServerPort ?? 3001);
 
   // Load control values
   elements.screenId.value = String(settings.screenId || displays.find((display) => display.primary)?.id || displays[0]?.id || 0);
@@ -603,6 +624,21 @@ function bindEvents() {
   elements.testSoundBtn.addEventListener('click', async () => {
     await window.livechat.testSound();
   });
+
+  if (elements.obsUrlCopyBtn && elements.obsUrlDisplay) {
+    elements.obsUrlCopyBtn.addEventListener('click', async () => {
+      const url = elements.obsUrlDisplay.value;
+      if (!url) return;
+      try {
+        await navigator.clipboard.writeText(url);
+        elements.obsUrlCopyBtn.textContent = '✓ Copié';
+        setTimeout(() => { elements.obsUrlCopyBtn.textContent = 'Copier'; }, 2000);
+      } catch {
+        elements.obsUrlCopyBtn.textContent = 'Erreur';
+        setTimeout(() => { elements.obsUrlCopyBtn.textContent = 'Copier'; }, 2000);
+      }
+    });
+  }
 }
 
 function stripHtml(html) {
@@ -644,6 +680,10 @@ window.livechat.onStatus((status) => {
   renderStatus(status);
 });
 
+window.livechat.onObsUrlChanged((url) => {
+  setObsUrl(url);
+});
+
 window.livechat.onSettingsChanged((settings) => {
   state.settings = settings;
   elements.backendUrl.value = settings.backendUrl;
@@ -656,6 +696,7 @@ window.livechat.onSettingsChanged((settings) => {
   elements.volume.value = String(settings.volume);
   elements.overlaySize.value = String(settings.overlaySize);
   elements.overlayPosition.value = settings.overlayPosition;
+  if (elements.localServerPort) elements.localServerPort.value = String(settings.localServerPort ?? 3001);
   updatePositionGridActive(settings.overlayPosition || 'center');
   renderVolume(settings.volume);
   renderSize(settings.overlaySize);

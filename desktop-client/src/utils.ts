@@ -10,6 +10,7 @@ export type AppSettings = {
   launchAtStartup: boolean;
   startMinimized: boolean;
   clientToken: string;
+  localServerPort: number;
 };
 
 export type PresenceEntry = {
@@ -33,6 +34,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   launchAtStartup: false,
   startMinimized: false,
   clientToken: '',
+  localServerPort: 3001,
 };
 
 export const OVERLAY_POSITION_ALLOWLIST: readonly string[] = [
@@ -105,5 +107,8 @@ export function normalizeSettings(candidate: Partial<AppSettings> | undefined): 
     launchAtStartup: Boolean(candidate?.launchAtStartup ?? DEFAULT_SETTINGS.launchAtStartup),
     startMinimized: Boolean(candidate?.startMinimized ?? DEFAULT_SETTINGS.startMinimized),
     clientToken: candidate?.clientToken?.trim() || '',
+    localServerPort: Number.isFinite(candidate?.localServerPort as number)
+      ? Math.max(1024, Math.min(65535, Math.round(Number(candidate?.localServerPort))))
+      : DEFAULT_SETTINGS.localServerPort,
   };
 }

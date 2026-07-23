@@ -12,6 +12,7 @@ type AppSettings = {
   launchAtStartup: boolean;
   startMinimized: boolean;
   clientToken: string;
+  localServerPort: number;
 };
 
 type PresenceEntry = { id: string; displayName: string; connectedAt: number; avatarUrl: string | null };
@@ -67,6 +68,12 @@ contextBridge.exposeInMainWorld('livechat', {
     return () => ipcRenderer.removeListener('presence:userLeft', listener);
   },
   installUpdate: () => ipcRenderer.invoke('update:install'),
+  getObsUrl: () => ipcRenderer.invoke('local-server:get-url') as Promise<string>,
+  onObsUrlChanged: (callback: (url: string) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, url: string) => callback(url);
+    ipcRenderer.on('local-server:url-changed', listener);
+    return () => ipcRenderer.removeListener('local-server:url-changed', listener);
+  },
 });
 
 declare global {
@@ -91,6 +98,8 @@ declare global {
       onUserJoined: (callback: (data: UserJoinedPayload) => void) => () => void;
       onUserLeft: (callback: (data: { id: string }) => void) => () => void;
       installUpdate: () => Promise<void>;
+      getObsUrl: () => Promise<string>;
+      onObsUrlChanged: (callback: (url: string) => void) => () => void;
     };
   }
 }
