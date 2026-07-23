@@ -16,8 +16,7 @@
     "build:renderer": "node scripts/copy-renderer.mjs",
     "dist": "npm run build && electron-builder --win nsis",
     "pack": "npm run build && electron-builder --dir",
-    "release": "npm run build && electron-builder --win nsis --publish always",
-    "tag": "git tag -a"
+    "release": "npm run build && electron-builder --win nsis --publish always"
   },
   "build": {
     "appId": "fr.livechat.ccb.desktop",
