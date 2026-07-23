@@ -1,4 +1,4 @@
-import { createServer, type IncomingMessage, type ServerResponse } from 'http';
+import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { Server as SocketIOServer } from 'socket.io';
 import { io as socketIoClient, type Socket as ClientSocket } from 'socket.io-client';
 import { assertHttpUrl, type AppSettings } from './utils';
@@ -21,7 +21,13 @@ function isPortAvailable(port: number): Promise<boolean> {
 
 async function proxyAsset(req: IncomingMessage, res: ServerResponse, remoteBase: string): Promise<void> {
   try {
-    const upstream = await fetch(`${remoteBase}${req.url ?? '/'}`);
+    const reqUrl = new URL(req.url ?? '/', 'http://localhost');
+    if (!reqUrl.pathname.startsWith('/client')) {
+      res.writeHead(404);
+      res.end();
+      return;
+    }
+    const upstream = await fetch(`${remoteBase}${reqUrl.pathname}${reqUrl.search}`);
     const ct = upstream.headers.get('content-type');
     if (ct) res.setHeader('Content-Type', ct);
     res.writeHead(upstream.status);

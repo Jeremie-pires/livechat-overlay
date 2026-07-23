@@ -75,8 +75,27 @@ Discord command → `messagesWorker` dequeues → Socket.IO emit → browser cli
 ## 🚀 Desktop client release
 
 - **Trigger**: When user says "send a new version" (or similar) — **ask first** what text to show users in the update modal (release notes) before doing anything.
-- Chosen text = GitHub Release description (fetched by `electron-updater`, shown in app modal).
-- Release workflow: bump version in `desktop-client/package.json`, then `npm run release` in `desktop-client/`.
+- Chosen text = git tag annotation message (`-m`), shown verbatim in the app update modal via `electron-updater`.
+- The CI (`.github/workflows/desktop-release.yml`) reads the tag annotation and creates the GitHub Release automatically — **no `gh release create` needed manually**.
+
+### Release commands
+
+```bash
+# 1. Bump version in desktop-client/package.json, commit & push
+# 2. Create annotated tag with release notes and push — CI does the rest
+
+# Stable release (auto-updates all users)
+npm run tag -- v1.2.11 -m "Your message here — visible in the update modal"
+git push origin v1.2.11
+
+# Pre-release / RC (does NOT auto-update stable users)
+npm run tag -- v1.2.11-rc.1 -m "Test version — experimental features"
+git push origin v1.2.11-rc.1
+```
+
+- Tag pattern `vX.X.X` → stable GitHub Release
+- Tag pattern `vX.X.X-rc.N` → pre-release (electron-updater skips auto-update for stable users)
+- `npm run tag` is defined in `desktop-client/package.json` as an alias for `git tag -a`
 
 ## 🧠 Memory & Context
 
