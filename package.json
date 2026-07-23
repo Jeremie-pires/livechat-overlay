@@ -88,7 +88,9 @@
       "braces": ">=3.0.3",
       "flatted": ">=3.4.2",
       "minimatch": ">=9.0.7",
-      "picomatch": ">=2.3.2"
+      "picomatch": ">=2.3.2",
+      "engine.io": ">=6.6.7",
+      "js-yaml": ">=4.3.0"
     }
   }
 }
