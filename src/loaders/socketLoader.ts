@@ -8,6 +8,26 @@ const hashToken = (t: string) => createHash('sha256').update(t).digest('hex');
 const ROOM_PREFIX = `${env.APP_ENV}:messages-`;
 const DISCONNECT_DEBOUNCE_MS = 3000;
 
+// Per-socket event rate limiter (keyed by socketId → event → last timestamp)
+const socketEventTimestamps = new Map<string, Map<string, number>>();
+
+function isRateLimited(socketId: string, event: string, cooldownMs: number): boolean {
+  let events = socketEventTimestamps.get(socketId);
+  if (!events) {
+    events = new Map();
+    socketEventTimestamps.set(socketId, events);
+  }
+  const lastCall = events.get(event) ?? 0;
+  const now = Date.now();
+  if (now - lastCall < cooldownMs) return true;
+  events.set(event, now);
+  return false;
+}
+
+function cleanupSocketRateLimit(socketId: string): void {
+  socketEventTimestamps.delete(socketId);
+}
+
 type JoinRoomPayload = string | { id: string; token?: string };
 
 const disconnectTimers = new Map<string, { timer: ReturnType<typeof setTimeout>; socketId: string }>();
@@ -21,6 +41,7 @@ export const loadSocket = (fastify: FastifyCustomInstance) => {
 
     socket.on('disconnecting', () => {
       logger.debug(`New disconnection to socketIO :  ${socket.id}`);
+      cleanupSocketRateLimit(socket.id);
       const entries = presenceStore.getSocketEntries(socket.id);
       for (const { guildId, discordUserId } of entries) {
         const key = `${guildId}:${discordUserId}`;
@@ -40,6 +61,11 @@ export const loadSocket = (fastify: FastifyCustomInstance) => {
     });
 
     socket.on('join-room', async (payload: JoinRoomPayload) => {
+      if (isRateLimited(socket.id, 'join-room', 5000)) {
+        logger.warn(`[Socket] join-room rate limited for socket ${socket.id}`);
+        return;
+      }
+
       const rawId = typeof payload === 'string' ? payload : (payload as Record<string, unknown>)?.id;
       if (typeof rawId !== 'string' || rawId.length === 0 || rawId.length > 200) {
         logger.warn(`[Socket] Invalid join-room payload from ${socket.id}`);
@@ -110,13 +136,14 @@ export const loadSocket = (fastify: FastifyCustomInstance) => {
     });
 
     socket.on('ping', () => {
+      if (isRateLimited(socket.id, 'ping', 1000)) return;
       fastify.io.to(socket.id).emit('ping', 'pong');
     });
 
     socket.on('sync-time', (clientSentAt, callback) => {
-      if (typeof callback !== 'function') {
-        return;
-      }
+      if (isRateLimited(socket.id, 'sync-time', 100)) return;
+      if (typeof clientSentAt !== 'number' || !Number.isFinite(clientSentAt)) return;
+      if (typeof callback !== 'function') return;
 
       callback({
         clientSentAt,
