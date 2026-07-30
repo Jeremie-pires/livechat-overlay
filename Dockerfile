@@ -17,8 +17,10 @@ COPY . .
 # ─────────────── Stage 2 – Runtime ────────────────────────────────────────────
 FROM node:20-alpine AS runner
 
+# No build toolchain (alpine-sdk / gcc / make) — native modules are copied pre-compiled from builder
+# openssl is required by the Prisma schema engine at runtime
 RUN apk update && apk upgrade --no-cache && \
-    apk add --no-cache ffmpeg python3 py3-pip py3-setuptools alpine-sdk && \
+    apk add --no-cache ffmpeg python3 py3-pip py3-setuptools openssl && \
     corepack enable && corepack prepare pnpm@8.15.9 --activate
 
 ENV HUSKY=0
@@ -28,7 +30,7 @@ LABEL maintainer="Quentin Laffont <contact@qlaffont.com>"
 
 WORKDIR /app
 COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile
+COPY --from=builder /app/node_modules ./node_modules
 
 COPY --from=builder /app/prisma ./prisma
 RUN pnpm generate

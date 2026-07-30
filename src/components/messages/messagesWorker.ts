@@ -40,30 +40,29 @@ export const executeMessagesWorker = async (fastify: FastifyCustomInstance) => {
     return;
   }
 
-  const busyGuild = await prisma.guild.findFirst({
-    where: {
-      id: candidate.discordGuildId,
-      busyUntil: {
-        gte: new Date(),
-      },
-    },
-  });
-
-  if (busyGuild) {
-    await prisma.queue.update({
-      where: { id: candidate.id },
-      data: {
-        executionDate: addMilliseconds(new Date(), REQUEUE_INTERVAL_MS),
-        busyRequeueMs: { increment: REQUEUE_INTERVAL_MS },
+  // Atomic claim: busyGuild check, requeue-if-busy, and dequeue-if-free are all inside one
+  // transaction — eliminates the TOCTOU gap between the check and the deleteMany.
+  const lastMessage = await prisma.$transaction(async (tx) => {
+    const busyGuild = await tx.guild.findFirst({
+      where: {
+        id: candidate.discordGuildId,
+        busyUntil: {
+          gte: new Date(),
+        },
       },
     });
-    return;
-  }
 
-  // Atomic claim: delete the row first, then set guild busy.
-  // deleteMany returns count=0 if another concurrent tick already claimed this row,
-  // ensuring exactly-once emit under SQLite's serialized write model.
-  const lastMessage = await prisma.$transaction(async (tx) => {
+    if (busyGuild) {
+      await tx.queue.update({
+        where: { id: candidate.id },
+        data: {
+          executionDate: addMilliseconds(new Date(), REQUEUE_INTERVAL_MS),
+          busyRequeueMs: { increment: REQUEUE_INTERVAL_MS },
+        },
+      });
+      return null;
+    }
+
     const { count } = await tx.queue.deleteMany({ where: { id: candidate.id } });
     if (count === 0) return null;
 
@@ -92,7 +91,10 @@ export const executeMessagesWorker = async (fastify: FastifyCustomInstance) => {
   const dequeuedAt = Date.now();
 
   fastify.io.to(`${env.APP_ENV}:messages-${lastMessage.discordGuildId}`).emit('new-message', {
-    ...lastMessage,
+    author: lastMessage.author,
+    authorImage: lastMessage.authorImage,
+    content: lastMessage.content,
+    duration: lastMessage.duration,
     displayAt: dequeuedAt + MESSAGE_SYNC_LEAD_TIME_MS,
   });
   logger.debug(`[SOCKET] New message ${lastMessage.id} (guild: ${lastMessage.discordGuildId}): ${lastMessage.content}`);
