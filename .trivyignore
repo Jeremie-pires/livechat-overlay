@@ -22,9 +22,19 @@ CVE-2024-21534
 # glob@10.x — devDep transitive chain; eliminated by multi-stage --prod build.
 CVE-2025-64756
 
+# find-my-way@8.x — CVE-2026-47219 (DDoS HTTP2) — fix requires find-my-way@9.x which is
+# a breaking API change only compatible with Fastify v5. Blocked on Fastify v5 upgrade.
+CVE-2026-47219
+
+# brace-expansion@2.x — CVE-2026-14257 (DoS) — fix only available in v5.0.8+ (no 2.x patch).
+# v5.x has incompatible API with minimatch@9 which expects brace-expansion@^2.x.
+CVE-2026-14257
+
 # cross-spawn: patched to 7.0.6 via pnpm override in lockfile — no suppression needed.
 # undici: patched to 6.27.0 via pnpm override in lockfile — no suppression needed.
-# find-my-way: patched to >=8.2.2 via pnpm override — no suppression needed.
+# find-my-way: CVE-2026-47219 suppressed above — requires Fastify v5 upgrade.
+# js-yaml: patched to >=5.2.2 via pnpm override — no suppression needed.
+# postcss: patched to >=8.5.18 via pnpm override — no suppression needed.
 # ws: patched to >=8.21.0 via pnpm override — no suppression needed.
 # socket.io-parser: patched to >=4.2.6 via pnpm override — no suppression needed.
 
