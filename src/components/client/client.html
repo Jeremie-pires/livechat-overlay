@@ -99,7 +99,8 @@
         display: none;
         margin: 0;
         padding: calc(6px * var(--scale)) calc(10px * var(--scale));
-        max-width: 100%;
+        max-width: var(--overlay-size, 960px);
+        overflow-wrap: break-word;
         font-size: calc(2.6rem * var(--scale));
         line-height: 1.15;
         font-weight: 800;
@@ -212,7 +213,7 @@
 
             <p id="message-text"></p>
             <div id="message-block"></div>
-            <div id="empty-state" class="empty-state">LiveChat prêt</div>
+            <div id="empty-state" class="empty-state"></div>
           </div>
         </div>
       </div>

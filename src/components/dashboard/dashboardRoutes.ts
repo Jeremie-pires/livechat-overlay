@@ -269,7 +269,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       </a>
     </nav>
     <div class="sidebar-footer">
-      <a href="/auth/logout" class="logout-btn">← Déconnexion</a>
+      <button type="button" class="logout-btn" onclick="logout()">← Déconnexion</button>
     </div>
   </aside>
 
@@ -569,6 +569,11 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
 </div>
 <script>
   const _csrf = document.querySelector('meta[name="csrf-token"]').content;
+
+  async function logout() {
+    await fetch('/auth/logout', { method: 'POST', headers: { 'X-CSRF-Token': _csrf } });
+    window.top.location.href = '/dashboard';
+  }
 
   function updateMaintenanceUI(silentMode) {
     const badge = document.getElementById('status-badge');
@@ -986,9 +991,6 @@ async function dashboardPlugin(fastify: FastifyCustomInstance) {
   });
 
   fastify.get('/auth/callback', { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } }, async (req, reply) => {
-    if (!env.DISCORD_CLIENT_SECRET) {
-      return reply.status(503).send('DISCORD_CLIENT_SECRET not configured');
-    }
     const { code, state } = req.query as { code?: string; state?: string };
     if (!code) return reply.status(400).send('Missing code');
 
@@ -1118,11 +1120,13 @@ async function dashboardPlugin(fastify: FastifyCustomInstance) {
     return reply.send(presenceStore.get(guildId));
   });
 
-  fastify.get('/auth/logout', async (req, reply) => {
+  fastify.post('/auth/logout', async (req, reply) => {
     const token = getSessionToken(req.headers.cookie);
+    const csrfToken = req.headers['x-csrf-token'] as string | undefined;
+    if (token && !validateCsrfToken(token, csrfToken)) return reply.status(403).send({ error: 'Invalid CSRF token' });
     if (token) deleteSession(token);
     reply.header('Set-Cookie', `session=; HttpOnly${secureFlag}; Path=/; SameSite=Lax; Max-Age=0`);
-    return reply.redirect('/dashboard', 302);
+    return reply.status(204).send();
   });
 }
 

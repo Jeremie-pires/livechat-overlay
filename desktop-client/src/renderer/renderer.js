@@ -190,7 +190,7 @@ function readFormValues() {
     launchAtStartup: elements.launchAtStartup.checked,
     startMinimized: elements.startMinimized.checked,
     clickThrough: true,
-    localServerPort: Number(elements.localServerPort?.value) || 3001,
+    localServerPort: Math.min(65535, Math.max(1024, Number(elements.localServerPort?.value) || 3001)),
   };
 }
 
