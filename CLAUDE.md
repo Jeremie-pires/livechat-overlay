@@ -85,17 +85,17 @@ Discord command → `messagesWorker` dequeues → Socket.IO emit → browser cli
 # 2. Create annotated tag with release notes and push — CI does the rest
 
 # Stable release (auto-updates all users)
-npm run tag -- v1.2.11 -m "Your message here — visible in the update modal"
+git tag -a v1.2.11 -m "Your message here — visible in the update modal"
 git push origin v1.2.11
 
 # Pre-release / RC (does NOT auto-update stable users)
-npm run tag -- v1.2.11-rc.1 -m "Test version — experimental features"
+git tag -a v1.2.11-rc.1 -m "Test version — experimental features"
 git push origin v1.2.11-rc.1
 ```
 
 - Tag pattern `vX.X.X` → stable GitHub Release
 - Tag pattern `vX.X.X-rc.N` → pre-release (electron-updater skips auto-update for stable users)
-- `npm run tag` is defined in `desktop-client/package.json` as an alias for `git tag -a`
+- **Always run from the repo root** (not `desktop-client/`) — git tags are repo-level
 
 ## 🧠 Memory & Context
 

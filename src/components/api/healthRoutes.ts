@@ -1,9 +1,7 @@
 const DB_PROBE_TIMEOUT_MS = 2000;
 
 const dbProbeTimeout = () =>
-  new Promise<never>((_, reject) =>
-    setTimeout(() => reject(new Error('DB probe timeout')), DB_PROBE_TIMEOUT_MS),
-  );
+  new Promise<never>((_, reject) => setTimeout(() => reject(new Error('DB probe timeout')), DB_PROBE_TIMEOUT_MS));
 
 export const HealthRoutes = () =>
   async function (fastify: FastifyCustomInstance) {
