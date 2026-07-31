@@ -58,11 +58,23 @@ export const runServer = async () => {
     censor: '[REDACTED]',
   };
 
+  // toISOString() is always UTC — use local date parts so TZ=Europe/Paris is respected
+  const toLocalISOString = (d: Date): string => {
+    const offset = -d.getTimezoneOffset();
+    const sign = offset >= 0 ? '+' : '-';
+    const pad = (n: number) => String(Math.abs(n)).padStart(2, '0');
+    return (
+      `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` +
+      `T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}.${String(d.getMilliseconds()).padStart(3, '0')}` +
+      `${sign}${pad(Math.floor(Math.abs(offset) / 60))}:${pad(Math.abs(offset) % 60)}`
+    );
+  };
+
   const loggerOptions = isDeployedMode()
     ? {
         level: logLevel,
         base: { env: env.APP_ENV, service: 'livechatccb', version },
-        timestamp: () => `,"time":"${new Date().toISOString()}"`,
+        timestamp: () => `,"time":"${toLocalISOString(new Date())}"`,
         redact,
       }
     : { level: logLevel, redact };
