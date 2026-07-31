@@ -29,11 +29,11 @@
 
   function esc(s) {
     return String(s)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#39;');
   }
 
   function navigate(page) {
@@ -46,27 +46,53 @@
   }
 
   const fmt = n => Number(n).toLocaleString('fr-FR');
-  const fmtBytes = b => b >= 1073741824 ? (b/1073741824).toFixed(2)+' GB' : b >= 1048576 ? (b/1048576).toFixed(1)+' MB' : b >= 1024 ? (b/1024).toFixed(1)+' KB' : b+' B';
-  const fmtMs = ms => ms >= 1000 ? (ms/1000).toFixed(2)+'s' : ms+'ms';
-  const fmtUptime = s => { const d=Math.floor(s/86400),h=Math.floor((s%86400)/3600),m=Math.floor((s%3600)/60),sec=Math.floor(s%60); return d>0?d+'j '+h+'h':h>0?h+'h '+m+'m':m+'m '+sec+'s'; };
+  const fmtMs = ms => ms >= 1000 ? (ms / 1000).toFixed(2) + 's' : ms + 'ms';
+
+  function fmtBytes(b) {
+    if (b >= 1073741824) return (b / 1073741824).toFixed(2) + ' GB';
+    if (b >= 1048576) return (b / 1048576).toFixed(1) + ' MB';
+    if (b >= 1024) return (b / 1024).toFixed(1) + ' KB';
+    return b + ' B';
+  }
+
+  function fmtUptime(s) {
+    const d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60), sec = Math.floor(s % 60);
+    if (d > 0) return d + 'j ' + h + 'h';
+    if (h > 0) return h + 'h ' + m + 'm';
+    return m + 'm ' + sec + 's';
+  }
+
+  const fmtLatStat = ms => ms > 0 ? fmtMs(ms) : '—';
+
+  function cpuBarClass(pct) {
+    if (pct > 80) return 'sys-bar red';
+    if (pct > 50) return 'sys-bar yellow';
+    return 'sys-bar accent';
+  }
+
+  function ramBarClass(pct) {
+    if (pct > 85) return 'sys-bar red';
+    if (pct > 65) return 'sys-bar yellow';
+    return 'sys-bar green';
+  }
 
   function renderSparkline(samples) {
     if (!samples || samples.length < 2) return;
-    const W=400, H=72, p=5;
-    const mn=Math.min(...samples), mx=Math.max(...samples), rng=mx-mn||1;
-    const avg=Math.round(samples.reduce((a,b)=>a+b,0)/samples.length);
-    const pts=samples.map((v,i)=>[(p+(i/(samples.length-1))*(W-p*2)).toFixed(1),(H-p-((v-mn)/rng)*(H-p*2)).toFixed(1)]);
-    const line=pts.map((pt,i)=>(i===0?'M':'L')+pt[0]+','+pt[1]).join(' ');
+    const W = 400, H = 72, p = 5;
+    const mn = Math.min(...samples), mx = Math.max(...samples), rng = mx - mn || 1;
+    const avg = Math.round(samples.reduce((a, b) => a + b, 0) / samples.length);
+    const pts = samples.map((v, i) => [(p + (i / (samples.length - 1)) * (W - p * 2)).toFixed(1), (H - p - ((v - mn) / rng) * (H - p * 2)).toFixed(1)]);
+    const line = pts.map((pt, i) => (i === 0 ? 'M' : 'L') + pt[0] + ',' + pt[1]).join(' ');
     document.getElementById('spark-line').setAttribute('d', line);
-    document.getElementById('spark-area').setAttribute('d', line+' L'+pts[pts.length-1][0]+','+H+' L'+p+','+H+' Z');
-    document.getElementById('spark-min').textContent = 'min '+fmtMs(mn);
-    document.getElementById('spark-avg').textContent = 'moy '+fmtMs(avg);
-    document.getElementById('spark-max').textContent = 'max '+fmtMs(mx);
+    document.getElementById('spark-area').setAttribute('d', line + ' L' + pts[pts.length - 1][0] + ',' + H + ' L' + p + ',' + H + ' Z');
+    document.getElementById('spark-min').textContent = 'min ' + fmtMs(mn);
+    document.getElementById('spark-avg').textContent = 'moy ' + fmtMs(avg);
+    document.getElementById('spark-max').textContent = 'max ' + fmtMs(mx);
   }
 
-  var cachedGuilds = null;
-  var cachedPresence = {};
-  var currentGuildId = null;
+  let cachedGuilds = null;
+  let cachedPresence = {};
+  let currentGuildId = null;
 
   function fmtDuration(ms) {
     const s = Math.floor(ms / 1000), m = Math.floor(s / 60), h = Math.floor(m / 60);
@@ -77,7 +103,7 @@
 
   function openGuild(id) {
     currentGuildId = id;
-    const guild = cachedGuilds && cachedGuilds.find(g => g.id === id);
+    const guild = cachedGuilds?.find(g => g.id === id);
     if (!guild) return;
     const avatarWrap = document.getElementById('g-avatar-wrap');
     avatarWrap.innerHTML = guild.icon
@@ -94,7 +120,7 @@
   }
 
   function renderGuildPresence(guildId) {
-    const clients = (cachedPresence && cachedPresence[guildId]) || [];
+    const clients = cachedPresence?.[guildId] ?? [];
     document.getElementById('g-connected').textContent = fmt(clients.length);
     const el = document.getElementById('g-user-list');
     if (clients.length === 0) {
@@ -123,19 +149,17 @@
 
   function renderServers(guilds, presence) {
     cachedGuilds = guilds;
-    const sorted=(guilds||[]).sort((a,b)=>b.memberCount-a.memberCount);
+    const sorted = (guilds || []).sort((a, b) => b.memberCount - a.memberCount);
     const configured = sorted.filter(g => g.isSetup).length;
-    document.getElementById('s-subtitle').textContent = sorted.length+' serveur'+(sorted.length>1?'s':'')+' connecté'+(sorted.length>1?'s':'')+' / '+configured+' configuré'+(configured>1?'s':'');
+    document.getElementById('s-subtitle').textContent = sorted.length + ' serveur' + (sorted.length > 1 ? 's' : '') + ' connecté' + (sorted.length > 1 ? 's' : '') + ' / ' + configured + ' configuré' + (configured > 1 ? 's' : '');
     document.getElementById('server-grid').innerHTML = sorted.map(g => {
-      const av = g.icon ? '<img class="server-avatar" src="'+esc(g.icon)+'" alt="">' : '<div class="server-avatar-ph">'+esc(g.name.charAt(0).toUpperCase())+'</div>';
-      const clients = (presence && presence[g.id]) || [];
+      const av = g.icon ? '<img class="server-avatar" src="' + esc(g.icon) + '" alt="">' : '<div class="server-avatar-ph">' + esc(g.name.charAt(0).toUpperCase()) + '</div>';
+      const clients = presence?.[g.id] ?? [];
       const presenceBadge = clients.length > 0
-        ? '<span class="server-presence" title="'+esc(clients.map(c=>c.displayName).join(', '))+'">'+clients.length+' client'+(clients.length>1?'s':'')+' en ligne</span>'
+        ? '<span class="server-presence" title="' + esc(clients.map(c => c.displayName).join(', ')) + '">' + clients.length + ' client' + (clients.length > 1 ? 's' : '') + ' en ligne</span>'
         : '';
-      const setupBadge = g.isSetup
-        ? '<span class="badge green">Configuré</span>'
-        : '<span class="badge yellow">Non configuré</span>';
-      return '<div class="server-card" data-guild-id="'+esc(g.id)+'"><div class="server-top">'+av+'<div class="server-info"><div class="server-name">'+esc(g.name)+'</div><div class="server-members">'+fmt(g.memberCount)+' membres</div></div></div><div class="server-badges">'+setupBadge+presenceBadge+'</div></div>';
+      const setupBadge = g.isSetup ? '<span class="badge green">Configuré</span>' : '<span class="badge yellow">Non configuré</span>';
+      return '<div class="server-card" data-guild-id="' + esc(g.id) + '"><div class="server-top">' + av + '<div class="server-info"><div class="server-name">' + esc(g.name) + '</div><div class="server-members">' + fmt(g.memberCount) + ' membres</div></div></div><div class="server-badges">' + setupBadge + presenceBadge + '</div></div>';
     }).join('');
   }
 
@@ -144,21 +168,18 @@
     const el = document.getElementById('h-clients');
     if (el) el.textContent = fmt(total);
 
-    // Update presence badges on server cards without full re-render
     const cards = document.querySelectorAll('[data-guild-id]');
     for (const card of cards) {
-      const guildId = card.getAttribute('data-guild-id');
+      const guildId = card.dataset.guildId;
       const badgesEl = card.querySelector('.server-badges');
       if (!badgesEl) continue;
-      const guild = cachedGuilds && cachedGuilds.find(g => g.id === guildId);
+      const guild = cachedGuilds?.find(g => g.id === guildId);
       if (!guild) continue;
-      const clients = (presence && presence[guildId]) || [];
+      const clients = presence?.[guildId] ?? [];
       const presenceBadge = clients.length > 0
-        ? '<span class="server-presence" title="'+esc(clients.map(c=>c.displayName).join(', '))+'">'+clients.length+' client'+(clients.length>1?'s':'')+' en ligne</span>'
+        ? '<span class="server-presence" title="' + esc(clients.map(c => c.displayName).join(', ')) + '">' + clients.length + ' client' + (clients.length > 1 ? 's' : '') + ' en ligne</span>'
         : '';
-      const setupBadge = guild.isSetup
-        ? '<span class="badge green">Configuré</span>'
-        : '<span class="badge yellow">Non configuré</span>';
+      const setupBadge = guild.isSetup ? '<span class="badge green">Configuré</span>' : '<span class="badge yellow">Non configuré</span>';
       badgesEl.innerHTML = setupBadge + presenceBadge;
     }
   }
@@ -171,10 +192,10 @@
     }
     el.innerHTML = events.map(e => {
       const d = new Date(e.createdAt);
-      const abs = d.toLocaleDateString('fr-FR')+' '+d.toLocaleTimeString('fr-FR');
-      const msg = e.message ? '<div class="event-msg">'+esc(e.message)+'</div>' : '';
+      const abs = d.toLocaleDateString('fr-FR') + ' ' + d.toLocaleTimeString('fr-FR');
+      const msg = e.message ? '<div class="event-msg">' + esc(e.message) + '</div>' : '';
       const safeType = esc(e.type);
-      return '<div class="event-item"><span class="event-badge '+safeType+'">'+safeType+'</span><div class="event-body">'+msg+'<div class="event-time">'+esc(abs)+'</div></div></div>';
+      return '<div class="event-item"><span class="event-badge ' + safeType + '">' + safeType + '</span><div class="event-body">' + msg + '<div class="event-time">' + esc(abs) + '</div></div></div>';
     }).join('');
   }
 
@@ -188,69 +209,63 @@
 
       updateMaintenanceUI(d.silentMode ?? false);
 
-      // Accueil
       document.getElementById('h-servers').textContent = fmt(d.guilds?.length ?? 0);
       document.getElementById('h-totalSent').textContent = fmt(d.totalSent);
       document.getElementById('h-uptime').textContent = fmtUptime(d.uptime);
-      document.getElementById('h-latency').textContent = d.latency?.avgMs > 0 ? fmtMs(d.latency.avgMs) : '—';
+      document.getElementById('h-latency').textContent = fmtLatStat(d.latency?.avgMs);
       document.getElementById('h-cpu').textContent = (sys.cpuPercent ?? 0) + '%';
       document.getElementById('h-mem').textContent = fmtBytes((sys.memRssMB ?? 0) * 1048576);
       document.getElementById('h-refresh').textContent = now;
       const totalClients = Object.values(d.presence || {}).reduce((sum, arr) => sum + arr.length, 0);
       document.getElementById('h-clients').textContent = fmt(totalClients);
 
-      // Messages
       document.getElementById('m-total').textContent = fmt(d.totalSent);
-      document.getElementById('m-latency').textContent = d.latency?.avgMs > 0 ? fmtMs(d.latency.avgMs) : '—';
+      document.getElementById('m-latency').textContent = fmtLatStat(d.latency?.avgMs);
       document.getElementById('m-queue').textContent = fmt(d.queuePending);
       const total = d.totalSent || 1;
-      for (const t of ['image','video','audio','link','text']) {
+      for (const t of ['image', 'video', 'audio', 'link', 'text']) {
         const count = d.byType[t] ?? 0;
-        const pct = Math.round((count/total)*100);
-        document.getElementById('count-'+t).textContent = fmt(count);
-        document.getElementById('pct-'+t).textContent = pct+'%';
-        document.getElementById('bar-'+t).style.width = pct+'%';
+        const pct = Math.round((count / total) * 100);
+        document.getElementById('count-' + t).textContent = fmt(count);
+        document.getElementById('pct-' + t).textContent = pct + '%';
+        document.getElementById('bar-' + t).style.width = pct + '%';
       }
       renderSparkline(d.latency?.samples);
-      document.getElementById('lat-ingestion').textContent = d.latency?.avgIngestionMs > 0 ? fmtMs(d.latency.avgIngestionMs) : '—';
-      document.getElementById('lat-processing').textContent = d.latency?.avgProcessingMs > 0 ? fmtMs(d.latency.avgProcessingMs) : '—';
-      document.getElementById('lat-queuewait').textContent = d.latency?.avgQueueWaitMs > 0 ? fmtMs(d.latency.avgQueueWaitMs) : '—';
-      document.getElementById('lat-emit').textContent = d.latency?.avgEmitMs > 0 ? fmtMs(d.latency.avgEmitMs) : '—';
+      document.getElementById('lat-ingestion').textContent = fmtLatStat(d.latency?.avgIngestionMs);
+      document.getElementById('lat-processing').textContent = fmtLatStat(d.latency?.avgProcessingMs);
+      document.getElementById('lat-queuewait').textContent = fmtLatStat(d.latency?.avgQueueWaitMs);
+      document.getElementById('lat-emit').textContent = fmtLatStat(d.latency?.avgEmitMs);
 
-      // Serveurs
       cachedPresence = d.presence || {};
       renderServers(d.guilds, d.presence);
-
-      // Journal
       renderJournal(d.events);
 
-      // Réseau
       const cpuPct = sys.cpuPercent ?? 0;
-      document.getElementById('n-cpu').textContent = cpuPct+'%';
+      document.getElementById('n-cpu').textContent = cpuPct + '%';
       const cpuBar = document.getElementById('n-cpu-bar');
-      cpuBar.style.width = Math.min(100,cpuPct)+'%';
-      cpuBar.className = 'sys-bar '+(cpuPct>80?'red':cpuPct>50?'yellow':'accent');
+      cpuBar.style.width = Math.min(100, cpuPct) + '%';
+      cpuBar.className = cpuBarClass(cpuPct);
 
-      const usedMB = (sys.memTotalMB??0)-(sys.memFreeMB??0);
-      const sysPct = sys.memTotalMB ? Math.round(usedMB/sys.memTotalMB*100) : 0;
-      document.getElementById('n-sysram').textContent = fmtBytes(usedMB*1048576)+' / '+fmtBytes((sys.memTotalMB??0)*1048576);
+      const usedMB = (sys.memTotalMB ?? 0) - (sys.memFreeMB ?? 0);
+      const sysPct = sys.memTotalMB ? Math.round(usedMB / sys.memTotalMB * 100) : 0;
+      document.getElementById('n-sysram').textContent = fmtBytes(usedMB * 1048576) + ' / ' + fmtBytes((sys.memTotalMB ?? 0) * 1048576);
       const sysBar = document.getElementById('n-sysram-bar');
-      sysBar.style.width = sysPct+'%';
-      sysBar.className = 'sys-bar '+(sysPct>85?'red':sysPct>65?'yellow':'green');
+      sysBar.style.width = sysPct + '%';
+      sysBar.className = ramBarClass(sysPct);
 
-      const heapPct = sys.memHeapTotalMB ? Math.round(sys.memHeapUsedMB/sys.memHeapTotalMB*100) : 0;
-      document.getElementById('n-heap').textContent = fmtBytes((sys.memHeapUsedMB??0)*1048576)+' / '+fmtBytes((sys.memHeapTotalMB??0)*1048576);
-      document.getElementById('n-heap-bar').style.width = heapPct+'%';
-      document.getElementById('n-rss').textContent = fmtBytes((sys.memRssMB??0)*1048576);
+      const heapPct = sys.memHeapTotalMB ? Math.round(sys.memHeapUsedMB / sys.memHeapTotalMB * 100) : 0;
+      document.getElementById('n-heap').textContent = fmtBytes((sys.memHeapUsedMB ?? 0) * 1048576) + ' / ' + fmtBytes((sys.memHeapTotalMB ?? 0) * 1048576);
+      document.getElementById('n-heap-bar').style.width = heapPct + '%';
+      document.getElementById('n-rss').textContent = fmtBytes((sys.memRssMB ?? 0) * 1048576);
 
-      document.getElementById('n-load1').textContent = (sys.loadAvg?.[0]??0).toFixed(2);
-      document.getElementById('n-load5').textContent = (sys.loadAvg?.[1]??0).toFixed(2);
-      document.getElementById('n-load15').textContent = (sys.loadAvg?.[2]??0).toFixed(2);
+      document.getElementById('n-load1').textContent = (sys.loadAvg?.[0] ?? 0).toFixed(2);
+      document.getElementById('n-load5').textContent = (sys.loadAvg?.[1] ?? 0).toFixed(2);
+      document.getElementById('n-load15').textContent = (sys.loadAvg?.[2] ?? 0).toFixed(2);
 
       const bytes = d.latency?.totalPayloadBytes ?? 0;
       document.getElementById('n-payload').textContent = fmtBytes(bytes);
       document.getElementById('n-total').textContent = fmt(d.totalSent);
-      document.getElementById('n-avg-payload').textContent = d.totalSent > 0 ? fmtBytes(Math.round(bytes/d.totalSent)) : '—';
+      document.getElementById('n-avg-payload').textContent = d.totalSent > 0 ? fmtBytes(Math.round(bytes / d.totalSent)) : '—';
       document.getElementById('n-refresh').textContent = now;
 
       if (document.getElementById('page-database').classList.contains('active')) loadDatabase();
@@ -262,67 +277,62 @@
       const res = await fetch('/api/admin/db/guilds');
       if (res.status === 401) { window.top.location.href = '/dashboard'; return; }
       if (!res.ok) throw new Error('HTTP ' + res.status);
-      const rows = await res.json();
-      renderGuildTable(rows);
+      renderGuildTable(await res.json());
     } catch(e) {
       console.error(e);
       document.getElementById('db-guild-tbody').innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--red);padding:2rem">Erreur de chargement.</td></tr>';
     }
   }
 
+  function buildBroadcastCell(lastBroadcast) {
+    if (!lastBroadcast) return '<span class="db-broadcast-none">—</span>';
+    const bAt = lastBroadcast.at ? new Date(lastBroadcast.at) : null;
+    const bTime = bAt ? '<span class="db-broadcast-time">' + bAt.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' }) + ' ' + bAt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) + '</span>' : '';
+    if (lastBroadcast.status === 'SUCCESS') return '<span class="db-broadcast-ok">✓ OK' + bTime + '</span>';
+    if (lastBroadcast.status === 'FAILED') {
+      const reason = lastBroadcast.errorReason ? ' · ' + esc(lastBroadcast.errorReason) : '';
+      return '<span class="db-broadcast-fail">✗ Échec' + reason + bTime + '</span>';
+    }
+    return '<span class="db-broadcast-none">—</span>';
+  }
+
+  function buildGuildRow(r) {
+    const safeId = esc(r.id);
+    const av = r.icon
+      ? '<img class="db-guild-avatar" src="' + esc(r.icon) + '" alt="">'
+      : '<div class="db-guild-ph">' + esc((r.name || r.id).charAt(0).toUpperCase()) + '</div>';
+    const nameCell = '<div class="db-guild-cell">' + av + '<span class="db-guild-name">' + esc(r.name || r.id) + '</span></div>';
+    const copyId = '<button class="db-copy-btn" data-copy="' + safeId + '">' + safeId + '</button>';
+    const copyChannel = r.channelId
+      ? '<button class="db-copy-btn" data-copy="' + esc(r.channelId) + '">' + esc(r.channelId) + '</button>'
+      : '<span style="color:var(--muted)">—</span>';
+    const times = (r.defaultMediaTime != null ? r.defaultMediaTime : '—') + 's / ' + (r.maxMediaTime != null ? r.maxMediaTime : '—') + 's';
+    const fullMedia = r.displayMediaFull ? '<span class="badge green">Oui</span>' : '<span style="color:var(--muted);font-size:0.78rem">Non</span>';
+    const connectedCell = r.connected
+      ? '<span style="color:var(--green);font-size:0.78rem">✓</span>'
+      : '<span class="disconnected-badge">Déconnecté</span>';
+    return '<tr class="' + (r.lastBroadcast?.status === 'FAILED' ? 'row-failed' : '') + '" id="db-row-' + safeId + '">'
+      + '<td>' + nameCell + '</td>'
+      + '<td>' + copyId + '</td>'
+      + '<td>' + copyChannel + '</td>'
+      + '<td style="font-size:0.78rem">' + esc(times) + '</td>'
+      + '<td>' + fullMedia + '</td>'
+      + '<td>' + buildBroadcastCell(r.lastBroadcast) + '</td>'
+      + '<td>' + connectedCell + '</td>'
+      + '<td><button class="db-del-btn" data-delete-guild="' + safeId + '">Supprimer</button></td>'
+      + '</tr>';
+  }
+
   function renderGuildTable(rows) {
-    const connected = rows.filter(r => r.connected).length;
-    const total = rows.length;
-    const failed = rows.filter(r => r.lastBroadcast && r.lastBroadcast.status === 'FAILED').length;
-    document.getElementById('db-connected-count').textContent = connected;
-    document.getElementById('db-total-count').textContent = total;
-    document.getElementById('db-failed-count').textContent = failed;
+    document.getElementById('db-connected-count').textContent = rows.filter(r => r.connected).length;
+    document.getElementById('db-total-count').textContent = rows.length;
+    document.getElementById('db-failed-count').textContent = rows.filter(r => r.lastBroadcast?.status === 'FAILED').length;
 
     if (rows.length === 0) {
       document.getElementById('db-guild-tbody').innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:2rem">Aucune guilde configurée.</td></tr>';
       return;
     }
-
-    document.getElementById('db-guild-tbody').innerHTML = rows.map(r => {
-      const isFailed = r.lastBroadcast && r.lastBroadcast.status === 'FAILED';
-      const rowClass = isFailed ? 'row-failed' : '';
-      const safeId = esc(r.id);
-      const av = r.icon
-        ? '<img class="db-guild-avatar" src="' + esc(r.icon) + '" alt="">'
-        : '<div class="db-guild-ph">' + esc((r.name || r.id).charAt(0).toUpperCase()) + '</div>';
-      const nameCell = '<div class="db-guild-cell">' + av + '<span class="db-guild-name">' + esc(r.name || r.id) + '</span></div>';
-      const copyId = '<button class="db-copy-btn" data-copy="' + safeId + '">' + safeId + '</button>';
-      const copyChannel = r.channelId
-        ? '<button class="db-copy-btn" data-copy="' + esc(r.channelId) + '">' + esc(r.channelId) + '</button>'
-        : '<span style="color:var(--muted)">—</span>';
-      const times = (r.defaultMediaTime != null ? r.defaultMediaTime : '—') + 's / ' + (r.maxMediaTime != null ? r.maxMediaTime : '—') + 's';
-      const fullMedia = r.displayMediaFull ? '<span class="badge green">Oui</span>' : '<span style="color:var(--muted);font-size:0.78rem">Non</span>';
-      let broadcastCell = '<span class="db-broadcast-none">—</span>';
-      if (r.lastBroadcast) {
-        const bAt = r.lastBroadcast.at ? new Date(r.lastBroadcast.at) : null;
-        const bTime = bAt ? '<span class="db-broadcast-time">' + bAt.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' }) + ' ' + bAt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) + '</span>' : '';
-        if (r.lastBroadcast.status === 'SUCCESS') {
-          broadcastCell = '<span class="db-broadcast-ok">✓ OK' + bTime + '</span>';
-        } else if (r.lastBroadcast.status === 'FAILED') {
-          const reason = r.lastBroadcast.errorReason ? ' · ' + esc(r.lastBroadcast.errorReason) : '';
-          broadcastCell = '<span class="db-broadcast-fail">✗ Échec' + reason + bTime + '</span>';
-        }
-      }
-      const connectedCell = r.connected
-        ? '<span style="color:var(--green);font-size:0.78rem">✓</span>'
-        : '<span class="disconnected-badge">Déconnecté</span>';
-      const delBtn = '<button class="db-del-btn" data-delete-guild="' + safeId + '">Supprimer</button>';
-      return '<tr class="' + rowClass + '" id="db-row-' + safeId + '">'
-        + '<td>' + nameCell + '</td>'
-        + '<td>' + copyId + '</td>'
-        + '<td>' + copyChannel + '</td>'
-        + '<td style="font-size:0.78rem">' + esc(times) + '</td>'
-        + '<td>' + fullMedia + '</td>'
-        + '<td>' + broadcastCell + '</td>'
-        + '<td>' + connectedCell + '</td>'
-        + '<td>' + delBtn + '</td>'
-        + '</tr>';
-    }).join('');
+    document.getElementById('db-guild-tbody').innerHTML = rows.map(buildGuildRow).join('');
   }
 
   async function deleteGuild(id, btn) {
@@ -332,11 +342,9 @@
       const res = await fetch('/api/admin/db/guilds/' + encodeURIComponent(id), { method: 'DELETE', headers: { 'X-CSRF-Token': _csrf } });
       if (res.status === 401) { window.top.location.href = '/dashboard'; return; }
       if (!res.ok) throw new Error('HTTP ' + res.status);
-      const row = document.getElementById('db-row-' + id);
-      if (row) row.remove();
+      document.getElementById('db-row-' + id)?.remove();
       showToast('Guilde supprimée.');
-      const remaining = document.querySelectorAll('#db-guild-tbody tr[id^="db-row-"]').length;
-      document.getElementById('db-total-count').textContent = remaining;
+      document.getElementById('db-total-count').textContent = document.querySelectorAll('#db-guild-tbody tr[id^="db-row-"]').length;
     } catch(e) {
       console.error(e);
       showToast('Erreur lors de la suppression.', true);
@@ -365,17 +373,16 @@
 
   document.getElementById('server-grid').addEventListener('click', function(e) {
     const card = e.target.closest('[data-guild-id]');
-    if (card) openGuild(card.getAttribute('data-guild-id'));
+    if (card) openGuild(card.dataset.guildId);
   });
 
   document.getElementById('db-guild-tbody').addEventListener('click', async function(e) {
     const delBtn = e.target.closest('[data-delete-guild]');
-    if (delBtn) { await deleteGuild(delBtn.getAttribute('data-delete-guild'), delBtn); return; }
+    if (delBtn) { await deleteGuild(delBtn.dataset.deleteGuild, delBtn); return; }
     const copyBtn = e.target.closest('.db-copy-btn[data-copy]');
-    if (copyBtn) copyText(copyBtn.getAttribute('data-copy'), copyBtn);
+    if (copyBtn) copyText(copyBtn.dataset.copy, copyBtn);
   });
 
-  // Real-time presence updates via SSE
   (function initPresenceSse() {
     function connect() {
       const sse = new EventSource('/api/presence-events');
