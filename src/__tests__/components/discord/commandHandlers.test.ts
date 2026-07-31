@@ -208,21 +208,18 @@ describe('sendCommand — I-04 prisma.queue.create error boundary', () => {
     }));
 
     const { sendCommand } = await import('../../../components/messages/sendCommand');
+    const { classifyAndReply } = await import('../../../services/discordErrorHandler');
 
     (global as Record<string, unknown>).prisma = {
       queue: { create: vi.fn().mockRejectedValue(new Error('SQLite busy')) },
     };
     (global as Record<string, unknown>).logger = { error: vi.fn(), warn: vi.fn() };
 
+    // deferred: true mirrors the real state after sendCommand calls deferReply()
+    const followUp = vi.fn().mockResolvedValue({});
     const interaction = makeInteraction({
-      options: {
-        get: vi.fn((key: string) => {
-          if (key === 'rosetty.t(sendCommandOptionURL)') return { value: 'https://example.com' };
-          if (key === 'sendCommandOptionURL') return { value: 'https://example.com' };
-          return null;
-        }),
-        getChannel: vi.fn().mockReturnValue(null),
-      },
+      deferred: true,
+      followUp,
     });
 
     const cmd = sendCommand();
@@ -236,12 +233,17 @@ describe('sendCommand — I-04 prisma.queue.create error boundary', () => {
       getChannel: vi.fn(),
     };
 
-    await cmd.handler(interaction as never);
+    // Simulate DiscordLoader: handler throws → classifyAndReply handles it
+    try {
+      await cmd.handler(interaction as never);
+    } catch (error) {
+      await classifyAndReply(error, interaction as never);
+    }
 
     const loggerError = ((global as Record<string, unknown>).logger as { error: ReturnType<typeof vi.fn> }).error;
     expect(loggerError).toHaveBeenCalled();
-    expect(interaction.editReply).toHaveBeenCalled();
-    const lastCall = interaction.editReply.mock.calls.at(-1)?.[0] as { embeds: Array<{ data: { color: number } }> };
+    expect(followUp).toHaveBeenCalled();
+    const lastCall = followUp.mock.calls.at(-1)?.[0] as { embeds: Array<{ data: { color: number } }> };
     expect(lastCall?.embeds?.[0]?.data?.color).toBe(0xe74c3c);
 
     vi.doUnmock('../../../services/prisma/loadPrisma');
