@@ -9,6 +9,7 @@ Branch `develop` — active development. v1.2.11 stable released.
 
 ### This session
 - **Dashboard refacto** (`src/components/dashboard/`): monolithe 1133 lignes → 4 fichiers propres. `dashboardRoutes.ts` passe à 191 lignes (route handlers uniquement). HTML/CSS/JS extraits en fichiers dédiés chargés via `readFileSync` au démarrage. Deux nouvelles routes statiques `/dashboard.css` et `/dashboard.js`. Comportement identique.
+- **SonarQube Quality Gate** — tous les failures corrigés : `var`→`let`, `getAttribute`→`.dataset`, complexité cognitive `refresh()` 19→6 (extraction `fmtLatStat`/`cpuBarClass`/`ramBarClass`/`buildGuildRow`/`buildBroadcastCell`). Warnings : `replaceAll`, optional chaining, `<a>`→`<button>`, `role="button"` + `onKeyDown`, `node:fs`/`node:path`.
 
 ### Previous sessions
 - **Centralized Discord error handler** (`src/services/discordErrorHandler.ts`): `classifyAndReply()` — known Discord API errors (50001, 50013, 10003, 10008) → specific actionable i18n messages; system/unknown → generic message, no internal leak; code 10062 (expired interaction) → silent swallow.
