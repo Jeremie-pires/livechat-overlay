@@ -8,6 +8,12 @@ Branch `develop` — active development. v1.2.11 stable released.
 ## 1. Accomplished
 
 ### This session
+- **Centralized Discord error handler** (`src/services/discordErrorHandler.ts`): `classifyAndReply()` classifies errors by type — known Discord API errors (50001, 50013, 10003, 10008) get specific actionable i18n messages; system/unknown errors get a generic message without leaking technical details; `DiscordAPIError 10062` (expired interaction) is silently swallowed.
+- **Global handler simplified** (`DiscordLoader.ts`): 26-line duplicated embed block replaced by single `classifyAndReply(error, interaction)` call.
+- **Local Prisma catches removed** from `talkCommand.ts`, `sendCommand.ts`, `hidesendCommand.ts`, `hidetalkCommand.ts` — bare "Error !" embeds deleted, errors now bubble to the classified global handler.
+- **i18n extended** (en + fr): added `errorMissingAccess`, `errorMissingPermissions`, `errorUnknownChannel`, `errorUnknownMessage`.
+
+### Previous sessions
 - **Pre-release v1.2.11-rc.1**: `desktop-client/package.json` bumped to `1.2.11-rc.1`, tagged `v1.2.11-rc.1`, pushed — CI built pre-release (no auto-update for stable users).
 - **Stable release v1.2.11**: `desktop-client/package.json` bumped to `1.2.11`, tagged `v1.2.11` with FR release notes, pushed — CI builds stable GitHub Release, auto-update triggers for all users.
 

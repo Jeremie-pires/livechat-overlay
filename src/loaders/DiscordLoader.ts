@@ -10,6 +10,7 @@ import {
   PermissionFlagsBits,
   IntentsBitField,
 } from 'discord.js';
+import { classifyAndReply } from '../services/discordErrorHandler';
 import { logBotEvent, notifyOwner } from '../services/botLogger';
 import { broadcastToAllGuilds } from '../services/broadcast';
 import { aliveCommand } from '../components/discord/aliveCommand';
@@ -229,33 +230,7 @@ const loadDiscordCommandsHandler = () => {
     try {
       await command.handler(interaction, discordClient);
     } catch (error) {
-      logger.error(error);
-
-      try {
-        if (interaction.replied || interaction.deferred) {
-          await interaction.followUp({
-            embeds: [
-              new EmbedBuilder()
-                .setTitle(rosetty.t('error')!)
-                .setDescription(rosetty.t('commandError')!)
-                .setColor(0xe74c3c),
-            ],
-            flags: MessageFlags.Ephemeral,
-          });
-        } else {
-          await interaction.reply({
-            embeds: [
-              new EmbedBuilder()
-                .setTitle(rosetty.t('error')!)
-                .setDescription(rosetty.t('commandError')!)
-                .setColor(0xe74c3c),
-            ],
-            flags: MessageFlags.Ephemeral,
-          });
-        }
-      } catch {
-        // Interaction token expired — swallow silently
-      }
+      await classifyAndReply(error, interaction);
     }
   });
 };

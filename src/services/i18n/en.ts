@@ -108,4 +108,10 @@ export const enLang = {
   noContentProvided: 'You must provide at least a URL, a media, or a text.',
   ttsTextTooLong: 'The text is too long (200 characters max).',
   talkNoAttachment: 'No audio attachment was found in the reply.',
+
+  errorMissingAccess:
+    "The bot doesn't have access to this channel. An administrator needs to grant it the **Read Message History** permission.",
+  errorMissingPermissions: "The bot doesn't have sufficient permissions to perform this action.",
+  errorUnknownChannel: 'This channel was not found or the bot no longer has access to it.',
+  errorUnknownMessage: 'This message was not found (it may have been deleted).',
 };

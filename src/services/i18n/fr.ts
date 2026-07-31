@@ -112,4 +112,10 @@ export const frLang: typeof enLang = {
   noContentProvided: 'Tu dois fournir au moins un lien, un média ou un texte.',
   ttsTextTooLong: 'Le texte est trop long (200 caractères maximum).',
   talkNoAttachment: 'Aucune pièce jointe audio trouvée dans la réponse.',
+
+  errorMissingAccess:
+    "Le bot n'a pas accès à ce salon. Un administrateur doit lui accorder la permission **Lire l'historique des messages**.",
+  errorMissingPermissions: "Le bot n'a pas les permissions suffisantes pour effectuer cette action.",
+  errorUnknownChannel: "Ce salon est introuvable ou le bot n'y a plus accès.",
+  errorUnknownMessage: 'Ce message est introuvable (peut-être supprimé).',
 };

@@ -72,31 +72,24 @@ export const hideTalkCommand = () => ({
 
       const { processingMs, contentInfo: additionalContent } = await measureContentProcessing(media);
 
-      try {
-        await prisma.queue.create({
-          data: {
-            content: JSON.stringify({
-              text,
-              media,
-              mediaContentType: 'audio/mpeg',
-              mediaDuration: Math.ceil(additionalContent.mediaDuration ?? 0),
-            }),
-            type: QueueType.VOCAL,
-            discordGuildId: interaction.guildId!,
-            duration: await getDurationFromGuildId(
-              additionalContent.mediaDuration ? Math.ceil(additionalContent.mediaDuration) : undefined,
-              interaction.guildId!,
-            ),
-            discordReceivedAt: new Date(discordReceivedAt),
-            processingMs,
-          },
-        });
-      } catch (err) {
-        logger.error(err, '[HIDETALK] prisma.queue.create failed');
-        await interaction.editReply({
-          embeds: [new EmbedBuilder().setTitle(rosetty.t('error')!).setColor(0xe74c3c)],
-        });
-      }
+      await prisma.queue.create({
+        data: {
+          content: JSON.stringify({
+            text,
+            media,
+            mediaContentType: 'audio/mpeg',
+            mediaDuration: Math.ceil(additionalContent.mediaDuration ?? 0),
+          }),
+          type: QueueType.VOCAL,
+          discordGuildId: interaction.guildId!,
+          duration: await getDurationFromGuildId(
+            additionalContent.mediaDuration ? Math.ceil(additionalContent.mediaDuration) : undefined,
+            interaction.guildId!,
+          ),
+          discordReceivedAt: new Date(discordReceivedAt),
+          processingMs,
+        },
+      });
     } finally {
       await deleteGtts(filePath).catch((err) => logger.warn(err, '[TTS] Failed to delete temp file'));
     }
