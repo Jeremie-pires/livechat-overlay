@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="csrf-token" content="{{CSRF_TOKEN}}">
+  <title>LiveChat CCB — Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/dashboard.css">
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.41 2 2 0 0 1 3.6 1.24h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.81a16 16 0 0 0 6.28 6.28l.91-.91a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+      </div>
+      <div>
+        <div class="logo-text">LiveChat CCB</div>
+        <div class="logo-sub">Dashboard</div>
+      </div>
+    </div>
+    <nav>
+      <div class="nav-section">Navigation</div>
+      <button type="button" class="nav-item active" onclick="navigate('home')" data-page="home">
+        <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        Accueil
+      </button>
+      <button type="button" class="nav-item" onclick="navigate('servers')" data-page="servers">
+        <svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+        Serveurs
+      </button>
+      <button type="button" class="nav-item" onclick="navigate('messages')" data-page="messages">
+        <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        Messages
+      </button>
+      <button type="button" class="nav-item" onclick="navigate('network')" data-page="network">
+        <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        Réseau & Système
+      </button>
+      <button type="button" class="nav-item" onclick="navigate('journal')" data-page="journal">
+        <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
+        Journal
+      </button>
+      <button type="button" class="nav-item" onclick="navigate('database')" data-page="database">
+        <svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+        Base de données
+      </button>
+    </nav>
+    <div class="sidebar-footer">
+      <button type="button" class="logout-btn" onclick="logout()">← Déconnexion</button>
+    </div>
+  </aside>
+
+  <main class="content">
+    <div class="page-glow"></div>
+    <div class="content-inner">
+
+      <!-- ACCUEIL -->
+      <div class="page active" id="page-home">
+        <div class="page-header">
+          <div class="page-title">Vue d'ensemble</div>
+          <div class="page-subtitle">Statistiques globales du bot en temps réel</div>
+        </div>
+        <div class="cards-grid">
+          <div class="card clickable" role="button" tabindex="0" onclick="navigate('servers')" onKeyDown="if(event.key==='Enter'||event.key===' '){event.preventDefault();navigate('servers')}">
+            <div class="card-icon blue"><svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg></div>
+            <div class="card-label">Serveurs</div>
+            <div class="card-value" id="h-servers">—</div>
+            <div class="card-hint">Voir la liste →</div>
+          </div>
+          <div class="card clickable" role="button" tabindex="0" onclick="navigate('servers')" onKeyDown="if(event.key==='Enter'||event.key===' '){event.preventDefault();navigate('servers')}">
+            <div class="card-icon green"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg></div>
+            <div class="card-label">Clients connectés</div>
+            <div class="card-value" id="h-clients">—</div>
+            <div class="card-hint">En temps réel →</div>
+          </div>
+          <div class="card clickable" role="button" tabindex="0" onclick="navigate('messages')" onKeyDown="if(event.key==='Enter'||event.key===' '){event.preventDefault();navigate('messages')}">
+            <div class="card-icon yellow"><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+            <div class="card-label">Médias envoyés</div>
+            <div class="card-value" id="h-totalSent">—</div>
+            <div class="card-hint">Voir les stats →</div>
+          </div>
+          <div class="card">
+            <div class="card-icon yellow"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+            <div class="card-label">Uptime</div>
+            <div class="card-value" id="h-uptime">—</div>
+          </div>
+          <div class="card clickable" role="button" tabindex="0" onclick="navigate('messages')" onKeyDown="if(event.key==='Enter'||event.key===' '){event.preventDefault();navigate('messages')}">
+            <div class="card-icon purple"><svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg></div>
+            <div class="card-label">Attente file moy.</div>
+            <div class="card-value" id="h-latency">—</div>
+            <div class="card-hint">Voir le graphe →</div>
+          </div>
+          <div class="card clickable" role="button" tabindex="0" onclick="navigate('network')" onKeyDown="if(event.key==='Enter'||event.key===' '){event.preventDefault();navigate('network')}">
+            <div class="card-icon red"><svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div>
+            <div class="card-label">CPU système</div>
+            <div class="card-value" id="h-cpu">—</div>
+            <div class="card-hint">Voir le détail →</div>
+          </div>
+          <div class="card clickable" role="button" tabindex="0" onclick="navigate('network')" onKeyDown="if(event.key==='Enter'||event.key===' '){event.preventDefault();navigate('network')}">
+            <div class="card-icon blue"><svg viewBox="0 0 24 24"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><circle cx="12" cy="20" r="1" fill="currentColor"/></svg></div>
+            <div class="card-label">RAM (RSS)</div>
+            <div class="card-value" id="h-mem">—</div>
+            <div class="card-hint">Voir le détail →</div>
+          </div>
+        </div>
+        <div class="refresh-row">
+          <div style="display:flex;align-items:center;gap:0.6rem">
+            <span class="badge green" id="status-badge">En ligne</span>
+            <button class="maint-btn" id="maint-btn" onclick="toggleMaintenance()">🔧 Maintenance</button>
+          </div>
+          <span id="h-refresh">—</span>
+        </div>
+      </div>
+
+      <!-- SERVEURS -->
+      <div class="page" id="page-servers">
+        <div class="page-header">
+          <div class="page-title">Serveurs</div>
+          <div class="page-subtitle" id="s-subtitle">Chargement...</div>
+        </div>
+        <div class="server-grid" id="server-grid"></div>
+      </div>
+
+      <!-- MESSAGES -->
+      <div class="page" id="page-messages">
+        <div class="page-header">
+          <div class="page-title">Messages & Médias</div>
+          <div class="page-subtitle">Analyse des contenus envoyés via le bot</div>
+        </div>
+        <div class="cards-grid" style="grid-template-columns: repeat(auto-fill, minmax(160px, 1fr))">
+          <div class="card">
+            <div class="card-label">Total envoyés</div>
+            <div class="card-value" id="m-total">—</div>
+          </div>
+          <div class="card">
+            <div class="card-label">Attente file moy.</div>
+            <div class="card-value" id="m-latency">—</div>
+          </div>
+          <div class="card">
+            <div class="card-label">Queue en attente</div>
+            <div class="card-value" id="m-queue">—</div>
+          </div>
+        </div>
+        <div class="two-col">
+          <div class="section">
+            <div class="section-title">Répartition par type</div>
+            <div class="type-row"><span class="type-dot dot-image"></span><span class="type-label">Image</span><div class="bar-wrap"><div class="bar bar-image" id="bar-image"></div></div><span class="type-pct" id="pct-image">0%</span><span class="type-count" id="count-image">0</span></div>
+            <div class="type-row"><span class="type-dot dot-video"></span><span class="type-label">Vidéo</span><div class="bar-wrap"><div class="bar bar-video" id="bar-video"></div></div><span class="type-pct" id="pct-video">0%</span><span class="type-count" id="count-video">0</span></div>
+            <div class="type-row"><span class="type-dot dot-audio"></span><span class="type-label">Audio</span><div class="bar-wrap"><div class="bar bar-audio" id="bar-audio"></div></div><span class="type-pct" id="pct-audio">0%</span><span class="type-count" id="count-audio">0</span></div>
+            <div class="type-row"><span class="type-dot dot-link"></span><span class="type-label">Lien</span><div class="bar-wrap"><div class="bar bar-link" id="bar-link"></div></div><span class="type-pct" id="pct-link">0%</span><span class="type-count" id="count-link">0</span></div>
+            <div class="type-row"><span class="type-dot dot-text"></span><span class="type-label">Texte</span><div class="bar-wrap"><div class="bar bar-text" id="bar-text"></div></div><span class="type-pct" id="pct-text">0%</span><span class="type-count" id="count-text">0</span></div>
+          </div>
+          <div class="section">
+            <div class="section-title">Latence totale — 50 derniers envois</div>
+            <svg class="sparkline-svg" id="sparkline" viewBox="0 0 400 72" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="spark-grad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#5865f2" stop-opacity="0.22"/>
+                  <stop offset="100%" stop-color="#5865f2" stop-opacity="0"/>
+                </linearGradient>
+              </defs>
+              <path class="spark-area" id="spark-area" d=""/>
+              <path class="spark-line" id="spark-line" d=""/>
+            </svg>
+            <div class="spark-meta">
+              <span id="spark-min">min —</span>
+              <span id="spark-avg">moy —</span>
+              <span id="spark-max">max —</span>
+            </div>
+          </div>
+        </div>
+        <div class="section">
+          <div class="section-title">Décomposition de la latence (moyenne globale)</div>
+          <div class="stat-mini" style="grid-template-columns: repeat(4, 1fr)">
+            <div class="stat-mini-item">
+              <div class="stat-mini-label">Ingestion Discord</div>
+              <div class="stat-mini-value" id="lat-ingestion">—</div>
+            </div>
+            <div class="stat-mini-item">
+              <div class="stat-mini-label">Traitement média</div>
+              <div class="stat-mini-value" id="lat-processing">—</div>
+            </div>
+            <div class="stat-mini-item">
+              <div class="stat-mini-label">Attente en file</div>
+              <div class="stat-mini-value" id="lat-queuewait">—</div>
+            </div>
+            <div class="stat-mini-item">
+              <div class="stat-mini-label">Émission Socket</div>
+              <div class="stat-mini-value" id="lat-emit">—</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RESEAU -->
+      <div class="page" id="page-network">
+        <div class="page-header">
+          <div class="page-title">Réseau & Système</div>
+          <div class="page-subtitle">Consommation des ressources du processus bot</div>
+        </div>
+        <div class="two-col">
+          <div class="section">
+            <div class="section-title">CPU & Charge</div>
+            <div class="sys-row">
+              <div class="sys-row-head"><span class="sys-label">CPU (système global)</span><span class="sys-value" id="n-cpu">—</span></div>
+              <div class="sys-bar-wrap"><div class="sys-bar accent" id="n-cpu-bar" style="width:0%"></div></div>
+            </div>
+            <div style="margin-top:1.25rem">
+              <div class="sys-row">
+                <div class="sys-row-head"><span class="sys-label">Load avg 1 min</span><span class="sys-value" id="n-load1">—</span></div>
+              </div>
+              <div class="sys-row">
+                <div class="sys-row-head"><span class="sys-label">Load avg 5 min</span><span class="sys-value" id="n-load5">—</span></div>
+              </div>
+              <div class="sys-row">
+                <div class="sys-row-head"><span class="sys-label">Load avg 15 min</span><span class="sys-value" id="n-load15">—</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="section">
+            <div class="section-title">Mémoire</div>
+            <div class="sys-row">
+              <div class="sys-row-head"><span class="sys-label">RAM système (utilisée)</span><span class="sys-value" id="n-sysram">—</span></div>
+              <div class="sys-bar-wrap"><div class="sys-bar green" id="n-sysram-bar" style="width:0%"></div></div>
+            </div>
+            <div class="sys-row" style="margin-top:1rem">
+              <div class="sys-row-head"><span class="sys-label">Heap Node.js</span><span class="sys-value" id="n-heap">—</span></div>
+              <div class="sys-bar-wrap"><div class="sys-bar yellow" id="n-heap-bar" style="width:0%"></div></div>
+            </div>
+            <div class="sys-row" style="margin-top:1rem">
+              <div class="sys-row-head"><span class="sys-label">RSS processus</span><span class="sys-value" id="n-rss">—</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="section">
+          <div class="section-title">WebSocket — données envoyées</div>
+          <div class="stat-mini">
+            <div class="stat-mini-item">
+              <div class="stat-mini-label">Total payload</div>
+              <div class="stat-mini-value" id="n-payload">—</div>
+            </div>
+            <div class="stat-mini-item">
+              <div class="stat-mini-label">Messages traités</div>
+              <div class="stat-mini-value" id="n-total">—</div>
+            </div>
+            <div class="stat-mini-item">
+              <div class="stat-mini-label">Taille moy. / msg</div>
+              <div class="stat-mini-value" id="n-avg-payload">—</div>
+            </div>
+          </div>
+        </div>
+        <div class="refresh-row"><span></span><span id="n-refresh">—</span></div>
+      </div>
+
+      <!-- GUILD DETAIL -->
+      <div class="page" id="page-guild">
+        <button type="button" class="back-btn" onclick="navigate('servers')">← Retour aux serveurs</button>
+        <div class="guild-hero">
+          <div id="g-avatar-wrap"></div>
+          <div>
+            <div class="guild-hero-name" id="g-name"></div>
+            <div class="guild-hero-id" id="g-id" role="button" tabindex="0" onclick="copyGuildId()" onKeyDown="if(event.key==='Enter'||event.key===' ')copyGuildId()" title="Cliquer pour copier l'ID"></div>
+          </div>
+        </div>
+        <div class="guild-stats">
+          <div class="card">
+            <div class="card-label">Membres total</div>
+            <div class="card-value" id="g-members">—</div>
+          </div>
+          <div class="card">
+            <div class="card-label">Clients connectés</div>
+            <div class="card-value" id="g-connected">—</div>
+          </div>
+          <div class="card">
+            <div class="card-label">Statut</div>
+            <div class="card-value" id="g-status" style="font-size:1rem">—</div>
+          </div>
+        </div>
+        <div class="section">
+          <div class="section-title">Clients connectés dans la room</div>
+          <div id="g-user-list" class="user-list">
+            <div class="user-list-empty">Aucun client connecté.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- JOURNAL -->
+      <div class="page" id="page-journal">
+        <div class="page-header">
+          <div class="page-title">Journal des événements</div>
+          <div class="page-subtitle">Démarrages, arrêts, crashs et erreurs du bot — 100 derniers événements</div>
+        </div>
+        <div class="section">
+          <div id="journal-list" class="event-list">
+            <div class="event-empty">Chargement...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- BASE DE DONNÉES -->
+      <div class="page" id="page-database">
+        <div class="page-header">
+          <div class="page-title">Base de données</div>
+          <div class="page-subtitle">Configuration des serveurs &amp; résultats du dernier broadcast</div>
+        </div>
+        <div class="stat-mini" style="margin-bottom:1.25rem">
+          <div class="stat-mini-item">
+            <div class="stat-mini-label">Serveurs connectés</div>
+            <div class="stat-mini-value" id="db-connected-count">—</div>
+          </div>
+          <div class="stat-mini-item">
+            <div class="stat-mini-label">Configurés en DB</div>
+            <div class="stat-mini-value" id="db-total-count">—</div>
+          </div>
+          <div class="stat-mini-item">
+            <div class="stat-mini-label">Échecs dernier /announce</div>
+            <div class="stat-mini-value" id="db-failed-count" style="color:var(--red)">—</div>
+          </div>
+        </div>
+        <div class="section">
+          <div class="section-title">Guildes configurées</div>
+          <div class="db-table-wrap">
+            <table class="db-table" id="db-guild-table">
+              <thead>
+                <tr>
+                  <th>Serveur</th>
+                  <th>Guild ID</th>
+                  <th>Channel ID</th>
+                  <th>Temps défaut / max</th>
+                  <th>Full media</th>
+                  <th>Dernier broadcast</th>
+                  <th>Connecté</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="db-guild-tbody">
+                <tr><td colspan="8" style="text-align:center;color:var(--muted);padding:2rem">Chargement...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+<script src="/dashboard.js"></script>
+</body>
+</html>
