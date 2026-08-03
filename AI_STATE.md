@@ -1,7 +1,7 @@
 # AI_STATE.md — LiveChat CCB
 
 ## Status
-Branch `develop` — active development. v1.2.11 stable released.
+Branch `develop` — active development. v1.3.0 stable released.
 
 ---
 
@@ -70,13 +70,13 @@ Branch `develop` — active development. v1.2.11 stable released.
 | `desktop-client/src/renderer/index.html` | Sidebar + 4 panels + `#maintenanceBanner` (fixed bottom) + `#maintenanceToast` (fixed top-right) + update modal |
 | `desktop-client/src/renderer/styles.css` | Palette dark, sidebar, panels, `dot-pulse` animation, `.maintenance-banner`, `.maintenance-toast`, `.btn-ghost` |
 | `desktop-client/src/renderer/renderer.js` | `serverState` + `computeNavDotStatus()` + `applyServerState()` + `showStatusToast(type,title,body)` + rAF throttle size slider |
-| `desktop-client/package.json` | Version: `1.2.11` (stable) |
+| `desktop-client/package.json` | Version: `1.3.0` (stable) |
 
 ---
 
 ## 3. Next Steps
 
-1. **Release desktop v1.2.12** — bumper version dans `desktop-client/package.json`, tag annoté, push → CI
+1. **Release desktop v1.3.0** — ✅ tag poussé, CI en cours
 2. **Audit phase 3**:
    - CRITICAL: C-AUD-02 ffprobe DNS rebinding
    - HIGH: H-AUD-01 CSP, H-AUD-02 Docker runner dev-dep bloat, H-AUD-03 process.env overwrite, H-AUD-04 trustProxy IP restriction, H-AUD-05 busyGuild TOCTOU, H-AUD-06 Socket.IO payload scope, H-AUD-07 log redaction dev mode
