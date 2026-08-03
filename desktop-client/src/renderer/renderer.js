@@ -260,8 +260,8 @@ function showTestResult(type, message) {
   elements.testResultText.textContent = message;
 
   if (elements.testResultIcon) {
-    elements.testResultIcon.textContent =
-      type === 'success' ? '✓' : type === 'error' ? '✗' : '⏳';
+    const icons = { success: '✓', error: '✗' };
+    elements.testResultIcon.textContent = icons[type] ?? '⏳';
   }
 
   if (type === 'success' || type === 'error') {
@@ -363,7 +363,7 @@ async function loadChangelog() {
     list.innerHTML = releases.slice(0, 15).map(r => {
       const date = new Date(r.published_at).toLocaleDateString('fr-FR', { year: 'numeric', month: 'short', day: 'numeric' });
       const body = r.body
-        ? r.body.trim().replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        ? r.body.trim().replaceAll('<', '&lt;').replaceAll('>', '&gt;')
         : '';
       return `<li class="changelog-item">
         <div class="changelog-item-header">
@@ -504,7 +504,7 @@ function reconcileUserList(snapshot) {
   const snapshotMap = new Map(valid.map(c => [c.id, c]));
 
   for (const domItem of elements.userList.querySelectorAll('.user-item[data-user-id]')) {
-    if (!snapshotMap.has(domItem.getAttribute('data-user-id'))) domItem.remove();
+    if (!snapshotMap.has(domItem.dataset.userId)) domItem.remove();
   }
 
   for (const client of valid) {

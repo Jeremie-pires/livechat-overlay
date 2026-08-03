@@ -515,8 +515,14 @@ function registerIpc() {
   });
 
   ipcMain.handle('app:open-external', (_event, url: string) => {
-    const safe = typeof url === 'string' && (url.startsWith('https://') || url.startsWith('http://'));
-    if (safe) shell.openExternal(url).catch(() => undefined);
+    let parsed: URL;
+    try {
+      parsed = new URL(url);
+    } catch {
+      return;
+    }
+    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return;
+    shell.openExternal(parsed.href).catch(() => undefined);
   });
 
   ipcMain.handle('overlay:test-sound', async () => {

@@ -8,6 +8,15 @@ Branch `develop` — active development. v1.2.11 stable released.
 ## 1. Accomplished
 
 ### This session
+- **SonarQube Quality Gate fixes** (4 fichiers) :
+  - `main.ts:app:open-external` — Security C (bloquant) : URL user-controlled → parse `new URL()` + validate `parsed.protocol` + utiliser `parsed.href` (pattern reconnu par SonarQube).
+  - `renderer.js:reconcileUserList` — Reliability C (bloquant) : `getAttribute('data-user-id')` → `dataset.userId`.
+  - `renderer.js:loadChangelog` — Code smell : `.replace(/</g,...)` × 2 → `.replaceAll('<',...)`.
+  - `renderer.js:showTestResult` — Code smell : ternaire imbriqué → `const icons = {…}; icons[type] ?? '⏳'`.
+  - `index.html` (5 inputs) — Accessibility : `<p class="field-label">` → `<label class="field-label" for="inputId">` (backendUrl, guildId, clientToken, localServerPort, obsUrlDisplay).
+  - `index.html:maintenanceBanner` — Accessibility : `<div role="status">` → `<output>` (élément sémantique natif).
+  - `styles.css:.maintenance-banner` — Contrast WCAG : `color:#f59e0b` sur fond `rgba(245,158,11,0.1)` (ratio ~1.5:1) → `background:rgba(120,53,15,0.88)` + `color:#fcd34d` (ratio >4.5:1 même sur fond blanc).
+  - `styles.css:.field-label` + `.obs-url-label` — `display:block` ajouté pour préserver le layout après passage `<p>`→`<label>`.
 - **Fix rate-limit socket.io** (`server.ts`) : `FastifyRateLimit` s'appliquait aussi aux requêtes `/socket.io/*` (polling, WS upgrade). Le proxy OBS local fait ~15+ reconnexions/min × 3 req HTTP = >45 req/min depuis la même IP, plus l'overlay. Total >100/min → 429 sur les requêtes SVG de test format. Fix : `skip: (req) => req.url.startsWith('/socket.io')`.
 - **Fix chemins SVG test formats** (`client.html`) : `./img/*.svg` → `/client/img/*.svg` (chemins absolus). Le proxy OBS local (`local-server.ts`) filtre les requêtes sur `/client/*` ; avec un chemin relatif depuis `http://localhost:3001/client?...`, la résolution donnait `/img/*.svg` qui ne passait pas le filtre (→ 404 silencieux). Portrait "semblait fonctionner" mais c'était le même problème.
 - **Nav dot rouge sur disconnect** (`client.html`) : `lastKnownMaintenance` tracké dans les handlers `server:status` et `server:maintenance`. Handler `socket.on('disconnect')` ajouté — émet `reportServerStatus({ botOnline: false, maintenance: lastKnownMaintenance })` via IPC. Résultat : la dot passe rouge dès que le backend coupe, même si le HTML de l'overlay reste chargé.
@@ -60,7 +69,7 @@ Branch `develop` — active development. v1.2.11 stable released.
 | `desktop-client/src/preload.ts` | Expose `onServerStatus`, `onMaintenance`, `setSize`, `previewSize` + tous les IPC existants |
 | `desktop-client/src/renderer/index.html` | Sidebar + 4 panels + `#maintenanceBanner` (fixed bottom) + `#maintenanceToast` (fixed top-right) + update modal |
 | `desktop-client/src/renderer/styles.css` | Palette dark, sidebar, panels, `dot-pulse` animation, `.maintenance-banner`, `.maintenance-toast`, `.btn-ghost` |
-| `desktop-client/src/renderer/renderer.js` | `serverState` + `computeNavDotStatus()` + `applyServerState()` + `showMaintenanceToast()` + rAF throttle size slider |
+| `desktop-client/src/renderer/renderer.js` | `serverState` + `computeNavDotStatus()` + `applyServerState()` + `showStatusToast(type,title,body)` + rAF throttle size slider |
 | `desktop-client/package.json` | Version: `1.2.11` (stable) |
 
 ---
@@ -69,7 +78,7 @@ Branch `develop` — active development. v1.2.11 stable released.
 
 1. **Release desktop v1.2.12** — bumper version dans `desktop-client/package.json`, tag annoté, push → CI
 2. **Audit phase 3**:
-   - CRITICAL: C-AUD-01 rate limiting (`@fastify/rate-limit` present, not wired), C-AUD-02 ffprobe DNS rebinding
+   - CRITICAL: C-AUD-02 ffprobe DNS rebinding
    - HIGH: H-AUD-01 CSP, H-AUD-02 Docker runner dev-dep bloat, H-AUD-03 process.env overwrite, H-AUD-04 trustProxy IP restriction, H-AUD-05 busyGuild TOCTOU, H-AUD-06 Socket.IO payload scope, H-AUD-07 log redaction dev mode
 3. **Fastify v5 upgrade** — unblocks find-my-way CVE-2026-47219 et fast-uri CVEs
 4. **`displayMediaFull`** — worker lit flag Guild, l'injecte dans Socket.IO payload, client applique CSS

@@ -224,7 +224,7 @@
 
         <!-- OBS URL (hidden until connected) -->
         <div class="obs-url-section hidden" id="obsUrlSection">
-          <p class="obs-url-label">URL OBS Browser Source</p>
+          <label class="obs-url-label" for="obsUrlDisplay">URL OBS Browser Source</label>
           <div class="obs-url-row">
             <input id="obsUrlDisplay" type="text" readonly class="pill-input" />
             <button id="obsUrlCopyBtn" class="btn-outline-blue small">Copier</button>
@@ -247,16 +247,16 @@
 
         <!-- Config card -->
         <div class="config-card">
-          <p class="field-label">URL du serveur backend</p>
+          <label class="field-label" for="backendUrl">URL du serveur backend</label>
           <input id="backendUrl" type="text" class="pill-input" placeholder="http://localhost:3000" />
 
-          <p class="field-label">ID de la guild discord</p>
+          <label class="field-label" for="guildId">ID de la guild discord</label>
           <input id="guildId" type="text" class="pill-input" placeholder="123456789012345678" />
 
-          <p class="field-label">TOKEN Client</p>
+          <label class="field-label" for="clientToken">TOKEN Client</label>
           <input id="clientToken" type="password" class="pill-input" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" autocomplete="off" />
 
-          <p class="field-label">Port serveur OBS local</p>
+          <label class="field-label" for="localServerPort">Port serveur OBS local</label>
           <input id="localServerPort" type="number" class="pill-input" min="1024" max="65535" placeholder="3001" />
 
           <hr class="card-divider" />
@@ -311,10 +311,10 @@
       </div><!-- /tabUsers -->
 
       <!-- Maintenance banner (fixed bottom, visible on all tabs) -->
-      <div id="maintenanceBanner" class="maintenance-banner hidden" role="status">
+      <output id="maintenanceBanner" class="maintenance-banner hidden">
         <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" aria-hidden="true"><path fill="#f59e0b" d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm1 15h-2v-2h2zm0-4h-2V7h2z"/></svg>
         <span>Maintenance en cours</span>
-      </div>
+      </output>
 
       </div><!-- /content -->
 

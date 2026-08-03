@@ -102,9 +102,9 @@ input, select { font-family: inherit; outline: none; }
   left: 60px;
   right: 0;
   z-index: 20;
-  background: rgba(245, 158, 11, 0.1);
-  border-top: 1px solid rgba(245, 158, 11, 0.3);
-  color: #f59e0b;
+  background: rgba(120, 53, 15, 0.88);
+  border-top: 1px solid rgba(245, 158, 11, 0.4);
+  color: #fcd34d;
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.05em;
@@ -571,7 +571,7 @@ input, select { font-family: inherit; outline: none; }
 .summary-cell strong { font-size: 15px; font-weight: 700; }
 
 /* OBS URL */
-.obs-url-label { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+.obs-url-label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
 
 .obs-url-row { display: flex; gap: 8px; align-items: center; }
 .obs-url-row .pill-input { flex: 1; min-width: 0; }
@@ -602,6 +602,7 @@ input, select { font-family: inherit; outline: none; }
 }
 
 .field-label {
+  display: block;
   font-size: 12px;
   color: var(--muted);
   font-weight: 600;
