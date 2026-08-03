@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, Menu, nativeImage, safeStorage, screen, Tray } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu, nativeImage, safeStorage, screen, shell, Tray } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import fs from 'fs/promises';
 import path from 'path';
@@ -199,12 +199,12 @@ function createTray() {
 
 function createControlWindow() {
   controlWindow = new BrowserWindow({
-    width: 420,
-    height: 640,
-    minWidth: 380,
-    minHeight: 600,
+    width: 480,
+    height: 720,
+    minWidth: 460,
+    minHeight: 660,
     title: 'LiveChatCCB Desktop',
-    backgroundColor: '#0b1020',
+    backgroundColor: '#141414',
     autoHideMenuBar: true,
     show: false,
     webPreferences: {
@@ -480,6 +480,11 @@ function registerIpc() {
     const obj = data as Record<string, unknown>;
     if (typeof obj?.id !== 'string') return;
     controlWindow?.webContents.send('presence:userLeft', data);
+  });
+
+  ipcMain.handle('app:open-external', (_event, url: string) => {
+    const safe = typeof url === 'string' && (url.startsWith('https://') || url.startsWith('http://'));
+    if (safe) shell.openExternal(url).catch(() => undefined);
   });
 
   ipcMain.handle('overlay:test-sound', async () => {

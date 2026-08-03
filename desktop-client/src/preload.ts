@@ -68,6 +68,7 @@ contextBridge.exposeInMainWorld('livechat', {
     return () => ipcRenderer.removeListener('presence:userLeft', listener);
   },
   installUpdate: () => ipcRenderer.invoke('update:install'),
+  openExternal: (url: string) => ipcRenderer.invoke('app:open-external', url) as Promise<void>,
   getObsUrl: () => ipcRenderer.invoke('local-server:get-url') as Promise<string>,
   onObsUrlChanged: (callback: (url: string) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, url: string) => callback(url);
@@ -98,6 +99,7 @@ declare global {
       onUserJoined: (callback: (data: UserJoinedPayload) => void) => () => void;
       onUserLeft: (callback: (data: { id: string }) => void) => () => void;
       installUpdate: () => Promise<void>;
+      openExternal: (url: string) => Promise<void>;
       getObsUrl: () => Promise<string>;
       onObsUrlChanged: (callback: (url: string) => void) => () => void;
     };

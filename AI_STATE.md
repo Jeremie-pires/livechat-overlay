@@ -8,6 +8,9 @@ Branch `develop` — active development. v1.2.11 stable released.
 ## 1. Accomplished
 
 ### This session
+- **Desktop UI refonte complète** (`desktop-client/src/renderer/`): nouvelle palette flat dark (`#141414` bg, `#5a8dff` accent, `#fcde63` CTA), layout sidebar 64px + contenu 416px, 4 panels (Statut / Paramètres / Serveur / Utilisateurs). Changelog fetchant GitHub releases API. Bouton support Discord via `shell.openExternal` (nouveau IPC `app:open-external` dans `main.ts` + `preload.ts`). Fenêtre 480×720px. Toute la logique IPC existante conservée intacte.
+
+### Previous session
 - **Dashboard refacto** (`src/components/dashboard/`): monolithe 1133 lignes → 4 fichiers propres. `dashboardRoutes.ts` passe à 191 lignes (route handlers uniquement). HTML/CSS/JS extraits en fichiers dédiés chargés via `readFileSync` au démarrage. Deux nouvelles routes statiques `/dashboard.css` et `/dashboard.js`. Comportement identique.
 - **SonarQube Quality Gate** — tous les failures corrigés : `var`→`let`, `getAttribute`→`.dataset`, complexité cognitive `refresh()` 19→6 (extraction `fmtLatStat`/`cpuBarClass`/`ramBarClass`/`buildGuildRow`/`buildBroadcastCell`). Warnings : `replaceAll`, optional chaining, `<a>`→`<button>`, `role="button"` + `onKeyDown`, `node:fs`/`node:path`.
 
@@ -43,6 +46,11 @@ Branch `develop` — active development. v1.2.11 stable released.
 | `src/components/client/client.html` | OBS browser source — vidstack player, Socket.IO |
 | `desktop-client/src/local-server.ts` | Local HTTP+Socket.IO server for OBS (port 3001) |
 | `src/services/session.ts` | Session + CSRF maps, hourly eviction |
+| `desktop-client/src/main.ts` | BrowserWindow 480×720, IPC `app:open-external` avec guard https/http |
+| `desktop-client/src/preload.ts` | Expose `openExternal(url)` via contextBridge |
+| `desktop-client/src/renderer/index.html` | Layout sidebar + 4 tab-panels (status/settings/server/users) |
+| `desktop-client/src/renderer/styles.css` | Palette flat dark, composants sidebar, changelog, modal |
+| `desktop-client/src/renderer/renderer.js` | Nav sidebar, `loadChangelog()`, Discord button, switchTab renommés |
 | `desktop-client/package.json` | Version: `1.2.11` (stable) |
 | `.trivyignore` | CVE suppressions: find-my-way v9 / brace-expansion v5 |
 
@@ -56,4 +64,5 @@ Branch `develop` — active development. v1.2.11 stable released.
 2. **Fastify v5 upgrade** — unblocks find-my-way CVE-2026-47219 and fast-uri CVEs
 3. **`displayMediaFull`** — worker reads Guild row, injects flag into Socket.IO payload, client applies CSS
 4. **L-01** — tsconfig strict flags (blocked by `ignoreDeprecations: "6.0"`)
-5. **UI redesign** — announced to users in v1.2.11 release notes
+5. **Desktop UI** — refonte terminée. À faire : renseigner l'URL Discord invite dans `index.html` (`data-href` du bouton `#discordSupportBtn`), tester `pnpm dev` dans `desktop-client/`
+6. **Release desktop v1.2.12** — bumper version + tag annoté une fois les tests OK
