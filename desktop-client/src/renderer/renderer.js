@@ -63,18 +63,20 @@ function switchTab(name) {
     const panel = document.getElementById(id);
     if (panel) panel.classList.toggle('hidden', key !== name);
   }
-  document.querySelectorAll('.nav-item[data-tab]').forEach(btn => {
+  document.querySelectorAll('.nav-item[data-tab], .sidebar-btn[data-tab]').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.tab === name);
   });
 }
 
 // ── Status rendering ───────────────────────────────────────────────────────────
 
+const STATUS_LABELS = { connected: 'Connecté', loading: '...', error: 'Erreur', idle: 'Prêt' };
+
 function renderStatus(status) {
   state.status = status;
-  elements.statusText.textContent  = status.message;
-  elements.statusSummary.textContent = status.message;
-  elements.statusDot.dataset.status = status.type;
+  elements.statusText.textContent    = status.message;
+  elements.statusSummary.textContent = STATUS_LABELS[status.type] ?? status.type;
+  elements.statusDot.dataset.status  = status.type;
 
   if (status.type === 'connected') {
     startPresencePolling();
@@ -526,13 +528,15 @@ function bindEvents() {
     });
   });
 
-  // Discord support button
-  const discordBtn = document.getElementById('discordSupportBtn');
-  if (discordBtn) {
-    discordBtn.addEventListener('click', () => {
-      const url = discordBtn.dataset.href;
-      if (url) window.livechat.openExternal(url);
-    });
+  // External link buttons (Discord, GitHub)
+  for (const id of ['discordSupportBtn', 'githubBtn']) {
+    const btn = document.getElementById(id);
+    if (btn) {
+      btn.addEventListener('click', () => {
+        const url = btn.dataset.href;
+        if (url) window.livechat.openExternal(url);
+      });
+    }
   }
 
   // Overlay toggle
@@ -671,7 +675,12 @@ setupPresenceListeners();
 
 refreshUi().then(async () => {
   renderStatus({ type: 'idle', message: 'Prêt' });
-  loadChangelog();
+  if (state.settings?.backendUrl) {
+    switchTab('settings');
+  } else {
+    switchTab('status');
+    loadChangelog();
+  }
   if (state.settings?.autoConnect && state.settings?.guildId) {
     renderStatus({ type: 'loading', message: 'Connexion automatique...' });
     const status = await window.livechat.connect();

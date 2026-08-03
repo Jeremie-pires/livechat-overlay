@@ -25,6 +25,24 @@
 
     <div class="app-layout">
 
+      <!-- ── Sidebar navigation ────────────────────────────────────────────── -->
+      <nav class="sidebar" role="navigation" aria-label="Navigation principale">
+        <button class="sidebar-btn active" data-tab="status" title="Accueil" aria-label="Accueil">
+          <img src="./assets/logo.jpg" class="sidebar-logo" alt="Accueil" />
+        </button>
+        <button class="sidebar-btn" data-tab="settings" title="Paramètres overlay" aria-label="Paramètres overlay">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="currentColor" d="m9.25 22l-.4-3.2q-.325-.125-.612-.3t-.563-.375L4.7 19.375l-2.75-4.75l2.575-1.95Q4.5 12.5 4.5 12.338v-.675q0-.163.025-.338L1.95 9.375l2.75-4.75l2.975 1.25q.275-.2.575-.375t.6-.3l.4-3.2h5.5l.4 3.2q.325.125.613.3t.562.375l2.975-1.25l2.75 4.75l-2.575 1.95q.025.175.025.338v.674q0 .163-.05.338l2.575 1.95l-2.75 4.75l-2.95-1.25q-.275.2-.575.375t-.6.3l-.4 3.2zm2.8-6.5q1.45 0 2.475-1.025T15.55 12t-1.025-2.475T12.05 8.5q-1.475 0-2.488 1.025T8.55 12t1.013 2.475T12.05 15.5"/></svg>
+        </button>
+        <button class="sidebar-btn" data-tab="server" title="Configuration serveur" aria-label="Configuration serveur">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="currentColor" d="M4 1h16a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1m0 8h16a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1m0 8h16a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1M9 5h1V3H9zm0 8h1v-2H9zm0 8h1v-2H9zM5 3v2h2V3zm0 8v2h2v-2zm0 8v2h2v-2z"/></svg>
+        </button>
+        <button class="sidebar-btn" data-tab="users" title="Utilisateurs connectés" aria-label="Utilisateurs connectés">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="currentColor" d="M16 17v2H2v-2s0-4 7-4s7 4 7 4m-3.5-9.5A3.5 3.5 0 1 0 9 11a3.5 3.5 0 0 0 3.5-3.5m3.44 5.5A5.32 5.32 0 0 1 18 17v2h4v-2s0-3.63-6.06-4M15 4a3.4 3.4 0 0 0-1.93.59a5 5 0 0 1 0 5.82A3.4 3.4 0 0 0 15 11a3.5 3.5 0 0 0 0-7"/></svg>
+        </button>
+      </nav>
+
+      <div class="content">
+
       <!-- ════════════════════════════════════════════════════════════════════
            PANEL 1 : Statut / Menu principal
       ═══════════════════════════════════════════════════════════════════════ -->
@@ -33,85 +51,31 @@
         <!-- Scroll zone -->
         <div class="status-scroll">
 
-          <!-- Top bar : logo + version + actions -->
+          <!-- Top bar : logo + titre + version -->
           <div class="top-bar">
-            <div class="top-bar-logo">
-              <div class="logo-square" aria-hidden="true">
-                <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M5 12.55a11 11 0 0 1 14.08 0"/>
-                  <path d="M1.42 9a16 16 0 0 1 21.16 0"/>
-                  <path d="M8.53 16.11a6 6 0 0 1 6.95 0"/>
-                  <circle cx="12" cy="20" r="1" fill="#ffffff" stroke="none"/>
-                </svg>
-              </div>
+            <div class="top-bar-brand">
+              <img id="appLogo" src="./assets/logo.jpg" class="app-logo" alt="Livechat Cacabox" />
+              <h1 class="home-title">Livechat Cacabox</h1>
             </div>
-            <div class="top-bar-right">
-              <span id="appVersion" class="app-version"></span>
-              <button class="icon-circle" data-tab="settings" title="Paramètres overlay" aria-label="Paramètres overlay">
-                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-                  <line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/>
-                  <line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/>
-                  <line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/>
-                  <line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/>
-                </svg>
-              </button>
-              <button class="icon-circle icon-circle-cta" data-tab="server" title="Configuration serveur" aria-label="Configuration serveur">
-                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-                  <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-                </svg>
-              </button>
-            </div>
+            <span id="appVersion" class="app-version"></span>
           </div>
-
-          <!-- Section MENU -->
-          <p class="nav-section-label">MENU</p>
-          <div class="nav-items">
-            <button class="nav-item active" data-tab="status">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-                <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
-              </svg>
-              <span>Statut</span>
-            </button>
-            <button class="nav-item" data-tab="settings">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-                <line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/>
-                <line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/>
-                <line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/>
-                <line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/>
-              </svg>
-              <span>Paramètres overlay</span>
-            </button>
-            <button class="nav-item" data-tab="server">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-                <ellipse cx="12" cy="5" rx="9" ry="3"/>
-                <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
-                <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
-              </svg>
-              <span>Serveur</span>
-            </button>
-            <button class="nav-item" data-tab="users">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                <circle cx="9" cy="7" r="4"/>
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-              </svg>
-              <span>Utilisateurs</span>
-            </button>
-          </div>
-
-          <hr class="nav-divider" />
 
           <!-- Section CONTACT -->
           <p class="nav-section-label">CONTACT</p>
-          <div class="nav-items">
-            <button class="nav-item" id="discordSupportBtn" data-href="https://discord.gg/TON_SERVEUR">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057.1 18.08.11 18.1.133 18.115a19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/>
-              </svg>
-              <span>Support Discord</span>
-            </button>
-          </div>
+          <button class="btn-discord" id="discordSupportBtn" data-href="https://discord.gg/PU56ufhSqV">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+              <path d="M13.545 2.907a13.2 13.2 0 0 0-3.257-1.011.05.05 0 0 0-.052.025c-.141.25-.297.577-.406.833a12.2 12.2 0 0 0-3.658 0 8 8 0 0 0-.412-.833.05.05 0 0 0-.052-.025c-1.125.194-2.22.534-3.257 1.011a.04.04 0 0 0-.021.018C.356 6.024-.213 9.047.066 12.032q.003.022.021.037a13.3 13.3 0 0 0 3.995 2.02.05.05 0 0 0 .056-.019q.463-.63.818-1.329a.05.05 0 0 0-.01-.059l-.018-.011a9 9 0 0 1-1.248-.595.05.05 0 0 1-.02-.066l.015-.019q.127-.095.248-.195a.05.05 0 0 1 .051-.007c2.619 1.196 5.454 1.196 8.041 0a.05.05 0 0 1 .053.007q.121.1.248.195a.05.05 0 0 1-.004.085 8 8 0 0 1-1.249.594.05.05 0 0 0-.03.03.05.05 0 0 0 .003.041c.24.465.515.909.817 1.329a.05.05 0 0 0 .056.019 13.2 13.2 0 0 0 4.001-2.02.05.05 0 0 0 .021-.037c.334-3.451-.559-6.449-2.366-9.106a.03.03 0 0 0-.02-.019m-8.198 7.307c-.789 0-1.438-.724-1.438-1.612s.637-1.613 1.438-1.613c.807 0 1.45.73 1.438 1.613 0 .888-.637 1.612-1.438 1.612m5.316 0c-.788 0-1.438-.724-1.438-1.612s.637-1.613 1.438-1.613c.807 0 1.451.73 1.438 1.613 0 .888-.631 1.612-1.438 1.612"/>
+            </svg>
+            <span>Rejoindre le Discord</span>
+          </button>
+
+          <p class="nav-section-label">CODE SOURCE</p>
+          <button class="btn-github" id="githubBtn" data-href="https://github.com/Jeremie-pires/livechat-overlay">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+              <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8"/>
+            </svg>
+            <span>Voir le code source</span>
+          </button>
 
           <!-- Changelog -->
           <p class="nav-section-label" style="margin-top:16px">MISES À JOUR</p>
@@ -135,20 +99,10 @@
       ═══════════════════════════════════════════════════════════════════════ -->
       <div id="tabSettings" class="tab-panel hidden">
 
-        <!-- Top bar: search pill + back -->
-        <div class="panel-top-bar">
-          <button class="panel-search-pill" data-tab="status" aria-label="Retour au menu">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-            </svg>
-            <span>Paramètres overlay</span>
-          </button>
-          <button class="icon-edit" aria-label="Options">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-            </svg>
-          </button>
+        <!-- Title -->
+        <div class="panel-title-area">
+          <svg xmlns="http://www.w3.org/2000/svg" class="title-icon" width="26" height="26" viewBox="0 0 24 24"><path fill="#5a8dff" fill-rule="evenodd" d="M11 17H4a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3h16a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3h-7v2h3a1 1 0 1 1 0 2H8a1 1 0 1 1 0-2h3zM4 5h16a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1" clip-rule="evenodd"/></svg>
+          <h1 class="panel-title">Paramètres de l'overlay</h1>
         </div>
 
         <!-- Overlay CTA button -->
@@ -284,12 +238,8 @@
 
         <!-- Title area -->
         <div class="panel-title-area">
-          <svg class="title-icon" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#5a8dff" stroke-width="2.5" stroke-linecap="round">
-            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
-            <line x1="8" y1="21" x2="16" y2="21"/>
-            <line x1="12" y1="17" x2="12" y2="21"/>
-          </svg>
-          <h1 class="panel-title">Configuration<br>Serveur</h1>
+          <svg xmlns="http://www.w3.org/2000/svg" class="title-icon" width="26" height="26" viewBox="0 0 24 24"><path fill="none" stroke="#5a8dff" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 5h-3m-4.25-2v4M13 5H3m4 7H3m7.75-2v4M21 12H11m10 7h-3m-4.25-2v4M13 19H3"/></svg>
+          <h1 class="panel-title">Configuration Serveur</h1>
         </div>
 
         <!-- Config card -->
@@ -345,7 +295,8 @@
       <div id="tabUsers" class="tab-panel hidden">
 
         <!-- Header: title + badge -->
-        <div class="users-header">
+        <div class="panel-title-area">
+          <svg xmlns="http://www.w3.org/2000/svg" class="title-icon" width="26" height="26" viewBox="0 0 32 32"><path fill="#5a8dff" d="M22 30h-2v-5a5 5 0 0 0-5-5H9a5 5 0 0 0-5 5v5H2v-5a7 7 0 0 1 7-7h6a7 7 0 0 1 7 7ZM12 4a5 5 0 1 1-5 5a5 5 0 0 1 5-5m0-2a7 7 0 1 0 7 7a7 7 0 0 0-7-7"/><circle cx="26" cy="16" r="4" fill="#4ee08a"/></svg>
           <h1 class="panel-title">En ligne</h1>
           <span class="count-badge" id="presenceBadge">0</span>
         </div>
@@ -355,6 +306,8 @@
         <div id="userList" class="user-list" role="list" aria-live="polite" aria-relevant="additions removals"></div>
 
       </div><!-- /tabUsers -->
+
+      </div><!-- /content -->
 
     </div><!-- /app-layout -->
 
