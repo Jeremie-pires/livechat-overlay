@@ -569,8 +569,21 @@ function bindEvents() {
     });
   }
 
-  elements.overlaySize.addEventListener('input', () => renderSize(elements.overlaySize.value));
-  elements.overlaySize.addEventListener('change', saveSettings);
+  let sizeRafPending = false;
+  elements.overlaySize.addEventListener('input', () => {
+    renderSize(elements.overlaySize.value);
+    if (!sizeRafPending) {
+      sizeRafPending = true;
+      requestAnimationFrame(() => {
+        window.livechat.previewSize(Number(elements.overlaySize.value));
+        sizeRafPending = false;
+      });
+    }
+  });
+  elements.overlaySize.addEventListener('change', () => {
+    sizeRafPending = false;
+    saveSettings();
+  });
 
   elements.volume.addEventListener('input', () => renderVolume(Number(elements.volume.value)));
   elements.volume.addEventListener('change', async () => {

@@ -32,6 +32,8 @@ contextBridge.exposeInMainWorld('livechat', {
   connect: () => ipcRenderer.invoke('overlay:connect') as Promise<OverlayStatus>,
   disconnect: () => ipcRenderer.invoke('overlay:disconnect') as Promise<OverlayStatus>,
   setVolume: (volume: number) => ipcRenderer.invoke('overlay:set-volume', volume) as Promise<number>,
+  setSize: (size: number) => ipcRenderer.invoke('overlay:set-size', size) as Promise<number>,
+  previewSize: (size: number) => ipcRenderer.invoke('overlay:preview-size', size) as Promise<number>,
   refreshPlacement: () => ipcRenderer.invoke('overlay:refresh-placement') as Promise<boolean>,
   testConnection: (backendUrl: string, guildId: string) => ipcRenderer.invoke('app:test-connection', { backendUrl, guildId }) as Promise<boolean>,
   triggerTestFormat: (format: string) => ipcRenderer.invoke('overlay:trigger-test-format', format) as Promise<boolean>,
@@ -87,6 +89,8 @@ declare global {
       connect: () => Promise<OverlayStatus>;
       disconnect: () => Promise<OverlayStatus>;
       setVolume: (volume: number) => Promise<number>;
+      setSize: (size: number) => Promise<number>;
+      previewSize: (size: number) => Promise<number>;
       refreshPlacement: () => Promise<boolean>;
       testConnection: (backendUrl: string, guildId: string) => Promise<boolean>;
       triggerTestFormat: (format: string) => Promise<boolean>;

@@ -442,6 +442,26 @@ function registerIpc() {
     return settings.volume;
   });
 
+  ipcMain.handle('overlay:set-size', async (_event, nextSize: number) => {
+    settings.overlaySize = Math.min(3840, Math.max(100, Math.round(nextSize)));
+    await saveSettingsToDisk();
+    if (overlayWindow) {
+      const js = `if (typeof window.__updateLayoutSettings === 'function') { window.__updateLayoutSettings(${settings.overlaySize}, '${settings.overlayPosition}'); }`;
+      await overlayWindow.webContents.executeJavaScript(js).catch(() => undefined);
+    }
+    controlWindow?.webContents.send('overlay:settings-changed', settings);
+    return settings.overlaySize;
+  });
+
+  ipcMain.handle('overlay:preview-size', (_event, nextSize: number) => {
+    settings.overlaySize = Math.min(3840, Math.max(100, Math.round(nextSize)));
+    if (overlayWindow) {
+      const js = `if (typeof window.__updateLayoutSettings === 'function') { window.__updateLayoutSettings(${settings.overlaySize}, '${settings.overlayPosition}'); }`;
+      overlayWindow.webContents.executeJavaScript(js).catch(() => undefined);
+    }
+    return settings.overlaySize;
+  });
+
   ipcMain.handle('overlay:refresh-placement', async () => {
     applyOverlayPlacement();
     return true;
