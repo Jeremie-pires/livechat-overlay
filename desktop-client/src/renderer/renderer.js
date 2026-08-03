@@ -83,17 +83,15 @@ function applyServerState() {
 
 let toastTimer = null;
 
-function showMaintenanceToast(maintenance) {
+function showStatusToast(type, title, body) {
   const toast = elements.maintenanceToast;
   if (!toast) return;
   clearTimeout(toastTimer);
-  const title = document.getElementById('toastTitle');
-  const body = document.getElementById('toastBody');
-  if (title) title.textContent = maintenance ? 'Maintenance activée' : 'Retour en ligne';
-  if (body) body.textContent = maintenance
-    ? 'Le serveur est en cours de maintenance.'
-    : 'Le serveur est de nouveau opérationnel.';
-  toast.dataset.type = maintenance ? 'warning' : 'success';
+  const titleEl = document.getElementById('toastTitle');
+  const bodyEl = document.getElementById('toastBody');
+  if (titleEl) titleEl.textContent = title;
+  if (bodyEl) bodyEl.textContent = body;
+  toast.dataset.type = type;
   toast.classList.remove('hidden');
   toastTimer = setTimeout(() => toast.classList.add('hidden'), 5000);
 }
@@ -717,18 +715,29 @@ window.livechat.onUpdateDownloaded(info => showUpdateModal(info.version, info.re
 window.livechat.onStatus(status => renderStatus(status));
 window.livechat.onObsUrlChanged(url => setObsUrl(url));
 
+let serverStatusInitialized = false;
+
 window.livechat.onServerStatus(({ botOnline, maintenance }) => {
+  const wasOnline = serverState.botOnline;
   serverState.botOnline = botOnline;
   serverState.maintenance = maintenance;
   applyServerState();
   renderStatus(state.status);
+  if (serverStatusInitialized && !wasOnline && botOnline && !maintenance) {
+    showStatusToast('success', 'Bot Discord en ligne', 'Le bot est de nouveau disponible.');
+  }
+  serverStatusInitialized = true;
 });
 
 window.livechat.onMaintenance(({ maintenance }) => {
   serverState.maintenance = maintenance;
   applyServerState();
   renderStatus(state.status);
-  showMaintenanceToast(maintenance);
+  if (maintenance) {
+    showStatusToast('warning', 'Maintenance activée', 'Le serveur est en cours de maintenance.');
+  } else {
+    showStatusToast('success', 'Retour en ligne', 'Le serveur est de nouveau opérationnel.');
+  }
 });
 
 window.livechat.onSettingsChanged(settings => {

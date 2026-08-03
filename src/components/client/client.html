@@ -647,15 +647,25 @@
           }
         });
 
+        var lastKnownMaintenance = false;
+
         socket.on('server:status', function (data) {
+          if (typeof data.maintenance === 'boolean') lastKnownMaintenance = data.maintenance;
           if (window.livechatOverlay && typeof window.livechatOverlay.reportServerStatus === 'function') {
             window.livechatOverlay.reportServerStatus(data);
           }
         });
 
         socket.on('server:maintenance', function (data) {
+          if (typeof data.maintenance === 'boolean') lastKnownMaintenance = data.maintenance;
           if (window.livechatOverlay && typeof window.livechatOverlay.reportMaintenance === 'function') {
             window.livechatOverlay.reportMaintenance(data);
+          }
+        });
+
+        socket.on('disconnect', function () {
+          if (window.livechatOverlay && typeof window.livechatOverlay.reportServerStatus === 'function') {
+            window.livechatOverlay.reportServerStatus({ botOnline: false, maintenance: lastKnownMaintenance });
           }
         });
       });

@@ -8,6 +8,10 @@ Branch `develop` — active development. v1.2.11 stable released.
 ## 1. Accomplished
 
 ### This session
+- **Nav dot rouge sur disconnect** (`client.html`) : `lastKnownMaintenance` tracké dans les handlers `server:status` et `server:maintenance`. Handler `socket.on('disconnect')` ajouté — émet `reportServerStatus({ botOnline: false, maintenance: lastKnownMaintenance })` via IPC. Résultat : la dot passe rouge dès que le backend coupe, même si le HTML de l'overlay reste chargé.
+- **Toast générique + notif bot online** (`renderer.js`) : `showMaintenanceToast(maintenance)` → `showStatusToast(type, title, body)` (générique). Flag `serverStatusInitialized` pour ne déclencher le toast qu'après la première connexion initiale (évite un toast parasite au démarrage). `onServerStatus` : détecte la transition `botOnline false→true` hors maintenance → toast succès "Bot Discord en ligne". `onMaintenance` : utilise `showStatusToast` avec les deux cas (warning/success).
+
+### Previous session
 - **Slider taille dynamique** (`main.ts`, `preload.ts`, `renderer.js`) : deux IPC séparés — `overlay:set-size` (sauvegarde disque, persistance) et `overlay:preview-size` (exécute `__updateLayoutSettings` sur l'overlay sans I/O disque). Renderer utilise `requestAnimationFrame` throttle sur `input` → preview live ~60fps. Sauvegarde disque seulement au `change` (relâché).
 - **Nav status dot** (`index.html`, `styles.css`, `renderer.js`) : point coloré en bas à droite du logo sidebar. États : gris (idle), orange (loading/maintenance avec `dot-pulse`), vert (connected), rouge (error). Wrapper `.sidebar-logo-wrap { position: relative }` + `.nav-status-dot` absolu.
 - **Bot status + maintenance push — chaîne complète** (10 fichiers) :
