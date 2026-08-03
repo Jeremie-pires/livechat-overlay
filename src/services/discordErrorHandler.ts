@@ -13,10 +13,7 @@ const USER_ERROR_CODES: Partial<Record<number, I18nKey>> = {
 // 10062 = Unknown Interaction: the interaction token has expired, replying is not possible
 const SILENT_CODES = new Set([10062]);
 
-export const classifyAndReply = async (
-  error: unknown,
-  interaction: ChatInputCommandInteraction,
-): Promise<void> => {
+export const classifyAndReply = async (error: unknown, interaction: ChatInputCommandInteraction): Promise<void> => {
   if (error instanceof DiscordAPIError) {
     const code = error.code as number;
 
