@@ -89,3 +89,4 @@ package-lock.json
 .pipeline/
 
 config/
+desktop-client/ui/

@@ -124,6 +124,8 @@ async function dashboardPlugin(fastify: FastifyCustomInstance) {
       await broadcastToAllGuilds('🟢 En ligne !', 'Le bot est de retour et prêt à recevoir du contenu !', 0x2ecc71);
     }
 
+    fastify.io.emit('server:maintenance', { maintenance: silentMode });
+
     return reply.send({ silentMode });
   });
 

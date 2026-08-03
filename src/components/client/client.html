@@ -355,11 +355,11 @@
         let isShort = false;
 
         if (format === 'landscape') {
-          mediaUrl = './img/landscape.svg';
+          mediaUrl = '/client/img/landscape.svg';
         } else if (format === 'square') {
-          mediaUrl = './img/square.svg';
+          mediaUrl = '/client/img/square.svg';
         } else if (format === 'portrait') {
-          mediaUrl = './img/portrait.svg';
+          mediaUrl = '/client/img/portrait.svg';
           isShort = true;
         }
 
@@ -644,6 +644,28 @@
         socket.on('userLeft', function (data) {
           if (window.livechatOverlay && typeof window.livechatOverlay.reportUserLeft === 'function') {
             window.livechatOverlay.reportUserLeft(data);
+          }
+        });
+
+        var lastKnownMaintenance = false;
+
+        socket.on('server:status', function (data) {
+          if (typeof data.maintenance === 'boolean') lastKnownMaintenance = data.maintenance;
+          if (window.livechatOverlay && typeof window.livechatOverlay.reportServerStatus === 'function') {
+            window.livechatOverlay.reportServerStatus(data);
+          }
+        });
+
+        socket.on('server:maintenance', function (data) {
+          if (typeof data.maintenance === 'boolean') lastKnownMaintenance = data.maintenance;
+          if (window.livechatOverlay && typeof window.livechatOverlay.reportMaintenance === 'function') {
+            window.livechatOverlay.reportMaintenance(data);
+          }
+        });
+
+        socket.on('disconnect', function () {
+          if (window.livechatOverlay && typeof window.livechatOverlay.reportServerStatus === 'function') {
+            window.livechatOverlay.reportServerStatus({ botOnline: false, maintenance: lastKnownMaintenance });
           }
         });
       });

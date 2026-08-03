@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, Menu, nativeImage, safeStorage, screen, Tray } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu, nativeImage, safeStorage, screen, shell, Tray } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import fs from 'fs/promises';
 import path from 'path';
@@ -199,12 +199,12 @@ function createTray() {
 
 function createControlWindow() {
   controlWindow = new BrowserWindow({
-    width: 420,
-    height: 640,
-    minWidth: 380,
-    minHeight: 600,
+    width: 480,
+    height: 720,
+    minWidth: 460,
+    minHeight: 660,
     title: 'LiveChatCCB Desktop',
-    backgroundColor: '#0b1020',
+    backgroundColor: '#141414',
     autoHideMenuBar: true,
     show: false,
     webPreferences: {
@@ -442,6 +442,26 @@ function registerIpc() {
     return settings.volume;
   });
 
+  ipcMain.handle('overlay:set-size', async (_event, nextSize: number) => {
+    settings.overlaySize = Math.min(3840, Math.max(100, Math.round(nextSize)));
+    await saveSettingsToDisk();
+    if (overlayWindow) {
+      const js = `if (typeof window.__updateLayoutSettings === 'function') { window.__updateLayoutSettings(${settings.overlaySize}, '${settings.overlayPosition}'); }`;
+      await overlayWindow.webContents.executeJavaScript(js).catch(() => undefined);
+    }
+    controlWindow?.webContents.send('overlay:settings-changed', settings);
+    return settings.overlaySize;
+  });
+
+  ipcMain.handle('overlay:preview-size', (_event, nextSize: number) => {
+    settings.overlaySize = Math.min(3840, Math.max(100, Math.round(nextSize)));
+    if (overlayWindow) {
+      const js = `if (typeof window.__updateLayoutSettings === 'function') { window.__updateLayoutSettings(${settings.overlaySize}, '${settings.overlayPosition}'); }`;
+      overlayWindow.webContents.executeJavaScript(js).catch(() => undefined);
+    }
+    return settings.overlaySize;
+  });
+
   ipcMain.handle('overlay:refresh-placement', async () => {
     applyOverlayPlacement();
     return true;
@@ -480,6 +500,29 @@ function registerIpc() {
     const obj = data as Record<string, unknown>;
     if (typeof obj?.id !== 'string') return;
     controlWindow?.webContents.send('presence:userLeft', data);
+  });
+
+  ipcMain.on('server:status', (_event, data: unknown) => {
+    const obj = data as Record<string, unknown>;
+    if (typeof obj?.botOnline !== 'boolean' || typeof obj?.maintenance !== 'boolean') return;
+    controlWindow?.webContents.send('server:status', data);
+  });
+
+  ipcMain.on('server:maintenance', (_event, data: unknown) => {
+    const obj = data as Record<string, unknown>;
+    if (typeof obj?.maintenance !== 'boolean') return;
+    controlWindow?.webContents.send('server:maintenance', data);
+  });
+
+  ipcMain.handle('app:open-external', (_event, url: string) => {
+    let parsed: URL;
+    try {
+      parsed = new URL(url);
+    } catch {
+      return;
+    }
+    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return;
+    shell.openExternal(parsed.href).catch(() => undefined);
   });
 
   ipcMain.handle('overlay:test-sound', async () => {

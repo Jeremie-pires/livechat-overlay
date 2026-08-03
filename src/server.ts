@@ -167,6 +167,10 @@ export const runServer = async () => {
     max: 100,
     timeWindow: '1 minute',
     keyGenerator: (req) => req.ip,
+    // Socket.IO transport requests (polling, WS upgrade) must not count toward the REST
+    // rate limit — repeated reconnects from the local OBS proxy would exhaust the budget
+    // and cause 429s on subsequent asset requests (SVGs, etc.).
+    skip: (req) => (req.url ?? '').startsWith('/socket.io'),
   });
 
   loadRosetty();

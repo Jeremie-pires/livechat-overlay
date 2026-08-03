@@ -7,205 +7,327 @@
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
+
+    <!-- ── Update modal ──────────────────────────────────────────────────────── -->
     <div id="updateModal" class="update-modal hidden" role="dialog" aria-modal="true" aria-labelledby="updateModalTitle">
       <div class="update-modal-card">
         <div class="update-modal-header">
-          <span class="update-modal-icon" aria-hidden="true">🚀</span>
-          <div>
-            <p class="eyebrow">Mise à jour disponible</p>
-            <h2 id="updateModalTitle"></h2>
-          </div>
+          <p class="update-modal-label">Mise à jour disponible</p>
+          <h2 id="updateModalTitle"></h2>
         </div>
         <div id="updateModalNotes" class="update-modal-notes"></div>
         <div class="update-modal-actions">
-          <button id="updateModalClose" class="secondary">Plus tard</button>
-          <button id="updateModalInstall" class="grow">🔄 Redémarrer maintenant</button>
+          <button id="updateModalClose" class="btn-ghost">Plus tard</button>
+          <button id="updateModalInstall" class="btn-cta">Redémarrer maintenant</button>
         </div>
       </div>
     </div>
-    <main class="app-shell">
-      <section class="hero-card">
-        <div>
-          <p class="eyebrow">Desktop overlay</p>
-          <h1>LiveChatCCB</h1>
-          <p class="lead">
-            Contrôle la fenêtre overlay et configure l'affichage par-dessus tes jeux en borderless.
-          </p>
-        </div>
-        <div class="status-pills">
-          <span class="status-dot" id="statusDot"></span>
-          <span id="statusText">Prêt</span>
-        </div>
-        <span id="appVersion" class="version-label"></span>
-      </section>
 
-      <!-- Tab Navigation Bar -->
-      <nav class="tab-bar">
-        <button class="tab-btn active" id="btnTabControl">Contrôle</button>
-        <button class="tab-btn" id="btnTabConfig">Serveur</button>
-        <button class="tab-btn" id="btnTabUsers">Utilisateurs</button>
+    <div class="app-layout">
+
+      <!-- ── Sidebar navigation ────────────────────────────────────────────── -->
+      <nav class="sidebar" role="navigation" aria-label="Navigation principale">
+        <button class="sidebar-btn active" data-tab="status" title="Accueil" aria-label="Accueil">
+          <div class="sidebar-logo-wrap">
+            <img src="./assets/logo.jpg" class="sidebar-logo" alt="Accueil" />
+            <span class="nav-status-dot" id="navStatusDot" data-status="idle"></span>
+          </div>
+        </button>
+        <button class="sidebar-btn" data-tab="settings" title="Paramètres overlay" aria-label="Paramètres overlay">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="currentColor" d="m9.25 22l-.4-3.2q-.325-.125-.612-.3t-.563-.375L4.7 19.375l-2.75-4.75l2.575-1.95Q4.5 12.5 4.5 12.338v-.675q0-.163.025-.338L1.95 9.375l2.75-4.75l2.975 1.25q.275-.2.575-.375t.6-.3l.4-3.2h5.5l.4 3.2q.325.125.613.3t.562.375l2.975-1.25l2.75 4.75l-2.575 1.95q.025.175.025.338v.674q0 .163-.05.338l2.575 1.95l-2.75 4.75l-2.95-1.25q-.275.2-.575.375t-.6.3l-.4 3.2zm2.8-6.5q1.45 0 2.475-1.025T15.55 12t-1.025-2.475T12.05 8.5q-1.475 0-2.488 1.025T8.55 12t1.013 2.475T12.05 15.5"/></svg>
+        </button>
+        <button class="sidebar-btn" data-tab="server" title="Configuration serveur" aria-label="Configuration serveur">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="currentColor" d="M4 1h16a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1m0 8h16a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1m0 8h16a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1M9 5h1V3H9zm0 8h1v-2H9zm0 8h1v-2H9zM5 3v2h2V3zm0 8v2h2v-2zm0 8v2h2v-2z"/></svg>
+        </button>
+        <button class="sidebar-btn" data-tab="users" title="Utilisateurs connectés" aria-label="Utilisateurs connectés">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="currentColor" d="M16 17v2H2v-2s0-4 7-4s7 4 7 4m-3.5-9.5A3.5 3.5 0 1 0 9 11a3.5 3.5 0 0 0 3.5-3.5m3.44 5.5A5.32 5.32 0 0 1 18 17v2h4v-2s0-3.63-6.06-4M15 4a3.4 3.4 0 0 0-1.93.59a5 5 0 0 1 0 5.82A3.4 3.4 0 0 0 15 11a3.5 3.5 0 0 0 0-7"/></svg>
+        </button>
       </nav>
 
-      <!-- View 1: Control panel -->
-      <section class="panel tab-content" id="contentControl">
-        <div class="panel-title">
-          <h2>Contrôle de l'overlay</h2>
-          <p>Active l'overlay et ajuste les dimensions et positions sur ton écran.</p>
+      <div class="content">
+
+      <!-- ════════════════════════════════════════════════════════════════════
+           PANEL 1 : Statut / Menu principal
+      ═══════════════════════════════════════════════════════════════════════ -->
+      <div id="tabStatus" class="tab-panel">
+
+        <!-- Scroll zone -->
+        <div class="status-scroll">
+
+          <!-- Top bar : logo + titre + version -->
+          <div class="top-bar">
+            <div class="top-bar-brand">
+              <img id="appLogo" src="./assets/logo.jpg" class="app-logo" alt="Livechat Cacabox" />
+              <h1 class="home-title">Livechat Cacabox</h1>
+            </div>
+            <span id="appVersion" class="app-version"></span>
+          </div>
+
+          <!-- Section CONTACT -->
+          <p class="nav-section-label">CONTACT</p>
+          <button class="btn-discord" id="discordSupportBtn" data-href="https://discord.gg/PU56ufhSqV">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+              <path d="M13.545 2.907a13.2 13.2 0 0 0-3.257-1.011.05.05 0 0 0-.052.025c-.141.25-.297.577-.406.833a12.2 12.2 0 0 0-3.658 0 8 8 0 0 0-.412-.833.05.05 0 0 0-.052-.025c-1.125.194-2.22.534-3.257 1.011a.04.04 0 0 0-.021.018C.356 6.024-.213 9.047.066 12.032q.003.022.021.037a13.3 13.3 0 0 0 3.995 2.02.05.05 0 0 0 .056-.019q.463-.63.818-1.329a.05.05 0 0 0-.01-.059l-.018-.011a9 9 0 0 1-1.248-.595.05.05 0 0 1-.02-.066l.015-.019q.127-.095.248-.195a.05.05 0 0 1 .051-.007c2.619 1.196 5.454 1.196 8.041 0a.05.05 0 0 1 .053.007q.121.1.248.195a.05.05 0 0 1-.004.085 8 8 0 0 1-1.249.594.05.05 0 0 0-.03.03.05.05 0 0 0 .003.041c.24.465.515.909.817 1.329a.05.05 0 0 0 .056.019 13.2 13.2 0 0 0 4.001-2.02.05.05 0 0 0 .021-.037c.334-3.451-.559-6.449-2.366-9.106a.03.03 0 0 0-.02-.019m-8.198 7.307c-.789 0-1.438-.724-1.438-1.612s.637-1.613 1.438-1.613c.807 0 1.45.73 1.438 1.613 0 .888-.637 1.612-1.438 1.612m5.316 0c-.788 0-1.438-.724-1.438-1.612s.637-1.613 1.438-1.613c.807 0 1.451.73 1.438 1.613 0 .888-.631 1.612-1.438 1.612"/>
+            </svg>
+            <span>Rejoindre le Discord</span>
+          </button>
+
+          <p class="nav-section-label">CODE SOURCE</p>
+          <button class="btn-github" id="githubBtn" data-href="https://github.com/Jeremie-pires/livechat-overlay">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+              <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8"/>
+            </svg>
+            <span>Voir le code source</span>
+          </button>
+
+          <!-- Changelog -->
+          <p class="nav-section-label" style="margin-top:16px">MISES À JOUR</p>
+          <ul id="changelogList" class="changelog-list" aria-live="polite">
+            <li class="changelog-loading">Chargement...</li>
+          </ul>
+
+        </div><!-- /status-scroll -->
+
+        <!-- Connection status bar (sticky bottom) -->
+        <div class="connection-bar">
+          <span class="status-dot" id="statusDot" data-status="idle"></span>
+          <span id="statusText">Prêt</span>
         </div>
 
-        <!-- Big Toggle Button -->
-        <div class="activation-zone">
-          <button id="toggleOverlayBtn" class="primary-toggle btn-inactive">
-            Activer l'overlay
+      </div><!-- /tabStatus -->
+
+
+      <!-- ════════════════════════════════════════════════════════════════════
+           PANEL 2 : Paramètres overlay
+      ═══════════════════════════════════════════════════════════════════════ -->
+      <div id="tabSettings" class="tab-panel hidden">
+
+        <!-- Title -->
+        <div class="panel-title-area">
+          <svg xmlns="http://www.w3.org/2000/svg" class="title-icon" width="26" height="26" viewBox="0 0 24 24"><path fill="#5a8dff" fill-rule="evenodd" d="M11 17H4a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3h16a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3h-7v2h3a1 1 0 1 1 0 2H8a1 1 0 1 1 0-2h3zM4 5h16a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1" clip-rule="evenodd"/></svg>
+          <h1 class="panel-title">Paramètres de l'overlay</h1>
+        </div>
+
+        <!-- Overlay CTA button -->
+        <button id="toggleOverlayBtn" class="btn-overlay primary-toggle btn-inactive">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+            <line x1="8" y1="21" x2="16" y2="21"/>
+            <line x1="12" y1="17" x2="12" y2="21"/>
+          </svg>
+          <span>Activer l'overlay</span>
+        </button>
+
+        <!-- Position blue card -->
+        <div class="position-card">
+          <p class="position-card-label">POSITION DU MEDIA</p>
+          <div class="position-grid" id="positionGrid">
+            <button class="position-cell" data-value="top-left"      title="Haut Gauche"></button>
+            <button class="position-cell" data-value="top-center"    title="Haut Centre"></button>
+            <button class="position-cell" data-value="top-right"     title="Haut Droit"></button>
+            <button class="position-cell" data-value="center-left"   title="Milieu Gauche"></button>
+            <button class="position-cell" data-value="center"        title="Centre"></button>
+            <button class="position-cell" data-value="center-right"  title="Milieu Droit"></button>
+            <button class="position-cell" data-value="bottom-left"   title="Bas Gauche"></button>
+            <button class="position-cell" data-value="bottom-center" title="Bas Centre"></button>
+            <button class="position-cell" data-value="bottom-right"  title="Bas Droit"></button>
+          </div>
+          <input type="hidden" id="overlayPosition" value="center" />
+        </div>
+
+        <!-- Ecran dropdown -->
+        <div class="select-pill-wrap">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+            <line x1="8" y1="21" x2="16" y2="21"/>
+            <line x1="12" y1="17" x2="12" y2="21"/>
+          </svg>
+          <select id="screenId" aria-label="Écran cible"></select>
+          <svg class="select-arrow" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </div>
+
+        <!-- Size + Volume row -->
+        <div class="size-volume-row">
+          <div class="size-pill">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/>
+              <line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>
+            </svg>
+            <span class="size-label">Taille du media</span>
+            <input id="overlaySize" type="range" min="400" max="1600" step="20" value="960" aria-label="Taille du média" />
+            <strong id="sizeValue">960px</strong>
+          </div>
+          <button class="volume-btn" id="testSoundBtn" disabled aria-label="Tester le son" title="Test son">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+              <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+              <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+            </svg>
           </button>
         </div>
 
-        <div class="field-row">
-                  <div class="field">
-            <span>Position de l'affichage</span>
-            <div class="position-grid" id="positionGrid">
-              <div class="position-cell" data-value="top-left" title="Haut Gauche"></div>
-              <div class="position-cell" data-value="top-center" title="Haut Centre"></div>
-              <div class="position-cell" data-value="top-right" title="Haut Droit"></div>
-              <div class="position-cell" data-value="center-left" title="Milieu Gauche"></div>
-              <div class="position-cell" data-value="center" title="Milieu Centre"></div>
-              <div class="position-cell" data-value="center-right" title="Milieu Droit"></div>
-              <div class="position-cell" data-value="bottom-left" title="Bas Gauche"></div>
-              <div class="position-cell" data-value="bottom-center" title="Bas Centre"></div>
-              <div class="position-cell" data-value="bottom-right" title="Bas Droit"></div>
-            </div>
-            <input type="hidden" id="overlayPosition" value="center" />
-          </div>
-
-          <label class="field grow">
-            <span>Écran cible</span>
-            <select id="screenId"></select>
-          </label>
+        <!-- Hidden volume slider (functional) -->
+        <div class="volume-row">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+          </svg>
+          <input id="volume" type="range" min="0" max="100" step="1" value="100" aria-label="Volume" />
+          <strong id="volumeValue">100%</strong>
         </div>
 
-        <div class="field-row">
-          <label class="field grow">
-            <span>Taille de la zone (Largeur)</span>
-            <div class="range-box">
-              <input id="overlaySize" type="range" min="400" max="1600" step="20" value="960" />
-              <strong id="sizeValue">960px</strong>
-            </div>
-          </label>
-
-          <label class="field small-field">
-            <span>Volume</span>
-            <div class="volume-box">
-              <input id="volume" type="range" min="0" max="100" step="1" />
-              <strong id="volumeValue">100%</strong>
-            </div>
-            <button id="testSoundBtn" class="small-btn" disabled>🔊 Test son</button>
-          </label>
+        <!-- Format test buttons -->
+        <div class="format-row">
+          <button id="testLandscapeBtn" class="format-btn" disabled>
+            <svg width="30" height="22" viewBox="0 0 40 29" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <rect x="2" y="2" width="36" height="25" rx="3"/>
+            </svg>
+            <span>Paysage</span>
+            <small>16:9</small>
+          </button>
+          <button id="testSquareBtn" class="format-btn" disabled>
+            <svg width="22" height="22" viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <rect x="2" y="2" width="24" height="24" rx="3"/>
+            </svg>
+            <span>Carré</span>
+            <small>1:1</small>
+          </button>
+          <button id="testPortraitBtn" class="format-btn" disabled>
+            <svg width="15" height="24" viewBox="0 0 20 33" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <rect x="2" y="2" width="16" height="29" rx="3"/>
+            </svg>
+            <span>Portrait</span>
+            <small>9:16</small>
+          </button>
         </div>
 
-        <!-- Format test buttons (Disabled if overlay is inactive) -->
-        <div class="test-formats-section">
-          <span>Tester le rendu d'un format</span>
-          <div class="test-buttons-grid">
-            <button id="testLandscapeBtn" class="small-btn" disabled>Paysage (16:9)</button>
-            <button id="testSquareBtn" class="small-btn" disabled>Carré (1:1)</button>
-            <button id="testPortraitBtn" class="small-btn" disabled>Portrait (9:16)</button>
-          </div>
-        </div>
-
-
-        <!-- OBS Browser Source URL (visible when connected) -->
-        <div class="obs-url-section hidden" id="obsUrlSection">
-          <label for="obsUrlDisplay">URL OBS Browser Source</label>
-          <div class="obs-url-row">
-            <input id="obsUrlDisplay" type="text" readonly />
-            <button id="obsUrlCopyBtn" class="small-btn">Copier</button>
-          </div>
-        </div>
-
-        <!-- Quick Summary Grid inside Control Panel -->
+        <!-- Summary 2×2 grid -->
         <div class="summary-grid">
-          <div>
-            <span>Statut</span>
+          <div class="summary-cell">
+            <span>STATUT</span>
             <strong id="statusSummary">Prêt</strong>
           </div>
-          <div>
-            <span>Fenêtre</span>
+          <div class="summary-cell">
+            <span>FENETRE</span>
             <strong id="windowSummary">Inactive</strong>
           </div>
-          <div>
-            <span>Placement</span>
+          <div class="summary-cell">
+            <span>PLACEMENT</span>
             <strong id="screenSummary">Écran principal</strong>
           </div>
-          <div>
-            <span>Connectés</span>
+          <div class="summary-cell">
+            <span>CONNECTÉS</span>
             <strong id="presenceSummary">—</strong>
           </div>
         </div>
-      </section>
 
-      <!-- View 2: Server configuration -->
-      <section class="panel tab-content hidden" id="contentConfig">
-        <div class="panel-title">
-          <h2>Configuration Serveur</h2>
-          <p>Définit les paramètres de connexion à l'instance de ton LiveChat.</p>
+        <!-- OBS URL (hidden until connected) -->
+        <div class="obs-url-section hidden" id="obsUrlSection">
+          <label class="obs-url-label" for="obsUrlDisplay">URL OBS Browser Source</label>
+          <div class="obs-url-row">
+            <input id="obsUrlDisplay" type="text" readonly class="pill-input" />
+            <button id="obsUrlCopyBtn" class="btn-outline-blue small">Copier</button>
+          </div>
         </div>
 
-        <label class="field">
-          <span>URL du serveur backend</span>
-          <input id="backendUrl" type="text" placeholder="http://localhost:3000" />
-        </label>
+      </div><!-- /tabSettings -->
 
-        <label class="field">
-          <span>ID de la Guild Discord</span>
-          <input id="guildId" type="text" placeholder="123456789012345678" />
-        </label>
 
-        <label class="field">
-          <span>Token client (depuis /client)</span>
-          <input id="clientToken" type="password" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" autocomplete="off" />
-        </label>
+      <!-- ════════════════════════════════════════════════════════════════════
+           PANEL 3 : Configuration Serveur
+      ═══════════════════════════════════════════════════════════════════════ -->
+      <div id="tabServer" class="tab-panel hidden">
 
-        <label class="field">
-          <span>Port serveur OBS local</span>
-          <input id="localServerPort" type="number" min="1024" max="65535" placeholder="3001" />
-        </label>
+        <!-- Title area -->
+        <div class="panel-title-area">
+          <svg xmlns="http://www.w3.org/2000/svg" class="title-icon" width="26" height="26" viewBox="0 0 24 24"><path fill="none" stroke="#5a8dff" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 5h-3m-4.25-2v4M13 5H3m4 7H3m7.75-2v4M21 12H11m10 7h-3m-4.25-2v4M13 19H3"/></svg>
+          <h1 class="panel-title">Configuration Serveur</h1>
+        </div>
 
-        <div class="toggles">
-          <label class="toggle">
-            <input id="autoConnect" type="checkbox" />
+        <!-- Config card -->
+        <div class="config-card">
+          <label class="field-label" for="backendUrl">URL du serveur backend</label>
+          <input id="backendUrl" type="text" class="pill-input" placeholder="http://localhost:3000" />
+
+          <label class="field-label" for="guildId">ID de la guild discord</label>
+          <input id="guildId" type="text" class="pill-input" placeholder="123456789012345678" />
+
+          <label class="field-label" for="clientToken">TOKEN Client</label>
+          <input id="clientToken" type="password" class="pill-input" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" autocomplete="off" />
+
+          <label class="field-label" for="localServerPort">Port serveur OBS local</label>
+          <input id="localServerPort" type="number" class="pill-input" min="1024" max="65535" placeholder="3001" />
+
+          <hr class="card-divider" />
+
+          <label class="checkbox-row">
+            <input id="autoConnect" type="checkbox" class="custom-checkbox" />
             <span>Connexion automatique au démarrage</span>
           </label>
-          <label class="toggle">
-            <input id="launchAtStartup" type="checkbox" />
+          <hr class="card-divider" />
+          <label class="checkbox-row">
+            <input id="launchAtStartup" type="checkbox" class="custom-checkbox" />
             <span>Lancer au démarrage de Windows</span>
           </label>
-          <label class="toggle">
-            <input id="startMinimized" type="checkbox" />
-            <span>Démarrer dans le tray</span>
+          <hr class="card-divider" />
+          <label class="checkbox-row">
+            <input id="startMinimized" type="checkbox" class="custom-checkbox" />
+            <span>Démarrage minimisé</span>
           </label>
         </div>
 
-        <!-- Test Connection Result Notification -->
+        <!-- Save / test result notification -->
         <div id="testResultBox" class="test-result-box hidden">
           <span id="testResultIcon"></span>
           <span id="testResultText"></span>
         </div>
 
-        <div class="actions">
-          <button id="testConnBtn" class="secondary grow">Tester la connexion</button>
-          <button id="saveConfigBtn" class="grow">Enregistrer</button>
+        <!-- Action buttons -->
+        <div class="action-row">
+          <button id="testConnBtn" class="btn-outline-blue">Tester la connexion</button>
+          <button id="saveConfigBtn" class="btn-cta">Enregistrer</button>
         </div>
-      </section>
-    </main>
 
-      <!-- View 3: Connected users -->
-      <section class="panel tab-content hidden" id="contentUsers">
-        <div class="panel-title">
-          <h2>Utilisateurs connectés</h2>
-          <p>Clients actuellement connectés à la salle.</p>
+      </div><!-- /tabServer -->
+
+
+      <!-- ════════════════════════════════════════════════════════════════════
+           PANEL 4 : Utilisateurs connectés
+      ═══════════════════════════════════════════════════════════════════════ -->
+      <div id="tabUsers" class="tab-panel hidden">
+
+        <!-- Header: title + badge -->
+        <div class="panel-title-area">
+          <svg xmlns="http://www.w3.org/2000/svg" class="title-icon" width="26" height="26" viewBox="0 0 32 32"><path fill="#5a8dff" d="M22 30h-2v-5a5 5 0 0 0-5-5H9a5 5 0 0 0-5 5v5H2v-5a7 7 0 0 1 7-7h6a7 7 0 0 1 7 7ZM12 4a5 5 0 1 1-5 5a5 5 0 0 1 5-5m0-2a7 7 0 1 0 7 7a7 7 0 0 0-7-7"/><circle cx="26" cy="16" r="4" fill="#4ee08a"/></svg>
+          <h1 class="panel-title">En ligne</h1>
+          <span class="count-badge" id="presenceBadge">0</span>
         </div>
+
+        <!-- User list -->
+        <p class="users-section-label">CONNECTÉS</p>
         <div id="userList" class="user-list" role="list" aria-live="polite" aria-relevant="additions removals"></div>
-      </section>
+
+      </div><!-- /tabUsers -->
+
+      <!-- Maintenance banner (fixed bottom, visible on all tabs) -->
+      <output id="maintenanceBanner" class="maintenance-banner hidden">
+        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" aria-hidden="true"><path fill="#f59e0b" d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm1 15h-2v-2h2zm0-4h-2V7h2z"/></svg>
+        <span>Maintenance en cours</span>
+      </output>
+
+      </div><!-- /content -->
+
+    </div><!-- /app-layout -->
+
+    <!-- Maintenance toast notification -->
+    <div id="maintenanceToast" class="maintenance-toast hidden" role="alert" aria-live="assertive">
+      <div class="toast-content">
+        <p class="toast-title" id="toastTitle">Maintenance activée</p>
+        <p class="toast-body" id="toastBody">Le serveur est en cours de maintenance.</p>
+      </div>
+      <button class="toast-close" id="toastClose" aria-label="Fermer">&times;</button>
+    </div>
 
     <script src="./renderer.js"></script>
   </body>
