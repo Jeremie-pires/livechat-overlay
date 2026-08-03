@@ -7,253 +7,356 @@
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
+
+    <!-- ── Update modal ──────────────────────────────────────────────────────── -->
     <div id="updateModal" class="update-modal hidden" role="dialog" aria-modal="true" aria-labelledby="updateModalTitle">
       <div class="update-modal-card">
         <div class="update-modal-header">
-          <div>
-            <p class="update-modal-label">Mise à jour disponible</p>
-            <h2 id="updateModalTitle"></h2>
-          </div>
+          <p class="update-modal-label">Mise à jour disponible</p>
+          <h2 id="updateModalTitle"></h2>
         </div>
         <div id="updateModalNotes" class="update-modal-notes"></div>
         <div class="update-modal-actions">
-          <button id="updateModalClose" class="btn-secondary">Plus tard</button>
+          <button id="updateModalClose" class="btn-outline-blue">Plus tard</button>
           <button id="updateModalInstall" class="btn-cta">Redémarrer maintenant</button>
         </div>
       </div>
     </div>
 
     <div class="app-layout">
-      <nav class="sidebar">
-        <div class="sidebar-logo">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M5 12.55a11 11 0 0 1 14.08 0"/>
-            <path d="M1.42 9a16 16 0 0 1 21.16 0"/>
-            <path d="M8.53 16.11a6 6 0 0 1 6.95 0"/>
-            <circle cx="12" cy="20" r="1" fill="#ffffff" stroke="none"/>
-          </svg>
-        </div>
 
-        <div class="sidebar-nav">
-          <button class="sidebar-btn active" data-tab="status" title="Statut">
-            <span class="nav-icon">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <!-- ════════════════════════════════════════════════════════════════════
+           PANEL 1 : Statut / Menu principal
+      ═══════════════════════════════════════════════════════════════════════ -->
+      <div id="tabStatus" class="tab-panel">
+
+        <!-- Scroll zone -->
+        <div class="status-scroll">
+
+          <!-- Top bar : logo + version + actions -->
+          <div class="top-bar">
+            <div class="top-bar-logo">
+              <div class="logo-square" aria-hidden="true">
+                <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M5 12.55a11 11 0 0 1 14.08 0"/>
+                  <path d="M1.42 9a16 16 0 0 1 21.16 0"/>
+                  <path d="M8.53 16.11a6 6 0 0 1 6.95 0"/>
+                  <circle cx="12" cy="20" r="1" fill="#ffffff" stroke="none"/>
+                </svg>
+              </div>
+            </div>
+            <div class="top-bar-right">
+              <span id="appVersion" class="app-version"></span>
+              <button class="icon-circle" data-tab="settings" title="Paramètres overlay" aria-label="Paramètres overlay">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                  <line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/>
+                  <line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/>
+                  <line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/>
+                  <line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/>
+                </svg>
+              </button>
+              <button class="icon-circle icon-circle-cta" data-tab="server" title="Configuration serveur" aria-label="Configuration serveur">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                  <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Section MENU -->
+          <p class="nav-section-label">MENU</p>
+          <div class="nav-items">
+            <button class="nav-item active" data-tab="status">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
                 <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
               </svg>
-            </span>
-          </button>
-          <button class="sidebar-btn" data-tab="settings" title="Paramètres overlay">
-            <span class="nav-icon">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <span>Statut</span>
+            </button>
+            <button class="nav-item" data-tab="settings">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
                 <line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/>
                 <line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/>
                 <line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/>
                 <line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/>
               </svg>
-            </span>
-          </button>
-          <button class="sidebar-btn" data-tab="server" title="Serveur">
-            <span class="nav-icon">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <span>Paramètres overlay</span>
+            </button>
+            <button class="nav-item" data-tab="server">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
                 <ellipse cx="12" cy="5" rx="9" ry="3"/>
                 <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
                 <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
               </svg>
-            </span>
-          </button>
-          <button class="sidebar-btn" data-tab="users" title="Utilisateurs connectés">
-            <span class="nav-icon">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <span>Serveur</span>
+            </button>
+            <button class="nav-item" data-tab="users">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
                 <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
                 <circle cx="9" cy="7" r="4"/>
                 <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
                 <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
               </svg>
-            </span>
+              <span>Utilisateurs</span>
+            </button>
+          </div>
+
+          <hr class="nav-divider" />
+
+          <!-- Section CONTACT -->
+          <p class="nav-section-label">CONTACT</p>
+          <div class="nav-items">
+            <button class="nav-item" id="discordSupportBtn" data-href="https://discord.gg/TON_SERVEUR">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057.1 18.08.11 18.1.133 18.115a19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/>
+              </svg>
+              <span>Support Discord</span>
+            </button>
+          </div>
+
+          <!-- Changelog -->
+          <p class="nav-section-label" style="margin-top:16px">MISES À JOUR</p>
+          <ul id="changelogList" class="changelog-list" aria-live="polite">
+            <li class="changelog-loading">Chargement...</li>
+          </ul>
+
+        </div><!-- /status-scroll -->
+
+        <!-- Connection status bar (sticky bottom) -->
+        <div class="connection-bar">
+          <span class="status-dot" id="statusDot" data-status="idle"></span>
+          <span id="statusText">Prêt</span>
+        </div>
+
+      </div><!-- /tabStatus -->
+
+
+      <!-- ════════════════════════════════════════════════════════════════════
+           PANEL 2 : Paramètres overlay
+      ═══════════════════════════════════════════════════════════════════════ -->
+      <div id="tabSettings" class="tab-panel hidden">
+
+        <!-- Top bar: search pill + back -->
+        <div class="panel-top-bar">
+          <button class="panel-search-pill" data-tab="status" aria-label="Retour au menu">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <span>Paramètres overlay</span>
+          </button>
+          <button class="icon-edit" aria-label="Options">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
           </button>
         </div>
 
-        <div class="sidebar-footer">
-          <span id="appVersion"></span>
+        <!-- Overlay CTA button -->
+        <button id="toggleOverlayBtn" class="btn-overlay primary-toggle btn-inactive">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+            <line x1="8" y1="21" x2="16" y2="21"/>
+            <line x1="12" y1="17" x2="12" y2="21"/>
+          </svg>
+          <span>Activer l'overlay</span>
+        </button>
+
+        <!-- Position blue card -->
+        <div class="position-card">
+          <p class="position-card-label">POSITION DU MEDIA</p>
+          <div class="position-grid" id="positionGrid">
+            <button class="position-cell" data-value="top-left"      title="Haut Gauche"></button>
+            <button class="position-cell" data-value="top-center"    title="Haut Centre"></button>
+            <button class="position-cell" data-value="top-right"     title="Haut Droit"></button>
+            <button class="position-cell" data-value="center-left"   title="Milieu Gauche"></button>
+            <button class="position-cell" data-value="center"        title="Centre"></button>
+            <button class="position-cell" data-value="center-right"  title="Milieu Droit"></button>
+            <button class="position-cell" data-value="bottom-left"   title="Bas Gauche"></button>
+            <button class="position-cell" data-value="bottom-center" title="Bas Centre"></button>
+            <button class="position-cell" data-value="bottom-right"  title="Bas Droit"></button>
+          </div>
+          <input type="hidden" id="overlayPosition" value="center" />
         </div>
-      </nav>
 
-      <main class="content">
+        <!-- Ecran dropdown -->
+        <div class="select-pill-wrap">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+            <line x1="8" y1="21" x2="16" y2="21"/>
+            <line x1="12" y1="17" x2="12" y2="21"/>
+          </svg>
+          <select id="screenId" aria-label="Écran cible"></select>
+          <svg class="select-arrow" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </div>
 
-        <!-- Panel 1 : Statut -->
-        <div id="tabStatus" class="tab-panel">
-          <div class="panel-card">
-            <div class="status-row">
-              <span class="status-dot" id="statusDot" data-status="idle"></span>
-              <span id="statusText">Prêt</span>
-            </div>
+        <!-- Size + Volume row -->
+        <div class="size-volume-row">
+          <div class="size-pill">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/>
+              <line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>
+            </svg>
+            <span class="size-label">Taille du media</span>
+            <input id="overlaySize" type="range" min="400" max="1600" step="20" value="960" aria-label="Taille du média" />
+            <strong id="sizeValue">960px</strong>
+          </div>
+          <button class="volume-btn" id="testSoundBtn" disabled aria-label="Tester le son" title="Test son">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+              <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+              <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+            </svg>
+          </button>
+        </div>
 
-            <hr class="divider">
+        <!-- Hidden volume slider (functional) -->
+        <div class="volume-row">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+          </svg>
+          <input id="volume" type="range" min="0" max="100" step="1" value="100" aria-label="Volume" />
+          <strong id="volumeValue">100%</strong>
+        </div>
 
-            <button class="btn-discord" id="discordSupportBtn" data-href="https://discord.gg/TON_SERVEUR">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057.1 18.08.11 18.1.133 18.115a19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/>
-              </svg>
-              Support Discord
-            </button>
+        <!-- Format test buttons -->
+        <div class="format-row">
+          <button id="testLandscapeBtn" class="format-btn" disabled>
+            <svg width="30" height="22" viewBox="0 0 40 29" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <rect x="2" y="2" width="36" height="25" rx="3"/>
+            </svg>
+            <span>Paysage</span>
+            <small>16:9</small>
+          </button>
+          <button id="testSquareBtn" class="format-btn" disabled>
+            <svg width="22" height="22" viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <rect x="2" y="2" width="24" height="24" rx="3"/>
+            </svg>
+            <span>Carré</span>
+            <small>1:1</small>
+          </button>
+          <button id="testPortraitBtn" class="format-btn" disabled>
+            <svg width="15" height="24" viewBox="0 0 20 33" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <rect x="2" y="2" width="16" height="29" rx="3"/>
+            </svg>
+            <span>Portrait</span>
+            <small>9:16</small>
+          </button>
+        </div>
 
-            <hr class="divider">
-
-            <div class="changelog-section">
-              <p class="section-title">Mises à jour</p>
-              <ul id="changelogList" class="changelog-list" aria-live="polite">
-                <li class="changelog-loading">Chargement...</li>
-              </ul>
-            </div>
+        <!-- Summary 2×2 grid -->
+        <div class="summary-grid">
+          <div class="summary-cell">
+            <span>STATUT</span>
+            <strong id="statusSummary">Prêt</strong>
+          </div>
+          <div class="summary-cell">
+            <span>FENETRE</span>
+            <strong id="windowSummary">Inactive</strong>
+          </div>
+          <div class="summary-cell">
+            <span>PLACEMENT</span>
+            <strong id="screenSummary">Écran principal</strong>
+          </div>
+          <div class="summary-cell">
+            <span>CONNECTÉS</span>
+            <strong id="presenceSummary">—</strong>
           </div>
         </div>
 
-        <!-- Panel 2 : Paramètres overlay -->
-        <div id="tabSettings" class="tab-panel hidden">
-          <div class="panel-card">
-            <div class="card-header-bar card-header-blue">Paramètres overlay</div>
-
-            <div class="activation-zone">
-              <button id="toggleOverlayBtn" class="primary-toggle btn-inactive">Activer l'overlay</button>
-            </div>
-
-            <hr class="divider">
-
-            <div class="field-row">
-              <div class="field">
-                <span>Position</span>
-                <div class="position-grid" id="positionGrid">
-                  <div class="position-cell" data-value="top-left"     title="Haut Gauche"></div>
-                  <div class="position-cell" data-value="top-center"   title="Haut Centre"></div>
-                  <div class="position-cell" data-value="top-right"    title="Haut Droit"></div>
-                  <div class="position-cell" data-value="center-left"  title="Milieu Gauche"></div>
-                  <div class="position-cell" data-value="center"       title="Centre"></div>
-                  <div class="position-cell" data-value="center-right" title="Milieu Droit"></div>
-                  <div class="position-cell" data-value="bottom-left"  title="Bas Gauche"></div>
-                  <div class="position-cell" data-value="bottom-center" title="Bas Centre"></div>
-                  <div class="position-cell" data-value="bottom-right" title="Bas Droit"></div>
-                </div>
-                <input type="hidden" id="overlayPosition" value="center" />
-              </div>
-              <label class="field grow">
-                <span>Écran cible</span>
-                <select id="screenId"></select>
-              </label>
-            </div>
-
-            <hr class="divider">
-
-            <div class="field-row">
-              <label class="field grow">
-                <span>Taille (Largeur)</span>
-                <div class="range-box">
-                  <input id="overlaySize" type="range" min="400" max="1600" step="20" value="960" />
-                  <strong id="sizeValue">960px</strong>
-                </div>
-              </label>
-              <label class="field small-field">
-                <span>Volume</span>
-                <div class="volume-box">
-                  <input id="volume" type="range" min="0" max="100" step="1" />
-                  <strong id="volumeValue">100%</strong>
-                </div>
-                <button id="testSoundBtn" class="small-btn" disabled>Test son</button>
-              </label>
-            </div>
-
-            <hr class="divider">
-
-            <div class="test-formats-section">
-              <span>Tester un format</span>
-              <div class="test-buttons-grid">
-                <button id="testLandscapeBtn" class="small-btn" disabled>Paysage</button>
-                <button id="testSquareBtn"    class="small-btn" disabled>Carré</button>
-                <button id="testPortraitBtn"  class="small-btn" disabled>Portrait</button>
-              </div>
-            </div>
-
-            <div class="obs-url-section hidden" id="obsUrlSection">
-              <label for="obsUrlDisplay">URL OBS Browser Source</label>
-              <div class="obs-url-row">
-                <input id="obsUrlDisplay" type="text" readonly />
-                <button id="obsUrlCopyBtn" class="small-btn">Copier</button>
-              </div>
-            </div>
-
-            <hr class="divider">
-
-            <div class="summary-grid">
-              <div><span>Statut</span><strong id="statusSummary">Prêt</strong></div>
-              <div><span>Fenêtre</span><strong id="windowSummary">Inactive</strong></div>
-              <div><span>Placement</span><strong id="screenSummary">Écran principal</strong></div>
-              <div><span>Connectés</span><strong id="presenceSummary">—</strong></div>
-            </div>
+        <!-- OBS URL (hidden until connected) -->
+        <div class="obs-url-section hidden" id="obsUrlSection">
+          <p class="obs-url-label">URL OBS Browser Source</p>
+          <div class="obs-url-row">
+            <input id="obsUrlDisplay" type="text" readonly class="pill-input" />
+            <button id="obsUrlCopyBtn" class="btn-outline-blue small">Copier</button>
           </div>
         </div>
 
-        <!-- Panel 3 : Serveur -->
-        <div id="tabServer" class="tab-panel hidden">
-          <div class="panel-card">
-            <div class="card-header-bar card-header-yellow">Configuration serveur</div>
+      </div><!-- /tabSettings -->
 
-            <label class="field">
-              <span>URL du serveur backend</span>
-              <input id="backendUrl" type="text" placeholder="http://localhost:3000" />
-            </label>
-            <label class="field">
-              <span>ID de la Guild Discord</span>
-              <input id="guildId" type="text" placeholder="123456789012345678" />
-            </label>
-            <label class="field">
-              <span>Token client (depuis /client)</span>
-              <input id="clientToken" type="password" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" autocomplete="off" />
-            </label>
-            <label class="field">
-              <span>Port serveur OBS local</span>
-              <input id="localServerPort" type="number" min="1024" max="65535" placeholder="3001" />
-            </label>
 
-            <hr class="divider">
+      <!-- ════════════════════════════════════════════════════════════════════
+           PANEL 3 : Configuration Serveur
+      ═══════════════════════════════════════════════════════════════════════ -->
+      <div id="tabServer" class="tab-panel hidden">
 
-            <div class="toggles">
-              <label class="toggle">
-                <input id="autoConnect" type="checkbox" />
-                <span>Connexion automatique au démarrage</span>
-              </label>
-              <label class="toggle">
-                <input id="launchAtStartup" type="checkbox" />
-                <span>Lancer au démarrage de Windows</span>
-              </label>
-              <label class="toggle">
-                <input id="startMinimized" type="checkbox" />
-                <span>Démarrer dans le tray</span>
-              </label>
-            </div>
-
-            <hr class="divider">
-
-            <div id="testResultBox" class="test-result-box hidden">
-              <span id="testResultIcon"></span>
-              <span id="testResultText"></span>
-            </div>
-
-            <div class="actions">
-              <button id="testConnBtn" class="btn-secondary grow">Tester la connexion</button>
-              <button id="saveConfigBtn" class="btn-cta grow">Enregistrer</button>
-            </div>
-          </div>
+        <!-- Title area -->
+        <div class="panel-title-area">
+          <svg class="title-icon" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#5a8dff" stroke-width="2.5" stroke-linecap="round">
+            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+            <line x1="8" y1="21" x2="16" y2="21"/>
+            <line x1="12" y1="17" x2="12" y2="21"/>
+          </svg>
+          <h1 class="panel-title">Configuration<br>Serveur</h1>
         </div>
 
-        <!-- Panel 4 : Utilisateurs -->
-        <div id="tabUsers" class="tab-panel hidden">
-          <div class="panel-card">
-            <div class="card-header-bar card-header-yellow">Utilisateurs connectés</div>
-            <div id="userList" class="user-list" role="list" aria-live="polite" aria-relevant="additions removals"></div>
-          </div>
+        <!-- Config card -->
+        <div class="config-card">
+          <p class="field-label">URL du serveur backend</p>
+          <input id="backendUrl" type="text" class="pill-input" placeholder="http://localhost:3000" />
+
+          <p class="field-label">ID de la guild discord</p>
+          <input id="guildId" type="text" class="pill-input" placeholder="123456789012345678" />
+
+          <p class="field-label">TOKEN Client</p>
+          <input id="clientToken" type="password" class="pill-input" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" autocomplete="off" />
+
+          <p class="field-label">Port serveur OBS local</p>
+          <input id="localServerPort" type="number" class="pill-input" min="1024" max="65535" placeholder="3001" />
+
+          <hr class="card-divider" />
+
+          <label class="checkbox-row">
+            <input id="autoConnect" type="checkbox" class="custom-checkbox" />
+            <span>Connexion automatique au démarrage</span>
+          </label>
+          <hr class="card-divider" />
+          <label class="checkbox-row">
+            <input id="launchAtStartup" type="checkbox" class="custom-checkbox" />
+            <span>Lancer au démarrage de Windows</span>
+          </label>
+          <hr class="card-divider" />
+          <label class="checkbox-row">
+            <input id="startMinimized" type="checkbox" class="custom-checkbox" />
+            <span>Démarrage minimisé</span>
+          </label>
         </div>
 
-      </main>
-    </div>
+        <!-- Save / test result notification -->
+        <div id="testResultBox" class="test-result-box hidden">
+          <span id="testResultIcon"></span>
+          <span id="testResultText"></span>
+        </div>
+
+        <!-- Action buttons -->
+        <div class="action-row">
+          <button id="testConnBtn" class="btn-outline-blue">Tester la connexion</button>
+          <button id="saveConfigBtn" class="btn-cta">Enregistrer</button>
+        </div>
+
+      </div><!-- /tabServer -->
+
+
+      <!-- ════════════════════════════════════════════════════════════════════
+           PANEL 4 : Utilisateurs connectés
+      ═══════════════════════════════════════════════════════════════════════ -->
+      <div id="tabUsers" class="tab-panel hidden">
+
+        <!-- Header: title + badge -->
+        <div class="users-header">
+          <h1 class="panel-title">En ligne</h1>
+          <span class="count-badge" id="presenceBadge">0</span>
+        </div>
+
+        <!-- User list -->
+        <p class="users-section-label">CONNECTÉS</p>
+        <div id="userList" class="user-list" role="list" aria-live="polite" aria-relevant="additions removals"></div>
+
+      </div><!-- /tabUsers -->
+
+    </div><!-- /app-layout -->
 
     <script src="./renderer.js"></script>
   </body>

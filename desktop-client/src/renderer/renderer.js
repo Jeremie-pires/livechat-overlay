@@ -63,7 +63,7 @@ function switchTab(name) {
     const panel = document.getElementById(id);
     if (panel) panel.classList.toggle('hidden', key !== name);
   }
-  document.querySelectorAll('.sidebar-btn').forEach(btn => {
+  document.querySelectorAll('.nav-item[data-tab]').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.tab === name);
   });
 }
@@ -84,11 +84,12 @@ function renderStatus(status) {
     if (status.type !== 'loading') setObsUrl('');
   }
 
+  const overlayBtnSpan = elements.toggleOverlayBtn.querySelector('span') ?? elements.toggleOverlayBtn;
   if (status.type === 'connected') {
-    elements.toggleOverlayBtn.textContent = "Désactiver l'overlay";
-    elements.toggleOverlayBtn.className   = 'primary-toggle btn-active';
-    elements.toggleOverlayBtn.disabled    = false;
-    elements.windowSummary.textContent    = 'Visible';
+    overlayBtnSpan.textContent             = "Désactiver l'overlay";
+    elements.toggleOverlayBtn.className    = 'btn-overlay primary-toggle btn-active';
+    elements.toggleOverlayBtn.disabled     = false;
+    elements.windowSummary.textContent     = 'Visible';
     elements.testLandscapeBtn.disabled = false;
     elements.testSquareBtn.disabled    = false;
     elements.testPortraitBtn.disabled  = false;
@@ -100,15 +101,15 @@ function renderStatus(status) {
     elements.testPortraitBtn.classList.remove('active-test');
 
     if (status.type === 'loading') {
-      elements.toggleOverlayBtn.textContent = 'Connexion en cours...';
-      elements.toggleOverlayBtn.className   = 'primary-toggle btn-inactive';
-      elements.toggleOverlayBtn.disabled    = true;
-      elements.windowSummary.textContent    = 'Chargement';
+      overlayBtnSpan.textContent             = 'Connexion en cours...';
+      elements.toggleOverlayBtn.className    = 'btn-overlay primary-toggle btn-inactive';
+      elements.toggleOverlayBtn.disabled     = true;
+      elements.windowSummary.textContent     = 'Chargement';
     } else {
-      elements.toggleOverlayBtn.textContent = "Activer l'overlay";
-      elements.toggleOverlayBtn.className   = 'primary-toggle btn-inactive';
-      elements.toggleOverlayBtn.disabled    = false;
-      elements.windowSummary.textContent    = 'Inactive';
+      overlayBtnSpan.textContent             = "Activer l'overlay";
+      elements.toggleOverlayBtn.className    = 'btn-overlay primary-toggle btn-inactive';
+      elements.toggleOverlayBtn.disabled     = false;
+      elements.windowSummary.textContent     = 'Inactive';
     }
     elements.testLandscapeBtn.disabled = true;
     elements.testSquareBtn.disabled    = true;
@@ -343,6 +344,8 @@ function updatePresenceSummary(clients) {
   if (!elements.presenceSummary) return;
   const count = clients.length;
   elements.presenceSummary.textContent = count === 0 ? '—' : String(count);
+  const badge = document.getElementById('presenceBadge');
+  if (badge) badge.textContent = String(count);
   elements.presenceSummary.title = clients.map(c => c.displayName).join(', ');
   elements.presenceSummary.setAttribute(
     'aria-label',
@@ -513,11 +516,13 @@ function setupPresenceListeners() {
 // ── Event binding ──────────────────────────────────────────────────────────────
 
 function bindEvents() {
-  // Sidebar navigation
-  document.querySelectorAll('.sidebar-btn').forEach(btn => {
+  // Navigation (nav items + top-bar icon buttons)
+  document.querySelectorAll('[data-tab]').forEach(btn => {
     btn.addEventListener('click', () => {
-      switchTab(btn.dataset.tab);
-      if (btn.dataset.tab === 'status') loadChangelog();
+      const tab = btn.dataset.tab;
+      if (!tab) return;
+      switchTab(tab);
+      if (tab === 'status') loadChangelog();
     });
   });
 
@@ -540,8 +545,7 @@ function bindEvents() {
     showTestResult('success', 'Configuration enregistrée !');
     setTimeout(() => {
       elements.testResultBox.classList.add('hidden');
-      switchTab('settings');
-    }, 1200);
+    }, 3000);
   });
 
   // Screen / position / size / volume
