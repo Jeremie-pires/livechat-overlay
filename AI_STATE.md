@@ -8,6 +8,7 @@ Branch `develop` — active development. v1.2.11 stable released.
 ## 1. Accomplished
 
 ### This session
+- **Desktop UI refonte fidèle aux SVGs** : toggles stylisés bouton (OFF=`#141414`+border bleu 2px, ON=`#5a8dff` fill) avec `:has(input:checked)`, masquage checkbox natif. User cards `border-radius: 16px; border: none`, avatar ring `#0a0a0a`, `user-since` `#5c5c5c`. `toggle span` couleur `var(--text)` (blanc) séparée du groupe `.field > span`.
 - **Desktop UI refonte complète** (`desktop-client/src/renderer/`): nouvelle palette flat dark (`#141414` bg, `#5a8dff` accent, `#fcde63` CTA), layout sidebar 64px + contenu 416px, 4 panels (Statut / Paramètres / Serveur / Utilisateurs). Changelog fetchant GitHub releases API. Bouton support Discord via `shell.openExternal` (nouveau IPC `app:open-external` dans `main.ts` + `preload.ts`). Fenêtre 480×720px. Toute la logique IPC existante conservée intacte.
 
 ### Previous session

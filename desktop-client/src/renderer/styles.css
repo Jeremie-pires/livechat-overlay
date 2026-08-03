@@ -10,8 +10,8 @@
   --cta:        #fcde63;
   --danger:     #ff6b7a;
   --danger-bg:  rgba(255, 107, 122, 0.12);
-  --success:    #4fe3a2;
-  --success-bg: rgba(79, 227, 162, 0.12);
+  --success:    #4ee08a;
+  --success-bg: rgba(78, 224, 138, 0.12);
 }
 
 * { box-sizing: border-box; }
@@ -85,7 +85,7 @@ html, body {
 
 .sidebar-btn.active {
   color: var(--accent);
-  background: rgba(90, 141, 255, 0.14);
+  background: #1c1c1c;
 }
 
 .sidebar-footer {
@@ -272,10 +272,15 @@ h2, h3, p { margin: 0; }
 
 .field > span,
 .summary-grid span,
-.toggle span,
 .test-formats-section > span {
   color: var(--muted);
   font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.toggle span {
+  color: var(--text);
+  font-size: 0.85rem;
   font-weight: 600;
 }
 
@@ -287,21 +292,32 @@ input[type="number"],
 select {
   width: 100%;
   appearance: none;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--surface);
+  border: 1.5px solid var(--border);
+  background: #0a0a0a;
   color: var(--text);
-  padding: 10px 12px;
   outline: none;
   font-size: 0.88rem;
   transition: border 0.15s ease, box-shadow 0.15s ease;
+}
+
+input[type="text"],
+input[type="password"],
+input[type="number"] {
+  border-radius: 999px;
+  padding: 10px 18px;
+}
+
+select {
+  border-radius: 12px;
+  padding: 10px 14px;
+  cursor: pointer;
 }
 
 input[type="text"]::placeholder,
 input[type="password"]::placeholder,
 input[type="number"]::placeholder {
   color: var(--muted);
-  opacity: 0.6;
+  opacity: 0.5;
 }
 
 input[type="text"]:focus,
@@ -309,13 +325,11 @@ input[type="password"]:focus,
 input[type="number"]:focus,
 select:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(90, 141, 255, 0.12);
+  box-shadow: 0 0 0 2px rgba(90, 141, 255, 0.15);
 }
 
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button { opacity: 0.4; }
-
-select { cursor: pointer; }
 
 /* ── Activation button ─────────────────────────── */
 .activation-zone { margin-bottom: 16px; }
@@ -439,24 +453,32 @@ input[type="range"] {
 /* ── Toggles ───────────────────────────────────── */
 .toggles {
   display: grid;
-  gap: 6px;
+  gap: 8px;
   margin-bottom: 12px;
 }
 
 .toggle {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 9px 12px;
-  border-radius: 10px;
-  border: 1px solid var(--border);
-  background: var(--surface);
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 2px solid var(--accent);
+  background: #141414;
   cursor: pointer;
+  transition: background 0.15s ease;
 }
 
-.toggle input {
-  cursor: pointer;
-  accent-color: var(--accent);
+.toggle:has(input:checked) {
+  background: var(--accent);
+}
+
+.toggle input[type="checkbox"] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
 }
 
 /* ── Actions row ───────────────────────────────── */
@@ -638,8 +660,8 @@ button:active:not(:disabled) { transform: scale(0.98); }
   align-items: center;
   gap: 12px;
   padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid var(--border);
+  border-radius: 16px;
+  border: none;
   background: var(--surface);
 }
 
@@ -649,6 +671,7 @@ button:active:not(:disabled) { transform: scale(0.98); }
   border-radius: 50%;
   object-fit: cover;
   flex-shrink: 0;
+  outline: 2px solid #0a0a0a;
 }
 
 .user-avatar-initial {
@@ -677,7 +700,7 @@ button:active:not(:disabled) { transform: scale(0.98); }
 
 .user-since {
   font-size: 0.72rem;
-  color: var(--muted);
+  color: #5c5c5c;
 }
 
 /* ── Update modal ──────────────────────────────── */
