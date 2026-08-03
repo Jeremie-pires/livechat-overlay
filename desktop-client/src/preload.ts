@@ -77,6 +77,16 @@ contextBridge.exposeInMainWorld('livechat', {
     ipcRenderer.on('local-server:url-changed', listener);
     return () => ipcRenderer.removeListener('local-server:url-changed', listener);
   },
+  onServerStatus: (callback: (data: { botOnline: boolean; maintenance: boolean }) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, data: { botOnline: boolean; maintenance: boolean }) => callback(data);
+    ipcRenderer.on('server:status', listener);
+    return () => ipcRenderer.removeListener('server:status', listener);
+  },
+  onMaintenance: (callback: (data: { maintenance: boolean }) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, data: { maintenance: boolean }) => callback(data);
+    ipcRenderer.on('server:maintenance', listener);
+    return () => ipcRenderer.removeListener('server:maintenance', listener);
+  },
 });
 
 declare global {
@@ -106,6 +116,8 @@ declare global {
       openExternal: (url: string) => Promise<void>;
       getObsUrl: () => Promise<string>;
       onObsUrlChanged: (callback: (url: string) => void) => () => void;
+      onServerStatus: (callback: (data: { botOnline: boolean; maintenance: boolean }) => void) => () => void;
+      onMaintenance: (callback: (data: { maintenance: boolean }) => void) => () => void;
     };
   }
 }

@@ -39,6 +39,13 @@ export const loadSocket = (fastify: FastifyCustomInstance) => {
 
     socket.emit('server:env', env.APP_ENV);
 
+    prisma.stats.findUnique({ where: { id: 'singleton' } }).then(stats => {
+      socket.emit('server:status', {
+        botOnline: global.discordClient?.isReady() ?? false,
+        maintenance: stats?.silentMode ?? false,
+      });
+    }).catch(() => undefined);
+
     socket.on('disconnecting', () => {
       logger.debug(`New disconnection to socketIO :  ${socket.id}`);
       cleanupSocketRateLimit(socket.id);

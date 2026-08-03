@@ -6,6 +6,11 @@ const state = {
   clients: [],
 };
 
+const serverState = {
+  botOnline: false,
+  maintenance: localStorage.getItem('serverMaintenance') === 'true',
+};
+
 const elements = {
   // Settings (overlay) tab
   toggleOverlayBtn: document.getElementById('toggleOverlayBtn'),
@@ -41,8 +46,11 @@ const elements = {
   testResultText:   document.getElementById('testResultText'),
 
   // Status tab
-  statusDot:        document.getElementById('statusDot'),
-  statusText:       document.getElementById('statusText'),
+  statusDot:           document.getElementById('statusDot'),
+  statusText:          document.getElementById('statusText'),
+  navStatusDot:        document.getElementById('navStatusDot'),
+  maintenanceBanner:   document.getElementById('maintenanceBanner'),
+  maintenanceToast:    document.getElementById('maintenanceToast'),
   changelogList:    document.getElementById('changelogList'),
 
   // Users tab
@@ -54,6 +62,41 @@ const elements = {
 };
 
 const noMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// ── Server state (bot online / maintenance) ────────────────────────────────────
+
+function computeNavDotStatus() {
+  if (serverState.maintenance) return 'maintenance';
+  if (state.status.type === 'loading') return 'loading';
+  if (state.status.type === 'connected') return serverState.botOnline ? 'connected' : 'error';
+  if (state.status.type === 'error') return 'error';
+  return 'idle';
+}
+
+function applyServerState() {
+  if (elements.navStatusDot) elements.navStatusDot.dataset.status = computeNavDotStatus();
+  if (elements.maintenanceBanner) {
+    elements.maintenanceBanner.classList.toggle('hidden', !serverState.maintenance);
+  }
+  localStorage.setItem('serverMaintenance', String(serverState.maintenance));
+}
+
+let toastTimer = null;
+
+function showMaintenanceToast(maintenance) {
+  const toast = elements.maintenanceToast;
+  if (!toast) return;
+  clearTimeout(toastTimer);
+  const title = document.getElementById('toastTitle');
+  const body = document.getElementById('toastBody');
+  if (title) title.textContent = maintenance ? 'Maintenance activée' : 'Retour en ligne';
+  if (body) body.textContent = maintenance
+    ? 'Le serveur est en cours de maintenance.'
+    : 'Le serveur est de nouveau opérationnel.';
+  toast.dataset.type = maintenance ? 'warning' : 'success';
+  toast.classList.remove('hidden');
+  toastTimer = setTimeout(() => toast.classList.add('hidden'), 5000);
+}
 
 // ── Navigation ────────────────────────────────────────────────────────────────
 
@@ -75,8 +118,11 @@ const STATUS_LABELS = { connected: 'Connecté', loading: '...', error: 'Erreur',
 function renderStatus(status) {
   state.status = status;
   elements.statusText.textContent    = status.message;
-  elements.statusSummary.textContent = STATUS_LABELS[status.type] ?? status.type;
+  elements.statusSummary.textContent = serverState.maintenance
+    ? 'Maintenance'
+    : (STATUS_LABELS[status.type] ?? status.type);
   elements.statusDot.dataset.status  = status.type;
+  applyServerState();
 
   if (status.type === 'connected') {
     startPresencePolling();
@@ -612,6 +658,15 @@ function bindEvents() {
   elements.testPortraitBtn.addEventListener('click',  () => toggleTestFormat('portrait',  elements.testPortraitBtn));
   elements.testSoundBtn.addEventListener('click', async () => { await window.livechat.testSound(); });
 
+  // Toast close
+  const toastClose = document.getElementById('toastClose');
+  if (toastClose) {
+    toastClose.addEventListener('click', () => {
+      clearTimeout(toastTimer);
+      if (elements.maintenanceToast) elements.maintenanceToast.classList.add('hidden');
+    });
+  }
+
   // OBS URL copy
   if (elements.obsUrlCopyBtn && elements.obsUrlDisplay) {
     elements.obsUrlCopyBtn.addEventListener('click', async () => {
@@ -662,6 +717,20 @@ window.livechat.onUpdateDownloaded(info => showUpdateModal(info.version, info.re
 window.livechat.onStatus(status => renderStatus(status));
 window.livechat.onObsUrlChanged(url => setObsUrl(url));
 
+window.livechat.onServerStatus(({ botOnline, maintenance }) => {
+  serverState.botOnline = botOnline;
+  serverState.maintenance = maintenance;
+  applyServerState();
+  renderStatus(state.status);
+});
+
+window.livechat.onMaintenance(({ maintenance }) => {
+  serverState.maintenance = maintenance;
+  applyServerState();
+  renderStatus(state.status);
+  showMaintenanceToast(maintenance);
+});
+
 window.livechat.onSettingsChanged(settings => {
   state.settings = settings;
   elements.backendUrl.value        = settings.backendUrl;
@@ -685,6 +754,7 @@ window.livechat.onSettingsChanged(settings => {
 
 bindEvents();
 setupPresenceListeners();
+applyServerState();
 
 refreshUi().then(async () => {
   renderStatus({ type: 'idle', message: 'Prêt' });

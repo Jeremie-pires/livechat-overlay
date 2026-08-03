@@ -646,6 +646,18 @@
             window.livechatOverlay.reportUserLeft(data);
           }
         });
+
+        socket.on('server:status', function (data) {
+          if (window.livechatOverlay && typeof window.livechatOverlay.reportServerStatus === 'function') {
+            window.livechatOverlay.reportServerStatus(data);
+          }
+        });
+
+        socket.on('server:maintenance', function (data) {
+          if (window.livechatOverlay && typeof window.livechatOverlay.reportMaintenance === 'function') {
+            window.livechatOverlay.reportMaintenance(data);
+          }
+        });
       });
     </script>
   </body>

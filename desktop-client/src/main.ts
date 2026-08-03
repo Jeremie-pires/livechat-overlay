@@ -502,6 +502,18 @@ function registerIpc() {
     controlWindow?.webContents.send('presence:userLeft', data);
   });
 
+  ipcMain.on('server:status', (_event, data: unknown) => {
+    const obj = data as Record<string, unknown>;
+    if (typeof obj?.botOnline !== 'boolean' || typeof obj?.maintenance !== 'boolean') return;
+    controlWindow?.webContents.send('server:status', data);
+  });
+
+  ipcMain.on('server:maintenance', (_event, data: unknown) => {
+    const obj = data as Record<string, unknown>;
+    if (typeof obj?.maintenance !== 'boolean') return;
+    controlWindow?.webContents.send('server:maintenance', data);
+  });
+
   ipcMain.handle('app:open-external', (_event, url: string) => {
     const safe = typeof url === 'string' && (url.startsWith('https://') || url.startsWith('http://'));
     if (safe) shell.openExternal(url).catch(() => undefined);
