@@ -28,7 +28,8 @@ export const runServer = async () => {
     if (!origin || origin === allowedOrigin) {
       callback(null, true);
     } else {
-      callback(new Error('CORS not allowed'), false);
+      logger.warn({ origin, allowedOrigin }, '[CORS] Rejected origin');
+      callback(null, false);
     }
   };
 

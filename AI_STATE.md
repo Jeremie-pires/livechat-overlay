@@ -1,13 +1,22 @@
 # AI_STATE.md — LiveChat CCB
 
 ## Status
-Branch `develop` — active development. v1.3.0 stable released.
+Branch `develop` — active development. v1.3.0 stable released. v1.3.1 en préparation.
 
 ---
 
 ## 1. Accomplished
 
 ### This session
+- **Electron startup hardening** (`desktop-client/src/main.ts`) — v1.3.1 :
+  - `process.on('uncaughtException')` → `dialog.showErrorBox()` au lieu de crash silencieux.
+  - Single-instance lock : `app.quit()` brut → dialog "L'app est déjà en cours d'exécution, vérifiez le tray".
+  - `createTray()` : try/catch sur `nativeImage.createFromPath()` — fallback `controlWindow?.show()` si icon.ico manquant.
+  - `bootstrap()` : `void bootstrap()` → `bootstrap().catch(err => dialog.showErrorBox(...))`.
+- **Fix CORS server** (`src/server.ts`) : `callback(new Error(), false)` → `callback(null, false)` + warn log avec origin rejetée. Évite les 404 fantômes dans unify-fastify sur le VPS.
+- **Fix Prisma null guildId** (`src/loaders/DiscordLoader.ts`) : garde `if (!interaction.guildId)` avant `findFirst()` — commande slash en DM ne crash plus le bot.
+
+### Previous session
 - **SonarQube Quality Gate fixes** (4 fichiers) :
   - `main.ts:app:open-external` — Security C (bloquant) : URL user-controlled → parse `new URL()` + validate `parsed.protocol` + utiliser `parsed.href` (pattern reconnu par SonarQube).
   - `renderer.js:reconcileUserList` — Reliability C (bloquant) : `getAttribute('data-user-id')` → `dataset.userId`.
