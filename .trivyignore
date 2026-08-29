@@ -4,7 +4,8 @@
 # fastify@4.x — fix requires fastify@5.x (breaking API changes)
 CVE-2026-25223
 
-# fast-uri@2.x — fix requires fast-uri@3.x, but fastify@4 depends on fast-uri@2
+# fast-uri@2.x — CVE-2026-6321/6322: fix requires fast-uri@3.x, blocked on Fastify v5 upgrade.
+# CVE-2026-18446: patched via pnpm override fast-uri@>=2.4.4 — no suppression needed.
 CVE-2026-6321
 CVE-2026-6322
 
@@ -26,17 +27,25 @@ CVE-2025-64756
 # a breaking API change only compatible with Fastify v5. Blocked on Fastify v5 upgrade.
 CVE-2026-47219
 
-# brace-expansion@2.x — CVE-2026-14257 (DoS) — fix only available in v5.0.8+ (no 2.x patch).
-# v5.x has incompatible API with minimatch@9 which expects brace-expansion@^2.x.
+# brace-expansion@2.x — CVE-2026-14257 (DoS) — no 2.x patch (fix in v5.x only, incompatible API).
+# CVE-2026-69152 (bypass of 14257): patched via pnpm override brace-expansion@>=2.1.4.
 CVE-2026-14257
 
-# cross-spawn: patched to 7.0.6 via pnpm override in lockfile — no suppression needed.
-# undici: patched to 6.27.0 via pnpm override in lockfile — no suppression needed.
+# ip-address@9.x — CVE-2026-69192 (SSRF via inconsistent IP parsing) — fix requires v10.3.1+
+# (breaking major bump). Blocked on dependency tree update.
+CVE-2026-69192
+
+# cross-spawn: patched to 7.0.6 via pnpm override — no suppression needed.
+# undici: patched to 6.27.0 via pnpm override — no suppression needed.
 # find-my-way: CVE-2026-47219 suppressed above — requires Fastify v5 upgrade.
 # js-yaml: patched to >=5.2.2 via pnpm override — no suppression needed.
 # postcss: patched to >=8.5.18 via pnpm override — no suppression needed.
 # ws: patched to >=8.21.0 via pnpm override — no suppression needed.
-# socket.io-parser: patched to >=4.2.6 via pnpm override — no suppression needed.
+# socket.io-parser: patched to >=4.2.7 via pnpm override — no suppression needed.
+# brace-expansion: CVE-2026-69152 patched to >=2.1.4 via pnpm override — no suppression needed.
+# fast-uri: CVE-2026-18446 patched to >=2.4.4 via pnpm override — no suppression needed.
+# nanoid: CVE-2026-67213 patched to >=3.3.18 via pnpm override — no suppression needed.
+# tar: CVE-2026-73566 patched to >=7.5.21 via pnpm override — no suppression needed.
 
 # lodash@4.17.21 — fix requires lodash@4.18.0 (direct dep updated to ^4.18.0).
 # This entry is a fallback in case the release hasn't published yet.
