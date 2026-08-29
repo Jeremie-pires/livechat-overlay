@@ -15,14 +15,14 @@ export const frLang: typeof enLang = {
 
   howToUseTitle: "Comment m'utiliser ?",
   howToUseDescription:
-    "Pour m'utiliser, vous devez d'abord faire un `/client` pour avoir le lien à intégrer sur votre OBS ou XSplit.\n\nAprès, vous pouvez faire un `/help` pour obtenir toutes les commandes que vous pouvez utiliser pour envoyer du contenu sur le stream.",
+    "Pour m'utiliser, vous devez d'abord faire un `/setup` #canal sur votre serveur Discord. Ensuite, vous pouvez faire un `/client` pour avoir les informations de connexion à intégrer dans l'app.\n\nAprès, vous pouvez faire un `/help` pour obtenir toutes les commandes que vous pouvez utiliser pour envoyer du contenu sur le stream.",
 
   aliveCommand: 'dispo',
   aliveCommandDescription: 'Vérifiez si le bot est vivant',
   aliveCommandsAnswer: '{{username}}, Je suis en vie !',
 
   clientCommand: 'client',
-  clientCommandDescription: 'Obtenez un lien OBS pour intégrer LiveChat',
+  clientCommandDescription: 'Obtenez les informations de connexion du LiveChat',
   clientCommandsAnswer: "Voici les infos de connexion à entrer dans l'app :",
   clientCommandsUrlLabel: 'URL du serveur',
   clientCommandsGuildIdLabel: 'ID de la Guild Discord',
