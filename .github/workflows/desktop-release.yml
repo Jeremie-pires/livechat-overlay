@@ -45,24 +45,6 @@ jobs:
             echo "type=release" >> $GITHUB_OUTPUT
           fi
 
-      - name: Create GitHub Release from tag annotation
-        if: github.event_name == 'push'
-        shell: bash
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          TAG="${{ github.ref_name }}"
-          NOTES=$(git tag -l --format='%(contents)' "$TAG")
-          FLAGS=""
-          if [ "${{ steps.detect.outputs.type }}" = "prerelease" ]; then
-            FLAGS="--prerelease"
-          fi
-          if gh release view "$TAG" &>/dev/null; then
-            gh release edit "$TAG" --notes "$NOTES" $FLAGS
-          else
-            gh release create "$TAG" --title "$TAG" --notes "$NOTES" $FLAGS
-          fi
-
       - name: Build and Publish Electron App
         working-directory: desktop-client
         env:
@@ -74,3 +56,17 @@ jobs:
           else
             npm run release
           fi
+
+      - name: Set release notes from tag annotation
+        if: github.event_name == 'push'
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ github.ref_name }}"
+          NOTES=$(git tag -l --format='%(contents)' "$TAG")
+          FLAGS=""
+          if [ "${{ steps.detect.outputs.type }}" = "prerelease" ]; then
+            FLAGS="--prerelease"
+          fi
+          gh release edit "$TAG" --notes "$NOTES" $FLAGS
