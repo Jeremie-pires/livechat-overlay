@@ -117,6 +117,13 @@ export const runServer = async () => {
     disableDetails: isProductionEnv() || isPreProductionEnv(),
   });
 
+  // unify-fastify logs all 404s at error level — override to warn to reduce noise
+  // (browser auto-fetches like /favicon.ico, /apple-touch-icon.png, etc.)
+  fastify.setNotFoundHandler((req, reply) => {
+    req.log.warn({ url: req.url, method: req.method }, '[404] Route not found');
+    void reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Not Found' });
+  });
+
   const gracefulServer = GracefulServer(fastify.server);
   gracefulServer.on(GracefulServer.SHUTTING_DOWN, (err) => {
     if (err) {
