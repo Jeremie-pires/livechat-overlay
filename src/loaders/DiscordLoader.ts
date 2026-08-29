@@ -197,7 +197,12 @@ const loadDiscordCommandsHandler = () => {
     }
 
     if (!command.bypassChannelCheck) {
-      const guild = await prisma.guild.findFirst({ where: { id: interaction.guildId! }, select: { channelId: true } });
+      if (!interaction.guildId) {
+        await interaction.reply({ content: rosetty.t('error')!, flags: MessageFlags.Ephemeral });
+        return;
+      }
+
+      const guild = await prisma.guild.findFirst({ where: { id: interaction.guildId }, select: { channelId: true } });
 
       if (!guild?.channelId) {
         await interaction.reply({

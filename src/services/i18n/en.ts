@@ -13,14 +13,14 @@ export const enLang = {
 
   howToUseTitle: 'How to use it ?',
   howToUseDescription:
-    'To use it, you need first to do a `/client` to have the link to integrate to your OBS, XSplit.\n\nAfter that you can do a `/help` to get all commands that you can use to send content to the stream.',
+    'To use it, you need first to do a `/setup` #channel on your Discord server. Then, you can do a `/client` to get the connection information to integrate into the app.\n\nAfter that, you can do a `/help` to get all commands that you can use to send content to the stream.',
 
   aliveCommand: 'alive',
   aliveCommandDescription: 'Check if bot is alive',
   aliveCommandsAnswer: "{{username}}, I'm alive !",
 
   clientCommand: 'client',
-  clientCommandDescription: 'Get OBS link to integrate LiveChat',
+  clientCommandDescription: 'Get connexion informations to link the LiveChat',
   clientCommandsAnswer: 'Here are the connection settings to enter in the app:',
   clientCommandsUrlLabel: 'Server URL',
   clientCommandsGuildIdLabel: 'Discord Guild ID',

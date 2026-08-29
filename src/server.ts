@@ -28,7 +28,8 @@ export const runServer = async () => {
     if (!origin || origin === allowedOrigin) {
       callback(null, true);
     } else {
-      callback(new Error('CORS not allowed'), false);
+      logger.warn({ origin, allowedOrigin }, '[CORS] Rejected origin');
+      callback(null, false);
     }
   };
 
@@ -114,6 +115,13 @@ export const runServer = async () => {
 
   await fastify.register(unifyFastifyPlugin, {
     disableDetails: isProductionEnv() || isPreProductionEnv(),
+  });
+
+  // unify-fastify logs all 404s at error level — override to warn to reduce noise
+  // (browser auto-fetches like /favicon.ico, /apple-touch-icon.png, etc.)
+  fastify.setNotFoundHandler((req, reply) => {
+    req.log.warn({ url: req.url, method: req.method }, '[404] Route not found');
+    void reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Not Found' });
   });
 
   const gracefulServer = GracefulServer(fastify.server);

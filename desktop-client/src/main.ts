@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, Menu, nativeImage, safeStorage, screen, shell, Tray } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, safeStorage, screen, shell, Tray } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import fs from 'fs/promises';
 import path from 'path';
@@ -42,6 +42,11 @@ function getSettingsPath() {
 }
 
 function applyLoginItemSettings(): void {
+  if (!app.isPackaged) {
+    // Unregister dev builds from Windows startup to avoid launching raw Electron on boot
+    app.setLoginItemSettings({ openAtLogin: false });
+    return;
+  }
   app.setLoginItemSettings({ openAtLogin: settings.launchAtStartup });
 }
 
@@ -170,11 +175,19 @@ function showControlWindow() {
 }
 
 function createTray() {
-  const icon = nativeImage.createFromPath(getTrayIconPath());
-  tray = new Tray(icon);
-  tray.setToolTip('LiveChatCCB Desktop');
+  let icon: Electron.NativeImage;
+  try {
+    icon = nativeImage.createFromPath(getTrayIconPath());
+    tray = new Tray(icon);
+  } catch (err) {
+    console.error('[TRAY] Failed to create tray icon:', err);
+    controlWindow?.show();
+    return;
+  }
+  // tray is guaranteed non-null here: catch block returns early on failure
+  tray!.setToolTip('LiveChatCCB Desktop');
 
-  tray.on('click', () => {
+  tray!.on('click', () => {
     if (!controlWindow) return;
     if (controlWindow.isVisible()) {
       controlWindow.hide();
@@ -194,7 +207,7 @@ function createTray() {
       },
     },
   ]);
-  tray.setContextMenu(contextMenu);
+  tray!.setContextMenu(contextMenu);
 }
 
 function createControlWindow() {
@@ -608,10 +621,25 @@ app.on('before-quit', () => {
   }
 });
 
+process.on('uncaughtException', (err) => {
+  dialog.showErrorBox('Erreur inattendue — LiveChatCCB Desktop', err.message);
+  app.quit();
+});
+
 const gotLock = app.requestSingleInstanceLock();
 
 if (!gotLock) {
-  app.quit();
+  app.whenReady().then(() => {
+    dialog
+      .showMessageBox({
+        type: 'info',
+        title: 'LiveChatCCB Desktop',
+        message: "L'application est déjà en cours d'exécution.",
+        detail: "Vérifiez l'icône dans la barre des tâches (zone de notification en bas à droite).",
+        buttons: ['OK'],
+      })
+      .then(() => app.quit());
+  });
 } else {
   app.on('second-instance', () => {
     if (!controlWindow) {
@@ -621,7 +649,10 @@ if (!gotLock) {
   });
 
   app.whenReady().then(() => {
-    void bootstrap();
+    bootstrap().catch((err: Error) => {
+      dialog.showErrorBox('Erreur au démarrage — LiveChatCCB Desktop', err.message);
+      app.quit();
+    });
 
     app.on('activate', () => {
       if (controlWindow) {
