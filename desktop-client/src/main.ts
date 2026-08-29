@@ -42,6 +42,11 @@ function getSettingsPath() {
 }
 
 function applyLoginItemSettings(): void {
+  if (!app.isPackaged) {
+    // Unregister dev builds from Windows startup to avoid launching raw Electron on boot
+    app.setLoginItemSettings({ openAtLogin: false });
+    return;
+  }
   app.setLoginItemSettings({ openAtLogin: settings.launchAtStartup });
 }
 
