@@ -57,7 +57,11 @@ jobs:
           if [ "${{ steps.detect.outputs.type }}" = "prerelease" ]; then
             FLAGS="--prerelease"
           fi
-          gh release create "$TAG" --title "$TAG" --notes "$NOTES" $FLAGS
+          if gh release view "$TAG" &>/dev/null; then
+            gh release edit "$TAG" --notes "$NOTES" $FLAGS
+          else
+            gh release create "$TAG" --title "$TAG" --notes "$NOTES" $FLAGS
+          fi
 
       - name: Build and Publish Electron App
         working-directory: desktop-client
