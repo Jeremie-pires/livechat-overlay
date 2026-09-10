@@ -49,12 +49,13 @@ export const runServer = async () => {
 
   const redact = {
     paths: [
-      'DISCORD_TOKEN',
-      'DISCORD_CLIENT_SECRET',
-      '*.DISCORD_TOKEN',
-      '*.DISCORD_CLIENT_SECRET',
+      '**.DISCORD_TOKEN',
+      '**.DISCORD_CLIENT_SECRET',
+      '**.access_token',
+      '**.client_secret',
       'req.headers.cookie',
       'req.headers.authorization',
+      'req.query.code',
     ],
     censor: '[REDACTED]',
   };
@@ -92,7 +93,7 @@ export const runServer = async () => {
     logger: loggerOptions,
     disableRequestLogging: true,
     genReqId: (req) => resolveCorrelationId(req.headers['x-request-id']),
-    trustProxy: 1,
+    trustProxy: isDeployedMode() ? 1 : false,
   });
 
   const logger = fastify.log;

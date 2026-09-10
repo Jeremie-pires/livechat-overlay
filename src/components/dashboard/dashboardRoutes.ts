@@ -23,7 +23,27 @@ const DASHBOARD_HTML = readFileSync(join(DIR, 'dashboard.html'), 'utf-8');
 const DASHBOARD_CSS = readFileSync(join(DIR, 'dashboard.css'), 'utf-8');
 const DASHBOARD_JS = readFileSync(join(DIR, 'dashboard.js'), 'utf-8');
 
+const DASHBOARD_CSP = [
+  "default-src 'none'",
+  "script-src 'self' 'unsafe-inline'",
+  "style-src 'self' https://fonts.googleapis.com",
+  "font-src https://fonts.gstatic.com",
+  "img-src 'self' data: https://cdn.discordapp.com",
+  "connect-src 'self'",
+  "base-uri 'none'",
+  "form-action 'self'",
+  "frame-ancestors 'none'",
+].join('; ');
+
 async function dashboardPlugin(fastify: FastifyCustomInstance) {
+  fastify.addHook('onSend', (_req, reply, _payload, done) => {
+    const ct = reply.getHeader('content-type');
+    if (typeof ct === 'string' && ct.startsWith('text/html')) {
+      reply.header('Content-Security-Policy', DASHBOARD_CSP);
+    }
+    done();
+  });
+
   const redirectUri = `${env.API_URL}/auth/callback`;
   const oauthUrl =
     `https://discord.com/oauth2/authorize` +
@@ -41,8 +61,7 @@ async function dashboardPlugin(fastify: FastifyCustomInstance) {
       const state = randomBytes(16).toString('hex');
       const fullOauthUrl = `${oauthUrl}&state=${state}`;
       reply.header('Set-Cookie', `oauth_state=${state}; HttpOnly${secureFlag}; Path=/; SameSite=Lax; Max-Age=300`);
-      const redirectPage = `<!DOCTYPE html><html><head><meta charset="UTF-8"><script>window.top.location.href=${JSON.stringify(fullOauthUrl)};</script></head><body></body></html>`;
-      return reply.type('text/html').send(redirectPage);
+      return reply.redirect(fullOauthUrl, 302);
     }
     const csrfToken = createCsrfToken(token!);
     return reply.type('text/html').send(DASHBOARD_HTML.replace('{{CSRF_TOKEN}}', csrfToken));

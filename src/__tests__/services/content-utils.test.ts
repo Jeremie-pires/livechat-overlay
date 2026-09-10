@@ -5,9 +5,19 @@ vi.mock('node-fetch', () => ({
   default: vi.fn(),
 }));
 
-vi.mock('get-video-duration', () => ({
-  getVideoDurationInSeconds: vi.fn().mockRejectedValue(new Error('ffprobe not available in test')),
-}));
+vi.mock('child_process', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('child_process')>();
+  return {
+    ...actual,
+    spawn: vi.fn().mockImplementation(() => ({
+      stdout: { on: vi.fn() },
+      kill: vi.fn(),
+      on: vi.fn().mockImplementation((event: string, cb: (...args: unknown[]) => void) => {
+        if (event === 'error') setImmediate(() => cb(new Error('ffprobe not available in test')));
+      }),
+    })),
+  };
+});
 
 vi.mock('file-type', () => ({
   fileTypeFromBuffer: vi.fn().mockResolvedValue(null),

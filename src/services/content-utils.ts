@@ -1,13 +1,56 @@
 import https from 'node:https';
+import { spawn } from 'child_process';
 import fetch from 'node-fetch';
-import { getVideoDurationInSeconds } from 'get-video-duration';
 import { fileTypeFromBuffer } from 'file-type';
 import mime from 'mime-types';
 import { assertPublicHttpUrl, type AssertedUrl } from './url-guard';
 
 const MAX_HTML_CHARS = 256 * 1024;
 const FETCH_TIMEOUT_MS = 5_000;
+const FFPROBE_TIMEOUT_MS = 5_000;
 const YOUTUBE_CONTENT_TYPE = 'video/youtube';
+
+function probeDuration(url: string): Promise<number | undefined> {
+  return new Promise((resolve) => {
+    let settled = false;
+    const settle = (val: number | undefined) => {
+      if (settled) return;
+      settled = true;
+      resolve(val);
+    };
+
+    const proc = spawn(
+      'ffprobe',
+      ['-v', 'error', '-show_entries', 'format=duration', '-of', 'default=noprint_wrappers=1:nokey=1', url],
+      { stdio: ['ignore', 'pipe', 'ignore'] },
+    );
+
+    let stdout = '';
+    proc.stdout?.on('data', (chunk: Buffer) => {
+      stdout += chunk.toString('utf-8');
+    });
+
+    const timer = setTimeout(() => {
+      proc.kill('SIGKILL');
+      settle(undefined);
+    }, FFPROBE_TIMEOUT_MS);
+
+    proc.on('close', (code) => {
+      clearTimeout(timer);
+      if (code !== 0) {
+        settle(undefined);
+        return;
+      }
+      const s = parseFloat(stdout.trim());
+      settle(Number.isFinite(s) && s > 0 ? s : undefined);
+    });
+
+    proc.on('error', () => {
+      clearTimeout(timer);
+      settle(undefined);
+    });
+  });
+}
 
 interface OpenGraphResult {
   videoUrl?: string;
@@ -284,7 +327,7 @@ export const getContentInformationsFromUrl = async (url: string) => {
 
   try {
     const [pinnedFfprobeUrl] = buildPinnedFetchArgs(effectiveGuard, {}, {});
-    mediaDuration = await getVideoDurationInSeconds(pinnedFfprobeUrl, 'ffprobe');
+    mediaDuration = await probeDuration(pinnedFfprobeUrl);
   } catch (error) {
     logger.debug({ err: error }, 'ffprobe duration detection failed');
   }
