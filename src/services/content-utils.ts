@@ -128,11 +128,63 @@ export function isTwitterUrl(url: string): boolean {
   try {
     const { hostname } = new URL(url);
     return (
-      hostname === 'twitter.com' || hostname === 'www.twitter.com' || hostname === 'x.com' || hostname === 'www.x.com'
+      hostname === 'twitter.com' ||
+      hostname === 'www.twitter.com' ||
+      hostname === 'x.com' ||
+      hostname === 'www.x.com' ||
+      hostname === 't.co'
     );
   } catch {
     return false;
   }
+}
+
+// Follows HTTP redirects (up to 3 hops) from a short URL to its canonical URL.
+// Each redirect target is validated by assertPublicHttpUrl to prevent SSRF.
+// Returns the resolved URL if at least one redirect was followed, otherwise null.
+async function resolveHttpRedirect(startUrl: string, startGuard: AssertedUrl): Promise<string | null> {
+  const MAX_HOPS = 3;
+  let currentUrl = startUrl;
+  let currentGuard = startGuard;
+  let hops = 0;
+
+  while (hops < MAX_HOPS) {
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    let location: string | null = null;
+
+    try {
+      const [pinnedUrl, pinnedInit] = buildPinnedFetchArgs(
+        currentGuard,
+        { 'User-Agent': 'Mozilla/5.0 (compatible; LiveChatCCB/1.0)' },
+        { redirect: 'manual' },
+      );
+      const response = await Promise.race([
+        fetch(pinnedUrl, pinnedInit as Parameters<typeof fetch>[1]),
+        new Promise<never>((_, reject) => {
+          timeoutId = setTimeout(() => reject(new Error('redirect timeout')), FETCH_TIMEOUT_MS);
+        }),
+      ]);
+      clearTimeout(timeoutId);
+      location = response.headers.get('location');
+    } catch {
+      clearTimeout(timeoutId);
+      break;
+    }
+
+    if (!location) break;
+
+    try {
+      const nextGuard = await assertPublicHttpUrl(location);
+      currentUrl = location;
+      currentGuard = nextGuard;
+    } catch {
+      break;
+    }
+
+    hops++;
+  }
+
+  return hops > 0 ? currentUrl : null;
 }
 
 // Sends url to a self-hosted Cobalt instance and returns the resolved stream URL.
@@ -375,11 +427,26 @@ export const getContentInformationsFromUrl = async (url: string) => {
       const mediaDuration = await probeDuration(streamUrl);
       return { contentType: 'video/mp4', mediaDuration, mediaIsShort: false, resolvedUrl: streamUrl };
     }
+
+    // Short-link resolution: follow HTTP redirects to recover the canonical URL
+    // so the client can extract the video/tweet ID for iframe embedding.
+    // Applies to vm.tiktok.com/vt.tiktok.com (no /video/ID) and t.co (no /status/ID).
+    const parsedPath = new URL(url).pathname;
+    const isShortLink = isTikTok ? !/\/video\/\d+/.test(parsedPath) : !/\/status\/\d+/.test(parsedPath);
+
+    let resolvedUrl: string | undefined;
+    if (isShortLink) {
+      const canonical = await resolveHttpRedirect(url, urlGuard);
+      if (canonical && (isTikTokUrl(canonical) || isTwitterUrl(canonical))) {
+        resolvedUrl = canonical;
+      }
+    }
+
     return {
       contentType: isTikTok ? TIKTOK_CONTENT_TYPE : TWITTER_CONTENT_TYPE,
       mediaDuration: undefined,
       mediaIsShort: false,
-      resolvedUrl: undefined,
+      resolvedUrl,
     };
   }
 
