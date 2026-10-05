@@ -27,6 +27,7 @@ vi.mock('../../services/env', () => ({
   env: {
     COBALT_API_URL: 'http://cobalt-test:9000',
     COBALT_PUBLIC_URL: undefined,
+    API_URL: 'http://localhost:3000',
   },
 }));
 
@@ -99,7 +100,7 @@ describe('isTwitterUrl', () => {
 // ── Cobalt resolver — tunnel path ─────────────────────────────────────────────
 
 describe('getContentInformationsFromUrl — TikTok via Cobalt (tunnel)', () => {
-  it('returns video/mp4 with the stream URL when Cobalt returns tunnel status', async () => {
+  it('returns video/mp4 with a server proxy URL when Cobalt returns tunnel status', async () => {
     vi.mocked(fetch).mockResolvedValueOnce(
       makeCobaltResponse({ status: 'tunnel', url: 'http://cobalt-test:9000/tunnel?id=abc123' }) as never,
     );
@@ -107,7 +108,7 @@ describe('getContentInformationsFromUrl — TikTok via Cobalt (tunnel)', () => {
     const result = await getContentInformationsFromUrl('https://www.tiktok.com/@user/video/123456');
 
     expect(result.contentType).toBe('video/mp4');
-    expect(result.resolvedUrl).toBe('http://cobalt-test:9000/tunnel?id=abc123');
+    expect(result.resolvedUrl).toMatch(/^http:\/\/localhost:3000\/api\/video\?t=[\w-]+$/);
     expect(result.mediaIsShort).toBe(false);
   });
 
@@ -130,26 +131,27 @@ describe('getContentInformationsFromUrl — TikTok via Cobalt (tunnel)', () => {
 // ── Cobalt resolver — redirect path ──────────────────────────────────────────
 
 describe('getContentInformationsFromUrl — Twitter via Cobalt (redirect)', () => {
-  it('returns video/mp4 with CDN URL when Cobalt returns redirect status', async () => {
+  it('returns video/mp4 with a server proxy URL when Cobalt returns redirect status', async () => {
     const cdnUrl = 'https://video.twimg.com/ext_tw_video/123/mp4/vid/720x1280/abc.mp4';
     vi.mocked(fetch).mockResolvedValueOnce(makeCobaltResponse({ status: 'redirect', url: cdnUrl }) as never);
 
     const result = await getContentInformationsFromUrl('https://x.com/user/status/987654321');
 
     expect(result.contentType).toBe('video/mp4');
-    expect(result.resolvedUrl).toBe(cdnUrl);
+    expect(result.resolvedUrl).toMatch(/^http:\/\/localhost:3000\/api\/video\?t=[\w-]+$/);
   });
 });
 
 // ── Cobalt stream status (alias) ──────────────────────────────────────────────
 
 describe('getContentInformationsFromUrl — Cobalt "stream" status (alias for tunnel)', () => {
-  it('returns video/mp4 for "stream" status', async () => {
+  it('returns video/mp4 with proxy URL for "stream" status', async () => {
     vi.mocked(fetch).mockResolvedValueOnce(
       makeCobaltResponse({ status: 'stream', url: 'http://cobalt-test:9000/tunnel?id=s1' }) as never,
     );
     const result = await getContentInformationsFromUrl('https://www.tiktok.com/@user/video/111');
     expect(result.contentType).toBe('video/mp4');
+    expect(result.resolvedUrl).toMatch(/^http:\/\/localhost:3000\/api\/video\?t=[\w-]+$/);
   });
 });
 

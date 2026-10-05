@@ -5,6 +5,7 @@ import { fileTypeFromBuffer } from 'file-type';
 import mime from 'mime-types';
 import { assertPublicHttpUrl, type AssertedUrl } from './url-guard';
 import { env } from './env';
+import { storeVideoProxy } from './video-proxy-cache';
 
 const MAX_HTML_CHARS = 256 * 1024;
 const FETCH_TIMEOUT_MS = 5_000;
@@ -425,7 +426,9 @@ export const getContentInformationsFromUrl = async (url: string) => {
     const streamUrl = await resolveCobaltUrl(url);
     if (streamUrl) {
       const mediaDuration = await probeDuration(streamUrl);
-      return { contentType: 'video/mp4', mediaDuration, mediaIsShort: false, resolvedUrl: streamUrl };
+      const token = storeVideoProxy(streamUrl);
+      const proxyUrl = new URL(`/api/video?t=${token}`, env.API_URL).toString();
+      return { contentType: 'video/mp4', mediaDuration, mediaIsShort: false, resolvedUrl: proxyUrl };
     }
 
     // Short-link resolution: follow HTTP redirects to recover the canonical URL

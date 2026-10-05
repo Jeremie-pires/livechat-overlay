@@ -1,7 +1,7 @@
 # AI_STATE.md — LiveChat CCB
 
 ## Status
-Branch `feature/tiktok-twitter-integration` — implémentation + review + corrections + vérification runtime terminées. Prêt à commit + PR.
+Branch `feature/tiktok-twitter-integration` — proxy vidéo serveur implémenté. Twitter fonctionne via proxy (confirmé navigateur). TikTok attend cookies Cobalt (compte jetable). 358 tests verts.
 
 ---
 
@@ -34,19 +34,39 @@ Branch `feature/tiktok-twitter-integration` — implémentation + review + corre
 
 | File | Rôle |
 |---|---|
-| `src/services/content-utils.ts` | + isTikTokUrl, isTwitterUrl, resolveCobaltUrl (COBALT_TIMEOUT_MS=15s, clearTimeout, null-safe rewrite) |
+| `src/services/content-utils.ts` | + isTikTokUrl, isTwitterUrl, resolveCobaltUrl → storeVideoProxy → proxy URL |
+| `src/services/video-proxy-cache.ts` | Cache UUID→URL upstream (TTL 30 min) — nouveau |
+| `src/components/api/videoProxyRoute.ts` | GET /api/video?t=TOKEN — stream-proxy Range-aware — nouveau |
+| `src/loaders/RESTLoader.ts` | + VideoProxyRoute enregistrée sur /api |
 | `src/services/env.ts` | + COBALT_API_URL / COBALT_PUBLIC_URL (preprocess empty→undefined) |
 | `src/components/client/client.html` | + generateIframe (null-safe), extractEmbedUrl, branche video/tiktok+video/twitter |
-| `docker-compose.yml` | + service cobalt (port 9000, API_URL=$COBALT_PUBLIC_URL) ; defaults vides pour les 2 vars |
-| `.env.example` | + COBALT_API_URL / COBALT_PUBLIC_URL documentés |
-| `src/__tests__/services/content-utils.cobalt.test.ts` | 24 tests Cobalt (nouveau fichier) |
+| `docker-compose.yml` | + service cobalt (port 9000) |
+| `src/__tests__/services/content-utils.cobalt.test.ts` | 31 tests Cobalt |
 
 ---
 
 ## 3. Next Steps
 
-1. **Commit + PR** — `feature/tiktok-twitter-integration` → `develop` (tout est prêt, 351 tests verts, runtime vérifié)
-2. **H-AUD-06** — Socket.IO payload scope : filtrer `media` (Discord proxy URL) du payload `new-message`
-3. **Fastify v5 upgrade** — débloque CVE find-my-way + fast-uri restants
-4. **`displayMediaFull`** — worker lit flag Guild → Socket.IO payload → client CSS
-5. **L-01** — tsconfig strict (bloqué par `ignoreDeprecations: "6.0"`)
+1. **Cookies TikTok** — compte jetable → export cookies Netscape → `cobalt-cookies/cookies.txt` → ajout volume Docker Cobalt + env var (voir section 4)
+2. **Commit + PR** — `feature/tiktok-twitter-integration` → `develop`
+3. **H-AUD-06** — Socket.IO payload scope : filtrer `media` (Discord proxy URL) du payload `new-message`
+4. **Fastify v5 upgrade** — débloque CVE find-my-way + fast-uri restants
+5. **`displayMediaFull`** — worker lit flag Guild → Socket.IO payload → client CSS
+
+## 4. TikTok Cookies Setup
+
+TikTok bloque le proxy Cobalt sans session cookies. Solution sans exposer de données personnelles :
+
+1. Créer un compte TikTok jetable (mail temp type mail.tm ou guerrillamail)
+2. Se connecter sur tiktok.com dans Chrome
+3. Installer extension "Get cookies.txt LOCALLY"
+4. Exporter les cookies de tiktok.com → fichier `cookies.txt` format Netscape
+5. Placer dans `cobalt-cookies/cookies.txt` à la racine du repo (gitignored)
+6. Ajouter au docker-compose cobalt service :
+   ```yaml
+   environment:
+     COOKIE_FILE: /cookies/cookies.txt
+   volumes:
+     - ./cobalt-cookies:/cookies:ro
+   ```
+7. Redémarrer Cobalt : `docker compose restart cobalt`
