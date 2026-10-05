@@ -1,25 +1,32 @@
 # AI_STATE.md — LiveChat CCB
 
 ## Status
-Branch `develop` — audit sécurité phase 3 terminé (commit `45d10f0`).
+Branch `feature/tiktok-twitter-integration` — implémentation + review + corrections + vérification runtime terminées. Prêt à commit + PR.
 
 ---
 
 ## 1. Accomplished
 
 ### This session
-- **Audit phase 3 — 6 points corrigés** (commit `45d10f0`) :
-  - **H-AUD-01** : CSP header sur le dashboard (hook `onSend` scopé au plugin), redirect OAuth remplacé par HTTP 302 (suppression du inline script)
-  - **H-AUD-02** : `pnpm prune --prod` dans Dockerfile builder → runtime sans devDeps
-  - **H-AUD-03** : suppression `Object.assign(process.env, env)` dans `index.ts`
-  - **H-AUD-04** : `trustProxy` conditionnel `isDeployedMode() ? 1 : false`
-  - **H-AUD-05** : confirmé déjà corrigé (transaction atomique Prisma dans messagesWorker)
-  - **H-AUD-07** : pino redact paths `**` (récursif) + `req.query.code` / `access_token` / `client_secret`
-  - **C-AUD-02** : ffprobe spawné directement avec timeout 5s SIGKILL + URL IP-pinnée conservée ; mock test mis à jour (`child_process` au lieu de `get-video-duration`)
+- Branche `feature/tiktok-twitter-integration` créée depuis `develop`
+- Spec : `docs/SPEC-tiktok-twitter.md`
+- Plan : `tasks/plan.md` + `tasks/todo.md`
+- **T1** : `env.ts` — `COBALT_API_URL` + `COBALT_PUBLIC_URL` (zod optional, `z.preprocess` empty-string → undefined)
+- **T2** : `content-utils.ts` — `isTikTokUrl()`, `isTwitterUrl()` (exportées), `resolveCobaltUrl()`, early-return TikTok/Twitter dans `getContentInformationsFromUrl`
+- **T3** : `client.html` — `extractEmbedUrl()`, `generateIframe()` (null-safe), branche `video/tiktok`/`video/twitter` dans `displayContent`
+- **T4** : `docker-compose.yml` — service `cobalt` (ghcr.io/imputnet/cobalt:10, port 9000)
+- **T5** : `src/__tests__/services/content-utils.cobalt.test.ts` — 24 tests (URL detectors, Cobalt tunnel/redirect/error/timeout/short-links)
+- **7 bugs corrigés** (code review) : preprocess empty→undefined, default Cobalt URL vide, tunnel URL interne → null, COBALT_TIMEOUT_MS=15s séparé, clearTimeout dual-path, generateIframe null-safe, isTikTok/new URL dedup
+- **351 tests verts, lint propre**
+- **Vérification runtime** (Chrome, port 4500) : 5/5 scénarios PASS
+  - TikTok standard → iframe embed correct
+  - TikTok short link (vm.tiktok.com) → null guard tenu, bloc vide
+  - Twitter/X → iframe embed correct
+  - twitter.com old domain → embed correct
+  - Profil TikTok sans /video/ID → null guard tenu
 
 ### Previous sessions
-- Electron startup hardening, Fix CORS 404, Fix Prisma null guildId, CVE patch x5, CI desktop-release fix, desktop-client bumped 1.3.0 → 1.3.1.
-- SonarQube Quality Gate fixes (v1.3.0), rate-limit socket.io, chemins SVG absolus, nav dot rouge disconnect, toast bot online, slider taille overlay, bot status/maintenance push chaîne complète, dashboard refacto, centralized Discord error handler, release stable v1.2.11.
+- Audit sécurité phase 3 (H-AUD-01/02/03/04/07 + C-AUD-02), desktop-client v1.3.1, CVE patch x5, CI fix.
 
 ---
 
@@ -27,27 +34,19 @@ Branch `develop` — audit sécurité phase 3 terminé (commit `45d10f0`).
 
 | File | Rôle |
 |---|---|
-| `src/server.ts` | trustProxy conditionnel, redact `**`, CORS, rate-limit |
-| `src/index.ts` | Plus de Object.assign(process.env, env) |
-| `src/services/content-utils.ts` | ffprobe custom spawn (5s timeout, IP-pinned URL) |
-| `src/components/dashboard/dashboardRoutes.ts` | CSP header scopé + redirect HTTP 302 OAuth |
-| `src/loaders/DiscordLoader.ts` | Guard guildId null avant findFirst |
-| `src/loaders/socketLoader.ts` | Émet `server:status` à chaque connect Socket.IO |
-| `desktop-client/src/main.ts` | Startup hardening, applyLoginItemSettings guard isPackaged |
-| `desktop-client/src/renderer/renderer.js` | serverState, computeNavDotStatus, showStatusToast, rAF slider |
-| `desktop-client/package.json` | Version: `1.3.1` |
-| `.github/workflows/desktop-release.yml` | electron-builder crée release → gh release edit notes |
-| `Dockerfile` | pnpm prune --prod en fin de stage builder |
-| `package.json` + `pnpm-lock.yaml` | overrides CVE : brace-expansion, fast-uri, nanoid, socket.io-parser, tar |
-| `.trivyignore` | ip-address CVE-2026-69192 (fix = major bump v10, bloqué) |
+| `src/services/content-utils.ts` | + isTikTokUrl, isTwitterUrl, resolveCobaltUrl (COBALT_TIMEOUT_MS=15s, clearTimeout, null-safe rewrite) |
+| `src/services/env.ts` | + COBALT_API_URL / COBALT_PUBLIC_URL (preprocess empty→undefined) |
+| `src/components/client/client.html` | + generateIframe (null-safe), extractEmbedUrl, branche video/tiktok+video/twitter |
+| `docker-compose.yml` | + service cobalt (port 9000, API_URL=$COBALT_PUBLIC_URL) ; defaults vides pour les 2 vars |
+| `.env.example` | + COBALT_API_URL / COBALT_PUBLIC_URL documentés |
+| `src/__tests__/services/content-utils.cobalt.test.ts` | 24 tests Cobalt (nouveau fichier) |
 
 ---
 
 ## 3. Next Steps
 
-1. **Valider v1.3.1** — confirmer exe build OK + auto-update utilisateurs
-2. **H-AUD-06** — Socket.IO payload scope : vérifier si `media` (Discord proxy URL) doit être filtré du payload `new-message` (à confirmer côté client)
+1. **Commit + PR** — `feature/tiktok-twitter-integration` → `develop` (tout est prêt, 351 tests verts, runtime vérifié)
+2. **H-AUD-06** — Socket.IO payload scope : filtrer `media` (Discord proxy URL) du payload `new-message`
 3. **Fastify v5 upgrade** — débloque CVE find-my-way + fast-uri restants
 4. **`displayMediaFull`** — worker lit flag Guild → Socket.IO payload → client CSS
 5. **L-01** — tsconfig strict (bloqué par `ignoreDeprecations: "6.0"`)
-6. **Nouvelles idées user** — à définir

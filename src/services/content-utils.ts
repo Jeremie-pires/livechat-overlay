@@ -4,11 +4,15 @@ import fetch from 'node-fetch';
 import { fileTypeFromBuffer } from 'file-type';
 import mime from 'mime-types';
 import { assertPublicHttpUrl, type AssertedUrl } from './url-guard';
+import { env } from './env';
 
 const MAX_HTML_CHARS = 256 * 1024;
 const FETCH_TIMEOUT_MS = 5_000;
 const FFPROBE_TIMEOUT_MS = 5_000;
+const COBALT_TIMEOUT_MS = 15_000;
 const YOUTUBE_CONTENT_TYPE = 'video/youtube';
+const TIKTOK_CONTENT_TYPE = 'video/tiktok';
+const TWITTER_CONTENT_TYPE = 'video/twitter';
 
 function probeDuration(url: string): Promise<number | undefined> {
   return new Promise((resolve) => {
@@ -103,6 +107,85 @@ function isYouTubeUrl(url: string): boolean {
     return false;
   } catch {
     return false;
+  }
+}
+
+export function isTikTokUrl(url: string): boolean {
+  try {
+    const { hostname } = new URL(url);
+    return (
+      hostname === 'tiktok.com' ||
+      hostname === 'www.tiktok.com' ||
+      hostname === 'vm.tiktok.com' ||
+      hostname === 'vt.tiktok.com'
+    );
+  } catch {
+    return false;
+  }
+}
+
+export function isTwitterUrl(url: string): boolean {
+  try {
+    const { hostname } = new URL(url);
+    return (
+      hostname === 'twitter.com' || hostname === 'www.twitter.com' || hostname === 'x.com' || hostname === 'www.x.com'
+    );
+  } catch {
+    return false;
+  }
+}
+
+// Sends url to a self-hosted Cobalt instance and returns the resolved stream URL.
+// Returns null if Cobalt is unconfigured, unreachable, or returns an unexpected response.
+async function resolveCobaltUrl(url: string): Promise<string | null> {
+  const apiUrl = env.COBALT_API_URL;
+  if (!apiUrl) return null;
+
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const response = await Promise.race([
+      fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ url }),
+      }),
+      new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error('cobalt timeout')), COBALT_TIMEOUT_MS);
+      }),
+    ]);
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      logger.debug({ status: response.status }, 'cobalt: non-OK response');
+      return null;
+    }
+
+    const data = (await response.json()) as { status?: string; url?: string };
+
+    if (
+      (data.status === 'tunnel' || data.status === 'stream' || data.status === 'redirect') &&
+      typeof data.url === 'string'
+    ) {
+      const publicBase = env.COBALT_PUBLIC_URL;
+      if (publicBase && (data.status === 'tunnel' || data.status === 'stream')) {
+        // Rewrite internal tunnel origin to the browser-accessible URL
+        try {
+          const { pathname, search } = new URL(data.url);
+          return new URL(pathname + search, publicBase).toString();
+        } catch {
+          // Malformed tunnel URL — cannot rewrite, fall through to iframe fallback
+          return null;
+        }
+      }
+      return data.url;
+    }
+
+    logger.debug({ cobaltStatus: data.status }, 'cobalt: unhandled status');
+    return null;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    logger.debug({ err: error }, 'cobalt: request failed');
+    return null;
   }
 }
 
@@ -283,6 +366,21 @@ export const getContentInformationsFromUrl = async (url: string) => {
 
   if (isYouTubeUrl(url)) {
     return { contentType: YOUTUBE_CONTENT_TYPE, mediaDuration: undefined, mediaIsShort, resolvedUrl: undefined };
+  }
+
+  const isTikTok = isTikTokUrl(url);
+  if (isTikTok || isTwitterUrl(url)) {
+    const streamUrl = await resolveCobaltUrl(url);
+    if (streamUrl) {
+      const mediaDuration = await probeDuration(streamUrl);
+      return { contentType: 'video/mp4', mediaDuration, mediaIsShort: false, resolvedUrl: streamUrl };
+    }
+    return {
+      contentType: isTikTok ? TIKTOK_CONTENT_TYPE : TWITTER_CONTENT_TYPE,
+      mediaDuration: undefined,
+      mediaIsShort: false,
+      resolvedUrl: undefined,
+    };
   }
 
   let contentType: string | undefined;

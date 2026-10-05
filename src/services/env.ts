@@ -31,6 +31,9 @@ export const env = createEnv({
       .string()
       .default('5')
       .transform((s) => parseInt(s)),
+
+    COBALT_API_URL: z.preprocess((v) => (v === '' ? undefined : v), z.string().url().optional()),
+    COBALT_PUBLIC_URL: z.preprocess((v) => (v === '' ? undefined : v), z.string().url().optional()),
   },
   runtimeEnv: process.env,
 });

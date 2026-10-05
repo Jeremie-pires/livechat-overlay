@@ -184,6 +184,22 @@
         border-radius: 0 !important;
       }
 
+      /* Iframe fallback (TikTok / Twitter embeds) */
+      #message-block #message-iframe-wrapper {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      #message-block #message-iframe {
+        width: 100%;
+        height: 100%;
+        border: none;
+        background: transparent;
+      }
+
       .empty-state {
         display: none;
         color: rgba(226, 232, 240, 0.74);
@@ -391,6 +407,31 @@
         return img;
       }
 
+      function extractEmbedUrl(originalUrl, contentType) {
+        if (!originalUrl) return null;
+        if (contentType === 'video/tiktok') {
+          var videoId = /\/video\/(\d+)/.exec(originalUrl);
+          if (videoId) return 'https://www.tiktok.com/embed/v2/' + videoId[1] + '?autoplay=1&muted=1&loop=1';
+        } else if (contentType === 'video/twitter') {
+          var tweetId = /\/status\/(\d+)/.exec(originalUrl);
+          if (tweetId) return 'https://platform.twitter.com/embed/Tweet.html?id=' + tweetId[1] + '&theme=dark&dnt=true';
+        }
+        return null;
+      }
+
+      function generateIframe(originalUrl, contentType) {
+        var embedUrl = extractEmbedUrl(originalUrl, contentType);
+        if (!embedUrl) return null;
+        var wrapper = document.createElement('div');
+        wrapper.id = 'message-iframe-wrapper';
+        var iframe = document.createElement('iframe');
+        iframe.id = 'message-iframe';
+        iframe.allow = 'autoplay; encrypted-media';
+        iframe.src = embedUrl;
+        wrapper.appendChild(iframe);
+        return wrapper;
+      }
+
       function generateAudioVideo(src, mediaIsShort, onDone) {
         var wrapper = document.createElement('div');
         wrapper.id = 'message-player';
@@ -496,6 +537,10 @@
         if (data.mediaContentType) {
           if (data.mediaContentType.indexOf('image') === 0) {
             element.appendChild(generateImg(data.media || data.url));
+          } else if (data.mediaContentType === 'video/tiktok' || data.mediaContentType === 'video/twitter') {
+            var iframeEl = generateIframe(data.url, data.mediaContentType);
+            if (iframeEl) element.appendChild(iframeEl);
+            // Duration is handled by the message timeout — no ended event from iframe
           } else {
             element.appendChild(generateAudioVideo(data.media || data.url, data.mediaIsShort, onDone));
           }

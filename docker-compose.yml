@@ -21,6 +21,8 @@ services:
       DEFAULT_DURATION: ${DEFAULT_DURATION:-5}
       HIDE_COMMANDS_DISABLED: ${HIDE_COMMANDS_DISABLED:-false}
       TZ: Europe/Paris
+      COBALT_API_URL: ${COBALT_API_URL:-}
+      COBALT_PUBLIC_URL: ${COBALT_PUBLIC_URL:-}
     volumes:
       - livechat_data:/data
     healthcheck:
@@ -40,6 +42,26 @@ services:
       options:
         max-size: '10m'
         max-file: '5'
+
+  cobalt:
+    image: ghcr.io/imputnet/cobalt:10
+    restart: unless-stopped
+    ports:
+      - '9000:9000'
+    environment:
+      # Set to the browser-accessible URL so tunnel URLs are reachable by the overlay client
+      API_URL: ${COBALT_PUBLIC_URL:-http://localhost:9000}
+      CORS_WILDCARD: '1'
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+    logging:
+      driver: json-file
+      options:
+        max-size: '5m'
+        max-file: '3'
 
 volumes:
   livechat_data:

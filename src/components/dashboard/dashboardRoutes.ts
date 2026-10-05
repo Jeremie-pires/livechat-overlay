@@ -27,7 +27,7 @@ const DASHBOARD_CSP = [
   "default-src 'none'",
   "script-src 'self' 'unsafe-inline'",
   "style-src 'self' https://fonts.googleapis.com",
-  "font-src https://fonts.gstatic.com",
+  'font-src https://fonts.gstatic.com',
   "img-src 'self' data: https://cdn.discordapp.com",
   "connect-src 'self'",
   "base-uri 'none'",
