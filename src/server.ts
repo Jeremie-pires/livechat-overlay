@@ -154,8 +154,14 @@ export const runServer = async () => {
 
   // Prevent Fastify's 404 handler from intercepting Socket.IO HTTP-polling requests.
   // reply.hijack() cedes response ownership to socket.io's own Node HTTP listener.
-  fastify.all('/socket.io/*', (_req, reply) => {
-    reply.hijack();
+  // Explicit method list avoids fastify.all() iterating http.METHODS which includes non-standard
+  // methods (e.g. QUERY in Node 21+) that find-my-way rejects.
+  fastify.route({
+    method: ['DELETE', 'GET', 'HEAD', 'OPTIONS', 'PATCH', 'POST', 'PUT'],
+    url: '/socket.io/*',
+    handler: (_req, reply) => {
+      reply.hijack();
+    },
   });
 
   fastify.addHook('onClose', async () => {
