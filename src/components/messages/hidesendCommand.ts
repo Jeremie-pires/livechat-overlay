@@ -12,23 +12,6 @@ function isValidUrl(value: string): boolean {
   }
 }
 
-function isTwitterHost(value: string): boolean {
-  try {
-    const { hostname } = new URL(value);
-    return hostname === 'twitter.com' || hostname === 'www.twitter.com' || hostname === 'x.com' || hostname === 'www.x.com';
-  } catch {
-    return false;
-  }
-}
-
-function isValidTwitterVideoUrl(value: string): boolean {
-  try {
-    return /\/video\/\d+/.test(new URL(value).pathname);
-  } catch {
-    return false;
-  }
-}
-
 function detectShortFromAttachment(interaction: ChatInputCommandInteraction, optionKey: string): boolean {
   const height = interaction.options.get(optionKey)?.attachment?.height;
   const width = interaction.options.get(optionKey)?.attachment?.width;
@@ -92,18 +75,6 @@ export const hideSendCommand = () => ({
       await interaction.editReply({
         embeds: [
           new EmbedBuilder().setTitle(rosetty.t('error')!).setDescription(rosetty.t('invalidUrl')!).setColor(0xe74c3c),
-        ],
-      });
-      return;
-    }
-
-    if (url && isTwitterHost(url) && !isValidTwitterVideoUrl(url)) {
-      await interaction.editReply({
-        embeds: [
-          new EmbedBuilder()
-            .setTitle(rosetty.t('error')!)
-            .setDescription(rosetty.t('invalidTwitterUrl')!)
-            .setColor(0xe74c3c),
         ],
       });
       return;

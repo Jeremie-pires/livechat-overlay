@@ -1,13 +1,15 @@
 # AI_STATE.md — LiveChat CCB
 
 ## Status
-Branch `feature/tiktok-twitter-integration` — Fastify v5 migration + SonarQube fixes + Docker crash fix done. Prêt pour PR vers `main`.
+Branch `feature/tiktok-twitter-integration` — TikTok URL sanitization + Twitter/Cobalt fix done. En attente de merge vers `develop` puis `main`.
 
 ---
 
 ## 1. Accomplished
 
-### This session (session 3)
+### This session (session 4)
+- **TikTok URL sanitization** — strip query params (`?is_from_webapp=1&sender_device=pc`) ET chemin après `/video/ID` avant yt-dlp. Résout les 404 en prod.
+- **Twitter/Cobalt revert** — supprimé la contrainte `/video/N` (Cobalt ne supporte pas ce format). `isTwitterUrl` accepte désormais `status/\d+`. `sanitizeTwitterUrl` strip les params ET le suffixe `/video/N` avant d'envoyer à Cobalt. URL du post standard acceptée.
 - **Fix Docker crash** — `fastify.all('/socket.io/*')` en Fastify v5 itère `http.METHODS` qui inclut `QUERY` (Node 20.14+) ; `find-my-way` le rejette avec `AssertionError`. Remplacé par `fastify.route({ method: ['DELETE','GET','HEAD','OPTIONS','PATCH','POST','PUT'], ... })`. Commit `c7fead6`.
 - **Fix Trivy esbuild CVEs** — `tsx` déplacé en `dependencies` amenait `esbuild` dans l'image prod. Trivy suivait les symlinks pnpm vers `node_modules/@esbuild`. Fix: ajout `app/node_modules/@esbuild` aux `skip-dirs` dans `release.yml`. Commit `1f3deaa`.
 - **Fix Docker startup** — `tsx` était devDep, `pnpm prune --prod` le supprimait → `Cannot find module tsx`. Déplacé en `dependencies`.

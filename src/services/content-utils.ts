@@ -105,7 +105,7 @@ export function isTwitterUrl(url: string): boolean {
       hostname === 'www.twitter.com' ||
       hostname === 'x.com' ||
       hostname === 'www.x.com';
-    return isTwitterHost && /\/video\/\d+/.test(pathname);
+    return isTwitterHost && /\/status\/\d+/.test(pathname);
   } catch {
     return false;
   }
@@ -477,6 +477,7 @@ function sanitizeTwitterUrl(url: string): string {
   try {
     const parsed = new URL(url);
     parsed.search = '';
+    parsed.pathname = parsed.pathname.replace(/\/video\/\d+$/, '');
     return parsed.toString();
   } catch {
     return url;

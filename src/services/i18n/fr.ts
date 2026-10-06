@@ -109,7 +109,6 @@ export const frLang: typeof enLang = {
 
   invalidDuration: 'La durée doit être comprise entre 1 et 3600 secondes.',
   invalidUrl: 'Le lien fourni est invalide.',
-  invalidTwitterUrl: 'Pour envoyer une vidéo Twitter/X, fais un clic droit sur la vidéo → "Copier le lien de la vidéo". Le lien doit contenir `/video/1`.',
   noContentProvided: 'Tu dois fournir au moins un lien, un média ou un texte.',
   ttsTextTooLong: 'Le texte est trop long (200 caractères maximum).',
   talkNoAttachment: 'Aucune pièce jointe audio trouvée dans la réponse.',

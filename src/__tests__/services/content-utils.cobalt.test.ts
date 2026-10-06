@@ -96,8 +96,8 @@ describe('isTwitterUrl', () => {
     ['https://www.twitter.com/user/status/123456/video/1', true],
     ['https://x.com/user/status/123456/video/1', true],
     ['https://www.x.com/user/status/123456/video/2', true],
-    ['https://x.com/user/status/123456', false],
-    ['https://twitter.com/user/status/123456', false],
+    ['https://x.com/user/status/123456', true],
+    ['https://twitter.com/user/status/123456', true],
     ['https://t.co/ABCDEF1234', false],
     ['https://tiktok.com/@user/video/123', false],
     ['https://xcom.example.com/status/1', false],
@@ -131,7 +131,7 @@ describe('getContentInformationsFromUrl — tracking param stripping', () => {
 
     const cobaltCall = vi.mocked(fetch).mock.calls[0];
     const body = JSON.parse(cobaltCall[1]?.body as string) as { url: string };
-    expect(body.url).toBe('https://x.com/user/status/987654321/video/1');
+    expect(body.url).toBe('https://x.com/user/status/987654321');
   });
 });
 
