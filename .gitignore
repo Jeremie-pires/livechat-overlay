@@ -65,6 +65,10 @@ typings/
 # dotenv environment variables file
 .env
 
+# Cookie files — never commit session tokens
+cookies.txt
+cobalt-cookies/
+
 # parcel-bundler cache (https://parceljs.org/)
 .cache
 
@@ -74,12 +78,21 @@ typings/
 dist
 desktop-client/release
 logs
-docs
 data
 sqlite.db*
 
 ytdl.json
 package-lock.json
+desktop-client/package-lock.json
+
+# Dev test servers — local only, not production code
+test-cobalt-server.mjs
+test-client-server.mjs
+
+# Internal planning and research docs — not public
+tasks/
+docs/SPEC-*.md
+docs/*-research*.md
 
 # Force-track project memory files
 !CLAUDE.md

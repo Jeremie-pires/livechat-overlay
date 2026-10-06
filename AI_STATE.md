@@ -24,6 +24,7 @@ Branch `feature/tiktok-twitter-integration` — TikTok + Twitter validés en liv
 ### Previous sessions
 - Audit sécurité phase 3, desktop-client v1.3.1, CVE patch x5, CI fix.
 - Cobalt (Twitter) + yt-dlp (TikTok) architecture, proxy Range-aware, iframe fallback.
+- Repo cleanup: suppression/gitignore tasks/, test-cobalt-server.mjs, desktop-client/package-lock.json, .vscode/launch.json. Déplacement docs infra → docs/infra/. sonar-project.properties + CVE overrides.
 
 ---
 
