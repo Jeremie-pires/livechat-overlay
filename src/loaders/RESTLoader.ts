@@ -4,11 +4,13 @@ import { StatsRoutes } from '../components/api/statsRoutes';
 import { AdminDbRoutes } from '../components/api/adminDbRoutes';
 import { HealthRoutes } from '../components/api/healthRoutes';
 import { DashboardRoutes } from '../components/dashboard/dashboardRoutes';
+import { VideoProxyRoute } from '../components/api/videoProxyRoute';
 
 export const loadRoutes = (fastify: FastifyCustomInstance) => {
   const routes = [
     { '/client': ClientRoutes },
     { '/api': StatsRoutes },
+    { '/api': VideoProxyRoute },
     { '/api/admin': AdminDbRoutes },
     { '/': DashboardRoutes },
   ];

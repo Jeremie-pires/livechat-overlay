@@ -23,7 +23,6 @@ process.on('unhandledRejection', async (reason) => {
 
 (async () => {
   global.env = env;
-  Object.assign(process.env, env);
 
   const port: number = env.PORT ? env.PORT : 3000;
 

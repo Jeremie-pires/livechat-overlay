@@ -13,6 +13,7 @@ COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 
 COPY . .
+RUN pnpm prune --prod
 
 # ─────────────── Stage 2 – Runtime ────────────────────────────────────────────
 FROM node:20-alpine AS runner
