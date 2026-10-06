@@ -14,7 +14,7 @@ services:
       TZ: Europe/Paris
       COBALT_API_URL: http://cobalt-dev:9000
       COBALT_PUBLIC_URL: http://cobalt-dev:9000
-      YTDLP_PATH: /usr/local/bin/yt-dlp
+      YTDLP_PATH: /usr/bin/yt-dlp
       FFPROBE_PATH: /usr/bin/ffprobe
       YTDLP_COOKIES: /cookies/cookies.txt
     volumes:

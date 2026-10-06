@@ -24,7 +24,7 @@ services:
       COBALT_API_URL: ${COBALT_API_URL:-}
       COBALT_PUBLIC_URL: ${COBALT_PUBLIC_URL:-}
       YTDLP_COOKIES: ${YTDLP_COOKIES:-/cookies/cookies.txt}
-      YTDLP_PATH: /usr/local/bin/yt-dlp
+      YTDLP_PATH: /usr/bin/yt-dlp
       FFPROBE_PATH: /usr/bin/ffprobe
     volumes:
       - livechat_data:/data
