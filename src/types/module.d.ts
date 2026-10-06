@@ -10,7 +10,6 @@ import {
 } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 
-import { socketioServer } from 'fastify-socket.io';
 import { Server as ServerSocketIo } from 'socket.io';
 import { REST, Client } from 'discord.js';
 import { env as ENV } from '../services/env';
@@ -32,7 +31,7 @@ declare global {
     FastifyBaseLogger
   >;
 
-  interface FastifyCustomInstance extends FastifyICustom, fastifySensible, socketioServer {
+  interface FastifyCustomInstance extends FastifyICustom, fastifySensible {
     io: ServerSocketIo<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>;
   }
 }

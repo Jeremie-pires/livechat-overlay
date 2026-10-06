@@ -1,30 +1,27 @@
 # AI_STATE.md — LiveChat CCB
 
 ## Status
-Branch `feature/tiktok-twitter-integration` — TikTok + Twitter validés en live (proxy natif). 367 tests verts. Prêt pour PR.
+Branch `feature/tiktok-twitter-integration` — SonarQube fixes + Fastify v5 migration done. 367 tests verts. Prêt pour PR.
 
 ---
 
 ## 1. Accomplished
 
 ### This session
-- **Fix TikTok CDN 403** — cookie injection depuis `cobalt-cookies/cookies.txt` dans le fetch CDN
-- **Fix durée TikTok** — `probeDuration` sur l'URL CDN retournait 403 (pas de Cookie) → durée = 0 → vidéo coupée à 5s. Fix : extraire `duration` du JSON yt-dlp `-J` directement
-- `src/services/cookies-parser.ts` — nouveau : parse Netscape cookies.txt, filtre par domaine wildcard
-- `src/services/ytdlp.ts` — `-g` → `-J`, retourne `{ url, headers, duration? }`, injecte Cookie CDN
-- `src/services/video-proxy-cache.ts` — cache porte `headers?: Record<string,string>`
-- `src/components/api/videoProxyRoute.ts` — forward headers stockés (Cookie, UA, Referer) vers CDN
-- `src/services/content-utils.ts` — TikTok : utilise `extracted.duration` + `extracted.headers`
-- `test-cobalt-server.mjs` — cookie injection + durée loggée et exposée dans le status HTML
-- `src/__tests__/services/cookies-parser.test.ts` — 7 tests (parse, wildcard, anti-spoofing, ENOENT)
-- `src/__tests__/services/content-utils.cobalt.test.ts` — mocks mis à jour + test durée depuis yt-dlp
-- **367 tests verts**, lint propre
-- **Test live** : TikTok 175s (0:00/2:55, readyState 1) + Twitter 140s (0:00/2:20, readyState 1) ✅
+- **Fastify v5 migration** — upgrade `fastify@5.12.5`, `@fastify/cors@^11`, `@fastify/rate-limit@^11`
+- **Removed `fastify-socket.io`** — remplacé par intégration Socket.IO directe (`Server.attach(fastify.server)` + `fastify.decorate('io', io)`)
+- **Removed `unify-fastify`** — remplacé par `setErrorHandler` inline (était incompatible avec Fastify v5 via `fastify-plugin: '4.x'`)
+- **Removed `types-fastify-socket.io`** — devDep supprimée
+- **module.d.ts** — supprimé import `socketioServer` depuis `fastify-socket.io`
+- **SonarQube duplication fix** — extrait `buildProxyUrl()` et `resolveShortLink()` dans `content-utils.ts` (élimine similarité structurelle `handleTikTokUrl` / `handleTwitterUrl`)
+- **SonarQube Security B fix** — ajouté `YTDLP_PATH` et `FFPROBE_PATH` dans `env.ts`; `ytdlp.ts` et `content-utils.ts` utilisent désormais ces vars ; `docker-compose.yml` fixe les chemins absolus Docker
+- **tsconfig.json** — supprimé `ignoreDeprecations: "6.0"` invalide
+- **4 CVE Fastify HIGH** (CVE-2026-76169, 84428, 84469, 84504) — éliminés via Fastify v5
 
 ### Previous sessions
-- Audit sécurité phase 3, desktop-client v1.3.1, CVE patch x5, CI fix.
+- Fix TikTok CDN 403, durée, proxy natif, 367 tests verts, test live validé.
+- Repo cleanup: gitignore, docs/infra, sonar-project.properties, CVE overrides.
 - Cobalt (Twitter) + yt-dlp (TikTok) architecture, proxy Range-aware, iframe fallback.
-- Repo cleanup: suppression/gitignore tasks/, test-cobalt-server.mjs, desktop-client/package-lock.json, .vscode/launch.json. Déplacement docs infra → docs/infra/. sonar-project.properties + CVE overrides.
 
 ---
 
@@ -32,18 +29,20 @@ Branch `feature/tiktok-twitter-integration` — TikTok + Twitter validés en liv
 
 | File | Rôle |
 |---|---|
-| `src/services/cookies-parser.ts` | Parse Netscape cookies.txt → Cookie header string pour un domaine |
-| `src/services/ytdlp.ts` | yt-dlp `-J` wrapper — retourne `{ url, headers, duration? }` + cookie injection |
-| `src/services/video-proxy-cache.ts` | cache `{ url, headers?, exp }` — token → CDN entry avec headers |
-| `src/components/api/videoProxyRoute.ts` | GET /api/video?t=TOKEN — stream proxy Range-aware + forward headers |
-| `src/services/content-utils.ts` | TikTok → extractVideoUrl → proxy ; Twitter → Cobalt → proxy |
+| `src/server.ts` | Fastify v5 + Socket.IO direct (no fastify-socket.io) |
+| `src/services/env.ts` | YTDLP_PATH, FFPROBE_PATH, COBALT_* |
+| `src/services/cookies-parser.ts` | Parse Netscape cookies.txt → Cookie header |
+| `src/services/ytdlp.ts` | yt-dlp -J wrapper (uses env.YTDLP_PATH) |
+| `src/services/video-proxy-cache.ts` | Token → CDN entry avec headers |
+| `src/components/api/videoProxyRoute.ts` | GET /api/video?t=TOKEN — stream proxy Range-aware |
+| `src/services/content-utils.ts` | TikTok → yt-dlp → proxy ; Twitter → Cobalt → proxy |
 | `cobalt-cookies/cookies.txt` | Cookies TikTok Netscape (gitignored) |
 
 ### Flow livechat (Discord → browser)
-1. Discord `/send <tiktok-url>` → `sendCommand.ts` → `measureContentProcessing`
-2. `getContentInformationsFromUrl` → `extractVideoUrl` (yt-dlp -J) → `findOrCreateProxy` → `proxyUrl`
-3. Queue stocke `{ url: proxyUrl, mediaContentType: 'video/mp4', mediaDuration: Xs }`
-4. Worker émet `new-message` → client reçoit → `generateAudioVideo(proxyUrl)` → Vidstack joue
+1. Discord `/send <url>` → `getContentInformationsFromUrl`
+2. TikTok: `extractVideoUrl` (yt-dlp -J) → `buildProxyUrl` → proxy
+3. Twitter: `resolveCobaltUrl` → `buildProxyUrl` → proxy
+4. Queue → `new-message` → client → Vidstack
 
 ---
 
@@ -51,5 +50,4 @@ Branch `feature/tiktok-twitter-integration` — TikTok + Twitter validés en liv
 
 1. **[NEXT]** PR `feature/tiktok-twitter-integration` → `main`
 2. **H-AUD-06** — Socket.IO payload scope : filtrer `media` (Discord proxy URL) du payload `new-message`
-3. **Fastify v5 upgrade** — obligatoire pour CVE-2026-76169/84428/84469/84504 (HIGH, tous fixés en v5.12.2 uniquement)
-4. **`displayMediaFull`** feature
+3. **`displayMediaFull`** feature

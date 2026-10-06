@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process';
 import { parseCookiesForDomain } from './cookies-parser';
+import { env } from './env';
 
 const YTDLP_TIMEOUT_MS = 20_000;
 const MAX_CONCURRENT = 5;
@@ -68,7 +69,7 @@ async function _runYtdlp(url: string, cookiesFile?: string): Promise<YtdlpResult
 
       let proc: ReturnType<typeof spawn>;
       try {
-        proc = spawn('yt-dlp', args, { stdio: ['ignore', 'pipe', 'ignore'] });
+        proc = spawn(env.YTDLP_PATH, args, { stdio: ['ignore', 'pipe', 'ignore'] });
       } catch {
         settle(null);
         return;

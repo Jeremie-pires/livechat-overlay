@@ -26,7 +26,7 @@ function probeDuration(url: string): Promise<number | undefined> {
     };
 
     const proc = spawn(
-      'ffprobe',
+      env.FFPROBE_PATH,
       ['-v', 'error', '-show_entries', 'format=duration', '-of', 'default=noprint_wrappers=1:nokey=1', url],
       { stdio: ['ignore', 'pipe', 'ignore'] },
     );
@@ -413,20 +413,29 @@ async function resolveProviderMediaUrl(
   return { url: rawUrl, contentType: derivedContentType, guard: ogGuard };
 }
 
+function buildProxyUrl(sourceUrl: string, cdnUrl: string, headers?: Record<string, string>): string {
+  const token = findOrCreateProxy(sourceUrl, cdnUrl, headers);
+  return new URL(`/api/video?t=${token}`, env.API_URL).toString();
+}
+
+async function resolveShortLink(
+  url: string,
+  urlGuard: AssertedUrl,
+  shortLinkPattern: RegExp,
+  isValidUrl: (u: string) => boolean,
+): Promise<string | undefined> {
+  if (shortLinkPattern.test(new URL(url).pathname)) return undefined;
+  const canonical = await resolveHttpRedirect(url, urlGuard);
+  return canonical && isValidUrl(canonical) ? canonical : undefined;
+}
+
 async function handleTikTokUrl(url: string, urlGuard: AssertedUrl) {
   const extracted = await extractVideoUrl(url, env.YTDLP_COOKIES);
   if (extracted) {
-    const token = findOrCreateProxy(url, extracted.url, extracted.headers);
-    const proxyUrl = new URL(`/api/video?t=${token}`, env.API_URL).toString();
+    const proxyUrl = buildProxyUrl(url, extracted.url, extracted.headers);
     return { contentType: 'video/mp4', mediaDuration: extracted.duration, mediaIsShort: false, resolvedUrl: proxyUrl };
   }
-
-  const isShortLink = !/\/video\/\d+/.test(new URL(url).pathname);
-  let resolvedUrl: string | undefined;
-  if (isShortLink) {
-    const canonical = await resolveHttpRedirect(url, urlGuard);
-    if (canonical && isTikTokUrl(canonical)) resolvedUrl = canonical;
-  }
+  const resolvedUrl = await resolveShortLink(url, urlGuard, /\/video\/\d+/, isTikTokUrl);
   return { contentType: TIKTOK_CONTENT_TYPE, mediaDuration: undefined, mediaIsShort: false as const, resolvedUrl };
 }
 
@@ -434,17 +443,10 @@ async function handleTwitterUrl(url: string, urlGuard: AssertedUrl) {
   const streamUrl = await resolveCobaltUrl(url);
   if (streamUrl) {
     const mediaDuration = await probeDuration(streamUrl);
-    const token = findOrCreateProxy(url, streamUrl);
-    const proxyUrl = new URL(`/api/video?t=${token}`, env.API_URL).toString();
+    const proxyUrl = buildProxyUrl(url, streamUrl);
     return { contentType: 'video/mp4', mediaDuration, mediaIsShort: false, resolvedUrl: proxyUrl };
   }
-
-  const isShortLink = !/\/status\/\d+/.test(new URL(url).pathname);
-  let resolvedUrl: string | undefined;
-  if (isShortLink) {
-    const canonical = await resolveHttpRedirect(url, urlGuard);
-    if (canonical && isTwitterUrl(canonical)) resolvedUrl = canonical;
-  }
+  const resolvedUrl = await resolveShortLink(url, urlGuard, /\/status\/\d+/, isTwitterUrl);
   return { contentType: TWITTER_CONTENT_TYPE, mediaDuration: undefined, mediaIsShort: false as const, resolvedUrl };
 }
 

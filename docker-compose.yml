@@ -23,8 +23,12 @@ services:
       TZ: Europe/Paris
       COBALT_API_URL: ${COBALT_API_URL:-}
       COBALT_PUBLIC_URL: ${COBALT_PUBLIC_URL:-}
+      YTDLP_COOKIES: ${YTDLP_COOKIES:-/cookies/cookies.txt}
+      YTDLP_PATH: /usr/local/bin/yt-dlp
+      FFPROBE_PATH: /usr/bin/ffprobe
     volumes:
       - livechat_data:/data
+      - ./cobalt-cookies:/cookies:ro
     healthcheck:
       test:
         [
@@ -52,6 +56,9 @@ services:
       # Set to the browser-accessible URL so tunnel URLs are reachable by the overlay client
       API_URL: ${COBALT_PUBLIC_URL:-http://localhost:9000}
       CORS_WILDCARD: '1'
+      COOKIE_FILE: /cookies/cookies.txt
+    volumes:
+      - ./cobalt-cookies:/cookies:ro
     deploy:
       resources:
         limits:

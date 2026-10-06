@@ -1,11 +1,10 @@
-/* eslint-disable @typescript-eslint/no-var-requires */
 import 'reflect-metadata';
 import crypto from 'crypto';
 import Fastify from 'fastify';
 import FastifyCORS from '@fastify/cors';
 import FastifyRateLimit from '@fastify/rate-limit';
 import GracefulServer from '@gquittet/graceful-server';
-import unifyFastifyPlugin from 'unify-fastify';
+import { Server as SocketIOServer } from 'socket.io';
 import { loadRoutes } from './loaders/RESTLoader';
 import { loadSocket } from './loaders/socketLoader';
 import { env, isProductionEnv, isPreProductionEnv, validateEnvCoherence } from './services/env';
@@ -114,15 +113,16 @@ export const runServer = async () => {
     done();
   });
 
-  await fastify.register(unifyFastifyPlugin, {
-    disableDetails: isProductionEnv() || isPreProductionEnv(),
+  fastify.setErrorHandler((error, _req, reply) => {
+    const statusCode = (error as { statusCode?: number }).statusCode ?? 500;
+    const expose = statusCode < 500 || !isDeployedMode();
+    const message = expose ? error.message : 'Internal Server Error';
+    return reply.status(statusCode).send({ statusCode, error: error.name ?? 'Error', message });
   });
 
-  // unify-fastify logs all 404s at error level — override to warn to reduce noise
-  // (browser auto-fetches like /favicon.ico, /apple-touch-icon.png, etc.)
   fastify.setNotFoundHandler((req, reply) => {
     req.log.warn({ url: req.url, method: req.method }, '[404] Route not found');
-    void reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Not Found' });
+    return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Not Found' });
   });
 
   const gracefulServer = GracefulServer(fastify.server);
@@ -141,19 +141,18 @@ export const runServer = async () => {
     process.exit(1);
   }
 
-  try {
-    await fastify.register(require('fastify-socket.io'), {
-      cors: {
-        allowedHeaders: corsAllowedHeaders,
-        origin: corsOrigin,
-        credentials: true,
-      },
-    });
-  } catch (error) {
-    logger.fatal(error, '[SERVER] Failed to register socket.io');
-  }
+  // Attach Socket.IO directly to the underlying HTTP server — no plugin needed.
+  // fastify.server is created on Fastify() construction, before listen().
+  const io = new SocketIOServer(fastify.server, {
+    cors: {
+      allowedHeaders: corsAllowedHeaders,
+      origin: corsOrigin,
+      credentials: true,
+    },
+  });
+  fastify.decorate('io', io);
 
-  // Prevent unify-fastify's 404 handler from intercepting Socket.IO HTTP-polling requests.
+  // Prevent Fastify's 404 handler from intercepting Socket.IO HTTP-polling requests.
   // reply.hijack() cedes response ownership to socket.io's own Node HTTP listener.
   fastify.all('/socket.io/*', (_req, reply) => {
     reply.hijack();
@@ -161,7 +160,7 @@ export const runServer = async () => {
 
   fastify.addHook('onClose', async () => {
     await global.prisma.$disconnect();
-    await fastify.io?.close();
+    await io.close();
     logger.info({ event: 'shutdown' }, '[SERVER] Connections closed');
   });
 

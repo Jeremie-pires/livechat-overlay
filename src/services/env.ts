@@ -34,6 +34,9 @@ export const env = createEnv({
 
     COBALT_API_URL: z.preprocess((v) => (v === '' ? undefined : v), z.string().url().optional()),
     COBALT_PUBLIC_URL: z.preprocess((v) => (v === '' ? undefined : v), z.string().url().optional()),
+    YTDLP_COOKIES: z.preprocess((v) => (v === '' ? undefined : v), z.string().optional()),
+    YTDLP_PATH: z.string().default('yt-dlp'),
+    FFPROBE_PATH: z.string().default('ffprobe'),
   },
   runtimeEnv: process.env,
 });
