@@ -28,7 +28,7 @@ services:
       FFPROBE_PATH: /usr/bin/ffprobe
     volumes:
       - livechat_data:/data
-      - ./cobalt-cookies:/cookies:ro
+      - ./cobalt-cookies:/cookies
     healthcheck:
       test:
         [

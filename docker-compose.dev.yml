@@ -19,7 +19,7 @@ services:
       YTDLP_COOKIES: /cookies/cookies.txt
     volumes:
       - livechat_dev_data:/data
-      - ./cobalt-cookies:/cookies:ro
+      - ./cobalt-cookies:/cookies
     healthcheck:
       test:
         [
