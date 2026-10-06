@@ -12,8 +12,14 @@ services:
       APP_ENV: ${APP_ENV:-staging}
       LOG: ${LOG:-info}
       TZ: Europe/Paris
+      COBALT_API_URL: http://cobalt-dev:9000
+      COBALT_PUBLIC_URL: http://cobalt-dev:9000
+      YTDLP_PATH: /usr/bin/yt-dlp
+      FFPROBE_PATH: /usr/bin/ffprobe
+      YTDLP_COOKIES: /cookies/cookies.txt
     volumes:
       - livechat_dev_data:/data
+      - ./cobalt-cookies:/cookies
     healthcheck:
       test:
         [
@@ -31,6 +37,26 @@ services:
       options:
         max-size: '10m'
         max-file: '5'
+
+  cobalt-dev:
+    image: ghcr.io/imputnet/cobalt:10
+    restart: unless-stopped
+    environment:
+      API_URL: http://cobalt-dev:9000
+      CORS_WILDCARD: '1'
+      COOKIE_FILE: /cookies/cookies.txt
+    volumes:
+      - ./cobalt-cookies:/cookies:ro
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+    logging:
+      driver: json-file
+      options:
+        max-size: '5m'
+        max-file: '3'
 
 volumes:
   livechat_dev_data:

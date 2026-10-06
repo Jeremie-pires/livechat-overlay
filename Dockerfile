@@ -13,14 +13,16 @@ COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 
 COPY . .
+RUN pnpm prune --prod
 
 # ─────────────── Stage 2 – Runtime ────────────────────────────────────────────
 FROM node:20-alpine AS runner
 
 # No build toolchain (alpine-sdk / gcc / make) — native modules are copied pre-compiled from builder
 # openssl is required by the Prisma schema engine at runtime
+# yt-dlp via apk (Alpine community repo) — avoids glibc/musl incompatibility with standalone binaries
 RUN apk update && apk upgrade --no-cache && \
-    apk add --no-cache ffmpeg python3 py3-pip py3-setuptools openssl && \
+    apk add --no-cache ffmpeg openssl yt-dlp && \
     corepack enable && corepack prepare pnpm@8.15.9 --activate
 
 ENV HUSKY=0
