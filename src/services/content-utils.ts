@@ -5,7 +5,8 @@ import { fileTypeFromBuffer } from 'file-type';
 import mime from 'mime-types';
 import { assertPublicHttpUrl, type AssertedUrl } from './url-guard';
 import { env } from './env';
-import { storeVideoProxy } from './video-proxy-cache';
+import { findOrCreateProxy } from './video-proxy-cache';
+import { extractVideoUrl } from './ytdlp';
 
 const MAX_HTML_CHARS = 256 * 1024;
 const FETCH_TIMEOUT_MS = 5_000;
@@ -421,36 +422,50 @@ export const getContentInformationsFromUrl = async (url: string) => {
     return { contentType: YOUTUBE_CONTENT_TYPE, mediaDuration: undefined, mediaIsShort, resolvedUrl: undefined };
   }
 
-  const isTikTok = isTikTokUrl(url);
-  if (isTikTok || isTwitterUrl(url)) {
-    const streamUrl = await resolveCobaltUrl(url);
-    if (streamUrl) {
-      const mediaDuration = await probeDuration(streamUrl);
-      const token = storeVideoProxy(streamUrl);
+  if (isTikTokUrl(url)) {
+    // yt-dlp handles short links natively — pass the original URL directly
+    const extracted = await extractVideoUrl(url, env.YTDLP_COOKIES);
+    if (extracted) {
+      const mediaDuration = await probeDuration(extracted.url);
+      const token = findOrCreateProxy(url, extracted.url, extracted.headers);
       const proxyUrl = new URL(`/api/video?t=${token}`, env.API_URL).toString();
       return { contentType: 'video/mp4', mediaDuration, mediaIsShort: false, resolvedUrl: proxyUrl };
     }
 
-    // Short-link resolution: follow HTTP redirects to recover the canonical URL
-    // so the client can extract the video/tweet ID for iframe embedding.
-    // Applies to vm.tiktok.com/vt.tiktok.com (no /video/ID) and t.co (no /status/ID).
+    // yt-dlp failed — iframe fallback.
+    // For iframe we need the canonical URL with /video/ID; resolve short links if needed.
     const parsedPath = new URL(url).pathname;
-    const isShortLink = isTikTok ? !/\/video\/\d+/.test(parsedPath) : !/\/status\/\d+/.test(parsedPath);
+    const isShortLink = !/\/video\/\d+/.test(parsedPath);
 
     let resolvedUrl: string | undefined;
     if (isShortLink) {
       const canonical = await resolveHttpRedirect(url, urlGuard);
-      if (canonical && (isTikTokUrl(canonical) || isTwitterUrl(canonical))) {
-        resolvedUrl = canonical;
-      }
+      if (canonical && isTikTokUrl(canonical)) resolvedUrl = canonical;
     }
 
-    return {
-      contentType: isTikTok ? TIKTOK_CONTENT_TYPE : TWITTER_CONTENT_TYPE,
-      mediaDuration: undefined,
-      mediaIsShort: false,
-      resolvedUrl,
-    };
+    return { contentType: TIKTOK_CONTENT_TYPE, mediaDuration: undefined, mediaIsShort: false, resolvedUrl };
+  }
+
+  if (isTwitterUrl(url)) {
+    const streamUrl = await resolveCobaltUrl(url);
+    if (streamUrl) {
+      const mediaDuration = await probeDuration(streamUrl);
+      const token = findOrCreateProxy(url, streamUrl);
+      const proxyUrl = new URL(`/api/video?t=${token}`, env.API_URL).toString();
+      return { contentType: 'video/mp4', mediaDuration, mediaIsShort: false, resolvedUrl: proxyUrl };
+    }
+
+    // Short-link resolution: follow HTTP redirects so the client can extract /status/ID for iframe.
+    const parsedPath = new URL(url).pathname;
+    const isShortLink = !/\/status\/\d+/.test(parsedPath);
+
+    let resolvedUrl: string | undefined;
+    if (isShortLink) {
+      const canonical = await resolveHttpRedirect(url, urlGuard);
+      if (canonical && isTwitterUrl(canonical)) resolvedUrl = canonical;
+    }
+
+    return { contentType: TWITTER_CONTENT_TYPE, mediaDuration: undefined, mediaIsShort: false, resolvedUrl };
   }
 
   let contentType: string | undefined;

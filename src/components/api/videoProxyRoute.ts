@@ -7,14 +7,15 @@ export const VideoProxyRoute = () =>
       const token = req.query.t;
       if (!token) return reply.status(400).send({ error: 'missing token' });
 
-      const upstreamUrl = resolveVideoProxy(token);
-      if (!upstreamUrl) return reply.status(404).send({ error: 'expired or unknown token' });
+      const entry = resolveVideoProxy(token);
+      if (!entry) return reply.status(404).send({ error: 'expired or unknown token' });
 
       const rangeHeader = req.headers['range'];
-      const upstreamRes = await fetch(upstreamUrl, {
+      const upstreamRes = await fetch(entry.url, {
         headers: {
-          ...(rangeHeader ? { Range: rangeHeader } : {}),
           'User-Agent': 'Mozilla/5.0 (compatible; LiveChatCCB/1.0)',
+          ...entry.headers,
+          ...(rangeHeader ? { Range: rangeHeader } : {}),
         },
       });
 

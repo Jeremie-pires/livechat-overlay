@@ -28,13 +28,21 @@ vi.mock('../../services/env', () => ({
     COBALT_API_URL: 'http://cobalt-test:9000',
     COBALT_PUBLIC_URL: undefined,
     API_URL: 'http://localhost:3000',
+    YTDLP_COOKIES: undefined,
   },
 }));
 
+vi.mock('../../services/ytdlp', () => ({
+  extractVideoUrl: vi.fn(),
+}));
+
 import fetch from 'node-fetch';
+import { extractVideoUrl } from '../../services/ytdlp';
 import { getContentInformationsFromUrl, isTikTokUrl, isTwitterUrl } from '../../services/content-utils';
 
 const PUBLIC_IP = '93.184.216.34';
+const TIKTOK_CDN = 'https://v19-webapp.tiktok.com/video/tos/abc.mp4';
+const TIKTOK_RESULT = { url: TIKTOK_CDN, headers: { 'User-Agent': 'Mozilla/5.0', Cookie: 'tt_chain_token=x' } };
 
 function makeCobaltResponse(body: object, status = 200) {
   return {
@@ -97,13 +105,11 @@ describe('isTwitterUrl', () => {
   });
 });
 
-// ── Cobalt resolver — tunnel path ─────────────────────────────────────────────
+// ── TikTok via yt-dlp ────────────────────────────────────────────────────────
 
-describe('getContentInformationsFromUrl — TikTok via Cobalt (tunnel)', () => {
-  it('returns video/mp4 with a server proxy URL when Cobalt returns tunnel status', async () => {
-    vi.mocked(fetch).mockResolvedValueOnce(
-      makeCobaltResponse({ status: 'tunnel', url: 'http://cobalt-test:9000/tunnel?id=abc123' }) as never,
-    );
+describe('getContentInformationsFromUrl — TikTok via yt-dlp', () => {
+  it('returns video/mp4 with a server proxy URL when yt-dlp extracts a CDN URL', async () => {
+    vi.mocked(extractVideoUrl).mockResolvedValueOnce(TIKTOK_RESULT);
 
     const result = await getContentInformationsFromUrl('https://www.tiktok.com/@user/video/123456');
 
@@ -112,23 +118,29 @@ describe('getContentInformationsFromUrl — TikTok via Cobalt (tunnel)', () => {
     expect(result.mediaIsShort).toBe(false);
   });
 
-  it('does not call the SSRF-guarded fetch path for TikTok URLs (Cobalt handles it)', async () => {
-    vi.mocked(fetch).mockResolvedValueOnce(
-      makeCobaltResponse({ status: 'tunnel', url: 'http://cobalt-test:9000/tunnel?id=xyz' }) as never,
-    );
+  it('does not call Cobalt for TikTok URLs', async () => {
+    vi.mocked(extractVideoUrl).mockResolvedValueOnce(TIKTOK_RESULT);
 
     await getContentInformationsFromUrl('https://www.tiktok.com/@user/video/123456');
 
-    // Only one fetch call: the Cobalt POST (no SSRF-guarded fetch for the original URL)
-    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1);
-    expect(vi.mocked(fetch)).toHaveBeenCalledWith(
-      'http://cobalt-test:9000',
-      expect.objectContaining({ method: 'POST' }),
-    );
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled();
+    expect(vi.mocked(extractVideoUrl)).toHaveBeenCalledWith('https://www.tiktok.com/@user/video/123456', undefined);
+  });
+
+  it('passes vm.tiktok.com short links to yt-dlp directly (no HTTP redirect resolution)', async () => {
+    const shortUrl = 'https://vm.tiktok.com/ZM8abcd/';
+    vi.mocked(extractVideoUrl).mockResolvedValueOnce(TIKTOK_RESULT);
+
+    const result = await getContentInformationsFromUrl(shortUrl);
+
+    expect(vi.mocked(extractVideoUrl)).toHaveBeenCalledWith(shortUrl, undefined);
+    expect(result.contentType).toBe('video/mp4');
+    // No Cobalt / HTTP redirect fetch
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled();
   });
 });
 
-// ── Cobalt resolver — redirect path ──────────────────────────────────────────
+// ── Twitter via Cobalt (redirect) ────────────────────────────────────────────
 
 describe('getContentInformationsFromUrl — Twitter via Cobalt (redirect)', () => {
   it('returns video/mp4 with a server proxy URL when Cobalt returns redirect status', async () => {
@@ -140,28 +152,35 @@ describe('getContentInformationsFromUrl — Twitter via Cobalt (redirect)', () =
     expect(result.contentType).toBe('video/mp4');
     expect(result.resolvedUrl).toMatch(/^http:\/\/localhost:3000\/api\/video\?t=[\w-]+$/);
   });
+
+  it('does not call yt-dlp for Twitter URLs', async () => {
+    const cdnUrl = 'https://video.twimg.com/ext_tw_video/123/mp4/vid/720x1280/abc.mp4';
+    vi.mocked(fetch).mockResolvedValueOnce(makeCobaltResponse({ status: 'redirect', url: cdnUrl }) as never);
+
+    await getContentInformationsFromUrl('https://x.com/user/status/987654321');
+
+    expect(vi.mocked(extractVideoUrl)).not.toHaveBeenCalled();
+  });
 });
 
-// ── Cobalt stream status (alias) ──────────────────────────────────────────────
+// ── Cobalt "stream" status (Twitter) ─────────────────────────────────────────
 
-describe('getContentInformationsFromUrl — Cobalt "stream" status (alias for tunnel)', () => {
+describe('getContentInformationsFromUrl — Cobalt "stream" status (Twitter)', () => {
   it('returns video/mp4 with proxy URL for "stream" status', async () => {
     vi.mocked(fetch).mockResolvedValueOnce(
       makeCobaltResponse({ status: 'stream', url: 'http://cobalt-test:9000/tunnel?id=s1' }) as never,
     );
-    const result = await getContentInformationsFromUrl('https://www.tiktok.com/@user/video/111');
+    const result = await getContentInformationsFromUrl('https://twitter.com/user/status/111');
     expect(result.contentType).toBe('video/mp4');
     expect(result.resolvedUrl).toMatch(/^http:\/\/localhost:3000\/api\/video\?t=[\w-]+$/);
   });
 });
 
-// ── Cobalt error → iframe fallback ────────────────────────────────────────────
+// ── Fallback to iframe ────────────────────────────────────────────────────────
 
-describe('getContentInformationsFromUrl — Cobalt error paths → iframe fallback', () => {
-  it('returns video/tiktok fallback when Cobalt returns an error status', async () => {
-    vi.mocked(fetch).mockResolvedValueOnce(
-      makeCobaltResponse({ status: 'error', error: { code: 'error.api.unreachable' } }) as never,
-    );
+describe('getContentInformationsFromUrl — iframe fallback when extraction fails', () => {
+  it('returns video/tiktok fallback when yt-dlp returns null', async () => {
+    vi.mocked(extractVideoUrl).mockResolvedValueOnce(null);
 
     const result = await getContentInformationsFromUrl('https://www.tiktok.com/@user/video/123456');
 
@@ -181,44 +200,25 @@ describe('getContentInformationsFromUrl — Cobalt error paths → iframe fallba
     expect(result.resolvedUrl).toBeUndefined();
   });
 
-  it('returns video/tiktok fallback when Cobalt fetch throws (network error)', async () => {
+  it('returns video/twitter fallback when Cobalt fetch throws (network error)', async () => {
     vi.mocked(fetch).mockRejectedValueOnce(new Error('ECONNREFUSED'));
 
-    const result = await getContentInformationsFromUrl('https://www.tiktok.com/@user/video/123456');
+    const result = await getContentInformationsFromUrl('https://twitter.com/user/status/123456');
 
-    expect(result.contentType).toBe('video/tiktok');
+    expect(result.contentType).toBe('video/twitter');
     expect(result.resolvedUrl).toBeUndefined();
   });
 
-  it('returns video/tiktok fallback when Cobalt returns HTTP 500', async () => {
+  it('returns video/twitter fallback when Cobalt returns HTTP 500', async () => {
     vi.mocked(fetch).mockResolvedValueOnce(makeCobaltResponse({}, 500) as never);
 
-    const result = await getContentInformationsFromUrl('https://www.tiktok.com/@user/video/123456');
+    const result = await getContentInformationsFromUrl('https://twitter.com/user/status/123456');
 
-    expect(result.contentType).toBe('video/tiktok');
+    expect(result.contentType).toBe('video/twitter');
   });
 });
 
-// ── vm.tiktok.com short links ─────────────────────────────────────────────────
-
-describe('getContentInformationsFromUrl — TikTok short links forwarded to Cobalt', () => {
-  it('sends vm.tiktok.com short link to Cobalt without server-side redirect resolution', async () => {
-    const shortUrl = 'https://vm.tiktok.com/ZM8abcd/';
-    vi.mocked(fetch).mockResolvedValueOnce(
-      makeCobaltResponse({ status: 'tunnel', url: 'http://cobalt-test:9000/tunnel?id=short1' }) as never,
-    );
-
-    const result = await getContentInformationsFromUrl(shortUrl);
-
-    expect(vi.mocked(fetch)).toHaveBeenCalledWith(
-      'http://cobalt-test:9000',
-      expect.objectContaining({ body: JSON.stringify({ url: shortUrl }) }),
-    );
-    expect(result.contentType).toBe('video/mp4');
-  });
-});
-
-// ── Short-link redirect resolution (no Cobalt) ────────────────────────────────
+// ── Short-link redirect resolution (yt-dlp / Cobalt failed) ──────────────────
 
 function makeRedirectResponse(location: string | null, status = 302) {
   return {
@@ -230,14 +230,13 @@ function makeRedirectResponse(location: string | null, status = 302) {
   };
 }
 
-describe('getContentInformationsFromUrl — short-link redirect resolution (Cobalt returns error)', () => {
-  it('resolves vm.tiktok.com short URL to canonical URL via HTTP redirect', async () => {
+describe('getContentInformationsFromUrl — short-link redirect resolution after failure', () => {
+  it('resolves vm.tiktok.com short URL to canonical URL when yt-dlp fails', async () => {
     const shortUrl = 'https://vm.tiktok.com/ZM8abcd/';
     const canonical = 'https://www.tiktok.com/@username/video/7391234567890123456';
 
-    vi.mocked(fetch)
-      .mockResolvedValueOnce(makeCobaltResponse({ status: 'error' }) as never) // Cobalt fails
-      .mockResolvedValueOnce(makeRedirectResponse(canonical) as never); // redirect
+    vi.mocked(extractVideoUrl).mockResolvedValueOnce(null);
+    vi.mocked(fetch).mockResolvedValueOnce(makeRedirectResponse(canonical) as never);
 
     const result = await getContentInformationsFromUrl(shortUrl);
 
@@ -245,13 +244,12 @@ describe('getContentInformationsFromUrl — short-link redirect resolution (Coba
     expect(result.resolvedUrl).toBe(canonical);
   });
 
-  it('resolves vt.tiktok.com short URL to canonical URL via HTTP redirect', async () => {
+  it('resolves vt.tiktok.com short URL to canonical URL when yt-dlp fails', async () => {
     const shortUrl = 'https://vt.tiktok.com/ZS8xyz/';
     const canonical = 'https://www.tiktok.com/@user2/video/9876543210123456789';
 
-    vi.mocked(fetch)
-      .mockResolvedValueOnce(makeCobaltResponse({ status: 'error' }) as never)
-      .mockResolvedValueOnce(makeRedirectResponse(canonical) as never);
+    vi.mocked(extractVideoUrl).mockResolvedValueOnce(null);
+    vi.mocked(fetch).mockResolvedValueOnce(makeRedirectResponse(canonical) as never);
 
     const result = await getContentInformationsFromUrl(shortUrl);
 
@@ -259,7 +257,7 @@ describe('getContentInformationsFromUrl — short-link redirect resolution (Coba
     expect(result.resolvedUrl).toBe(canonical);
   });
 
-  it('resolves t.co short URL to canonical Twitter URL via HTTP redirect', async () => {
+  it('resolves t.co short URL to canonical Twitter URL when Cobalt fails', async () => {
     const shortUrl = 'https://t.co/ABCDEF1234';
     const canonical = 'https://x.com/username/status/1800000000000000001';
 
@@ -273,27 +271,24 @@ describe('getContentInformationsFromUrl — short-link redirect resolution (Coba
     expect(result.resolvedUrl).toBe(canonical);
   });
 
-  it('does not resolve redirect when URL already has /video/ID (full TikTok URL)', async () => {
+  it('does not attempt HTTP redirect for full TikTok URL when yt-dlp fails', async () => {
     const fullUrl = 'https://www.tiktok.com/@user/video/7391234567890123456';
 
-    vi.mocked(fetch).mockResolvedValueOnce(makeCobaltResponse({ status: 'error' }) as never);
+    vi.mocked(extractVideoUrl).mockResolvedValueOnce(null);
 
     const result = await getContentInformationsFromUrl(fullUrl);
 
     expect(result.contentType).toBe('video/tiktok');
-    // resolvedUrl is undefined — no redirect attempted for full URLs
     expect(result.resolvedUrl).toBeUndefined();
-    // Only one fetch call (Cobalt), no redirect fetch
-    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1);
+    // No HTTP redirect fetch
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled();
   });
 
-  it('returns resolvedUrl undefined when redirect target is not a TikTok/Twitter URL', async () => {
+  it('returns resolvedUrl undefined when redirect target is not a TikTok URL', async () => {
     const shortUrl = 'https://vm.tiktok.com/ZM8abcd/';
-    const maliciousRedirect = 'https://evil.example.com/page';
 
-    vi.mocked(fetch)
-      .mockResolvedValueOnce(makeCobaltResponse({ status: 'error' }) as never)
-      .mockResolvedValueOnce(makeRedirectResponse(maliciousRedirect) as never);
+    vi.mocked(extractVideoUrl).mockResolvedValueOnce(null);
+    vi.mocked(fetch).mockResolvedValueOnce(makeRedirectResponse('https://evil.example.com/page') as never);
 
     const result = await getContentInformationsFromUrl(shortUrl);
 
@@ -301,12 +296,11 @@ describe('getContentInformationsFromUrl — short-link redirect resolution (Coba
     expect(result.resolvedUrl).toBeUndefined();
   });
 
-  it('returns resolvedUrl undefined when redirect fetch fails', async () => {
+  it('returns resolvedUrl undefined when redirect fetch fails for TikTok', async () => {
     const shortUrl = 'https://vm.tiktok.com/ZM8abcd/';
 
-    vi.mocked(fetch)
-      .mockResolvedValueOnce(makeCobaltResponse({ status: 'error' }) as never)
-      .mockRejectedValueOnce(new Error('ECONNREFUSED')); // redirect fetch fails
+    vi.mocked(extractVideoUrl).mockResolvedValueOnce(null);
+    vi.mocked(fetch).mockRejectedValueOnce(new Error('ECONNREFUSED'));
 
     const result = await getContentInformationsFromUrl(shortUrl);
 
