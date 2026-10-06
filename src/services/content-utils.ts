@@ -1,8 +1,8 @@
 import https from 'node:https';
-import { spawn } from 'node:child_process';
 import fetch from 'node-fetch';
 import { fileTypeFromBuffer } from 'file-type';
 import mime from 'mime-types';
+import { runProcess } from './spawn-process';
 import { assertPublicHttpUrl, type AssertedUrl } from './url-guard';
 import { env } from './env';
 import { findOrCreateProxy } from './video-proxy-cache';
@@ -16,46 +16,17 @@ const YOUTUBE_CONTENT_TYPE = 'video/youtube';
 const TIKTOK_CONTENT_TYPE = 'video/tiktok';
 const TWITTER_CONTENT_TYPE = 'video/twitter';
 
-function probeDuration(url: string): Promise<number | undefined> {
-  return new Promise((resolve) => {
-    let settled = false;
-    const settle = (val: number | undefined) => {
-      if (settled) return;
-      settled = true;
-      resolve(val);
-    };
-
-    const proc = spawn(
-      env.FFPROBE_PATH,
-      ['-v', 'error', '-show_entries', 'format=duration', '-of', 'default=noprint_wrappers=1:nokey=1', url],
-      { stdio: ['ignore', 'pipe', 'ignore'] },
-    );
-
-    let stdout = '';
-    proc.stdout?.on('data', (chunk: Buffer) => {
-      stdout += chunk.toString('utf-8');
-    });
-
-    const timer = setTimeout(() => {
-      proc.kill('SIGKILL');
-      settle(undefined);
-    }, FFPROBE_TIMEOUT_MS);
-
-    proc.on('close', (code) => {
-      clearTimeout(timer);
-      if (code !== 0) {
-        settle(undefined);
-        return;
-      }
+async function probeDuration(url: string): Promise<number | undefined> {
+  const val = await runProcess(
+    env.FFPROBE_PATH,
+    ['-v', 'error', '-show_entries', 'format=duration', '-of', 'default=noprint_wrappers=1:nokey=1', url],
+    FFPROBE_TIMEOUT_MS,
+    (stdout) => {
       const s = Number.parseFloat(stdout.trim());
-      settle(Number.isFinite(s) && s > 0 ? s : undefined);
-    });
-
-    proc.on('error', () => {
-      clearTimeout(timer);
-      settle(undefined);
-    });
-  });
+      return Number.isFinite(s) && s > 0 ? s : null;
+    },
+  );
+  return val ?? undefined;
 }
 
 interface OpenGraphResult {

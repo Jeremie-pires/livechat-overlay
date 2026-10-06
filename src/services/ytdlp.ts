@@ -1,6 +1,6 @@
-import { spawn } from 'node:child_process';
 import { parseCookiesForDomain } from './cookies-parser';
 import { env } from './env';
+import { runProcess } from './spawn-process';
 
 const YTDLP_TIMEOUT_MS = 20_000;
 const MAX_CONCURRENT = 5;
@@ -48,73 +48,32 @@ export async function extractVideoUrl(url: string, cookiesFile?: string): Promis
 async function _runYtdlp(url: string, cookiesFile?: string): Promise<YtdlpResult | null> {
   await acquireSemaphore();
   try {
-    const result = await new Promise<YtdlpResult | null>((resolve) => {
-      const args = [
-        '--no-playlist',
-        '--format',
-        'best[ext=mp4]/best',
-        '-J',
-        ...(cookiesFile ? ['--cookies', cookiesFile] : []),
-        url,
-      ];
+    const args = [
+      '--no-playlist',
+      '--format',
+      'best[ext=mp4]/best',
+      '-J',
+      ...(cookiesFile ? ['--cookies', cookiesFile] : []),
+      url,
+    ];
 
-      let stdout = '';
-      let settled = false;
-
-      const settle = (val: YtdlpResult | null) => {
-        if (settled) return;
-        settled = true;
-        resolve(val);
-      };
-
-      let proc: ReturnType<typeof spawn>;
+    const result = await runProcess<YtdlpResult>(env.YTDLP_PATH, args, YTDLP_TIMEOUT_MS, (stdout) => {
       try {
-        proc = spawn(env.YTDLP_PATH, args, { stdio: ['ignore', 'pipe', 'ignore'] });
+        const info = JSON.parse(stdout) as {
+          url?: string;
+          http_headers?: Record<string, string>;
+          duration?: number;
+        };
+        const cdnUrl = info.url;
+        if (!cdnUrl?.startsWith('http')) return null;
+        const duration =
+          typeof info.duration === 'number' && Number.isFinite(info.duration) && info.duration > 0
+            ? info.duration
+            : undefined;
+        return { url: cdnUrl, headers: info.http_headers ?? {}, duration };
       } catch {
-        settle(null);
-        return;
+        return null;
       }
-
-      const timer = setTimeout(() => {
-        proc.kill('SIGKILL');
-        settle(null);
-      }, YTDLP_TIMEOUT_MS);
-
-      proc.stdout?.on('data', (chunk: Buffer) => {
-        stdout += chunk.toString('utf-8');
-      });
-
-      proc.on('close', (code) => {
-        clearTimeout(timer);
-        if (code !== 0) {
-          settle(null);
-          return;
-        }
-        try {
-          const info = JSON.parse(stdout) as {
-            url?: string;
-            http_headers?: Record<string, string>;
-            duration?: number;
-          };
-          const cdnUrl = info.url;
-          if (!cdnUrl?.startsWith('http')) {
-            settle(null);
-            return;
-          }
-          const duration =
-            typeof info.duration === 'number' && Number.isFinite(info.duration) && info.duration > 0
-              ? info.duration
-              : undefined;
-          settle({ url: cdnUrl, headers: info.http_headers ?? {}, duration });
-        } catch {
-          settle(null);
-        }
-      });
-
-      proc.on('error', () => {
-        clearTimeout(timer);
-        settle(null);
-      });
     });
 
     if (!result || !cookiesFile) return result;

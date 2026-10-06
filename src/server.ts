@@ -7,7 +7,7 @@ import GracefulServer from '@gquittet/graceful-server';
 import { Server as SocketIOServer } from 'socket.io';
 import { loadRoutes } from './loaders/RESTLoader';
 import { loadSocket } from './loaders/socketLoader';
-import { env, isProductionEnv, isPreProductionEnv, validateEnvCoherence } from './services/env';
+import { env, validateEnvCoherence } from './services/env';
 import { loadDiscord } from './loaders/DiscordLoader';
 import { loadRosetty } from './services/i18n/loader';
 import { loadPrismaClient } from './services/prisma/loadPrisma';
