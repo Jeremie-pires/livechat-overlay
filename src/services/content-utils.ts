@@ -459,7 +459,21 @@ async function resolveGenericContentInfo(
   return { contentType, mediaDuration };
 }
 
-function stripQueryParams(url: string): string {
+function sanitizeTikTokUrl(url: string): string {
+  try {
+    const parsed = new URL(url);
+    if (parsed.hostname === 'www.tiktok.com' || parsed.hostname === 'tiktok.com') {
+      const match = /(\/@[^/]+\/video\/\d+)/.exec(parsed.pathname);
+      if (match) return `${parsed.protocol}//${parsed.hostname}${match[1]}`;
+    }
+    parsed.search = '';
+    return parsed.toString();
+  } catch {
+    return url;
+  }
+}
+
+function sanitizeTwitterUrl(url: string): string {
   try {
     const parsed = new URL(url);
     parsed.search = '';
@@ -470,7 +484,7 @@ function stripQueryParams(url: string): string {
 }
 
 export const getContentInformationsFromUrl = async (url: string) => {
-  const cleanUrl = isTikTokUrl(url) || isTwitterUrl(url) ? stripQueryParams(url) : url;
+  const cleanUrl = isTikTokUrl(url) ? sanitizeTikTokUrl(url) : isTwitterUrl(url) ? sanitizeTwitterUrl(url) : url;
   const urlGuard = await assertPublicHttpUrl(cleanUrl);
   const mediaIsShort = isYouTubeShortUrl(cleanUrl);
 
