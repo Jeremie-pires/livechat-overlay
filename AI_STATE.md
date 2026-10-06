@@ -1,13 +1,14 @@
 # AI_STATE.md — LiveChat CCB
 
 ## Status
-Branch `feature/tiktok-twitter-integration` — SonarQube fixes + Fastify v5 migration done. 367 tests verts. Prêt pour PR.
+Branch `feature/tiktok-twitter-integration` — SonarQube fixes + Fastify v5 migration done. Fix Docker crash (fastify.all + QUERY method). Prêt pour PR.
 
 ---
 
 ## 1. Accomplished
 
 ### This session
+- **Fix Docker crash** — `fastify.all('/socket.io/*')` en Fastify v5 itère `http.METHODS` qui inclut `QUERY` (Node 20.14+) ; `find-my-way` le rejette. Remplacé par `fastify.route({ method: ['DELETE','GET','HEAD','OPTIONS','PATCH','POST','PUT'], ... })`.
 - **Fastify v5 migration** — upgrade `fastify@5.12.5`, `@fastify/cors@^11`, `@fastify/rate-limit@^11`
 - **Removed `fastify-socket.io`** — remplacé par intégration Socket.IO directe (`Server.attach(fastify.server)` + `fastify.decorate('io', io)`)
 - **Removed `unify-fastify`** — remplacé par `setErrorHandler` inline (était incompatible avec Fastify v5 via `fastify-plugin: '4.x'`)
