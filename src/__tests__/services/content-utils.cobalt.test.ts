@@ -105,6 +105,34 @@ describe('isTwitterUrl', () => {
   });
 });
 
+// ── URL sanitization ─────────────────────────────────────────────────────────
+
+describe('getContentInformationsFromUrl — tracking param stripping', () => {
+  it('strips TikTok tracking params before passing to yt-dlp', async () => {
+    vi.mocked(extractVideoUrl).mockResolvedValueOnce(TIKTOK_RESULT);
+
+    await getContentInformationsFromUrl(
+      'https://www.tiktok.com/@user/video/123456?is_from_webapp=1&sender_device=pc',
+    );
+
+    expect(vi.mocked(extractVideoUrl)).toHaveBeenCalledWith(
+      'https://www.tiktok.com/@user/video/123456',
+      undefined,
+    );
+  });
+
+  it('strips Twitter tracking params before passing to Cobalt', async () => {
+    const cdnUrl = 'https://video.twimg.com/ext_tw_video/123/mp4/vid/720x1280/abc.mp4';
+    vi.mocked(fetch).mockResolvedValueOnce(makeCobaltResponse({ status: 'redirect', url: cdnUrl }) as never);
+
+    await getContentInformationsFromUrl('https://x.com/user/status/987654321?s=20&t=abc123');
+
+    const cobaltCall = vi.mocked(fetch).mock.calls[0];
+    const body = JSON.parse(cobaltCall[1]?.body as string) as { url: string };
+    expect(body.url).toBe('https://x.com/user/status/987654321');
+  });
+});
+
 // ── TikTok via yt-dlp ────────────────────────────────────────────────────────
 
 describe('getContentInformationsFromUrl — TikTok via yt-dlp', () => {

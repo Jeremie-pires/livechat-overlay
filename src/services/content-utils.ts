@@ -460,19 +460,30 @@ async function resolveGenericContentInfo(
   return { contentType, mediaDuration };
 }
 
-export const getContentInformationsFromUrl = async (url: string) => {
-  const urlGuard = await assertPublicHttpUrl(url);
-  const mediaIsShort = isYouTubeShortUrl(url);
+function stripQueryParams(url: string): string {
+  try {
+    const parsed = new URL(url);
+    parsed.search = '';
+    return parsed.toString();
+  } catch {
+    return url;
+  }
+}
 
-  if (isYouTubeUrl(url)) {
+export const getContentInformationsFromUrl = async (url: string) => {
+  const cleanUrl = isTikTokUrl(url) || isTwitterUrl(url) ? stripQueryParams(url) : url;
+  const urlGuard = await assertPublicHttpUrl(cleanUrl);
+  const mediaIsShort = isYouTubeShortUrl(cleanUrl);
+
+  if (isYouTubeUrl(cleanUrl)) {
     return { contentType: YOUTUBE_CONTENT_TYPE, mediaDuration: undefined, mediaIsShort, resolvedUrl: undefined };
   }
-  if (isTikTokUrl(url)) return handleTikTokUrl(url, urlGuard);
-  if (isTwitterUrl(url)) return handleTwitterUrl(url, urlGuard);
+  if (isTikTokUrl(cleanUrl)) return handleTikTokUrl(cleanUrl, urlGuard);
+  if (isTwitterUrl(cleanUrl)) return handleTwitterUrl(cleanUrl, urlGuard);
 
-  const providerResult = await resolveProviderMediaUrl(url);
+  const providerResult = await resolveProviderMediaUrl(cleanUrl);
   const resolvedUrl = providerResult?.url;
-  const effectiveUrl = resolvedUrl ?? url;
+  const effectiveUrl = resolvedUrl ?? cleanUrl;
   const effectiveGuard = providerResult?.guard ?? urlGuard;
 
   const { contentType, mediaDuration } = await resolveGenericContentInfo(
