@@ -29,6 +29,7 @@ function releaseSemaphore(): void {
 export interface YtdlpResult {
   url: string;
   headers: Record<string, string>;
+  duration?: number;
 }
 
 // In-flight dedup: concurrent callers for the same URL share one yt-dlp process
@@ -89,13 +90,21 @@ async function _runYtdlp(url: string, cookiesFile?: string): Promise<YtdlpResult
           return;
         }
         try {
-          const info = JSON.parse(stdout) as { url?: string; http_headers?: Record<string, string> };
+          const info = JSON.parse(stdout) as {
+            url?: string;
+            http_headers?: Record<string, string>;
+            duration?: number;
+          };
           const cdnUrl = info.url;
           if (!cdnUrl?.startsWith('http')) {
             settle(null);
             return;
           }
-          settle({ url: cdnUrl, headers: info.http_headers ?? {} });
+          const duration =
+            typeof info.duration === 'number' && Number.isFinite(info.duration) && info.duration > 0
+              ? info.duration
+              : undefined;
+          settle({ url: cdnUrl, headers: info.http_headers ?? {}, duration });
         } catch {
           settle(null);
         }
@@ -114,7 +123,7 @@ async function _runYtdlp(url: string, cookiesFile?: string): Promise<YtdlpResult
       const cdnDomain = new URL(result.url).hostname;
       const cookieHeader = await parseCookiesForDomain(cookiesFile, cdnDomain);
       if (cookieHeader) {
-        return { url: result.url, headers: { ...result.headers, Cookie: cookieHeader } };
+        return { url: result.url, headers: { ...result.headers, Cookie: cookieHeader }, duration: result.duration };
       }
     } catch {
       // Malformed CDN URL — return result without Cookie header

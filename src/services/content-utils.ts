@@ -426,7 +426,8 @@ export const getContentInformationsFromUrl = async (url: string) => {
     // yt-dlp handles short links natively — pass the original URL directly
     const extracted = await extractVideoUrl(url, env.YTDLP_COOKIES);
     if (extracted) {
-      const mediaDuration = await probeDuration(extracted.url);
+      // Use duration from yt-dlp JSON — probeDuration would 403 on CDN without Cookie header
+      const mediaDuration = extracted.duration;
       const token = findOrCreateProxy(url, extracted.url, extracted.headers);
       const proxyUrl = new URL(`/api/video?t=${token}`, env.API_URL).toString();
       return { contentType: 'video/mp4', mediaDuration, mediaIsShort: false, resolvedUrl: proxyUrl };

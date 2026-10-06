@@ -72,7 +72,8 @@ function extractWithYtdlp(url) {
         const info = JSON.parse(stdout);
         const videoUrl = info.url;
         const headers = info.http_headers ?? {};
-        settle(videoUrl?.startsWith('http') ? { url: videoUrl, headers } : null);
+        const duration = typeof info.duration === 'number' && info.duration > 0 ? info.duration : undefined;
+        settle(videoUrl?.startsWith('http') ? { url: videoUrl, headers, duration } : null);
       } catch {
         settle(null);
       }
@@ -166,7 +167,8 @@ const html = `<!doctype html>
           document.getElementById('stage').innerHTML = '<span class="placeholder">Erreur</span>';
         } else {
           var extractor = data.extractor === 'ytdlp' ? 'yt-dlp' : ('Cobalt [' + data.cobaltStatus + ']');
-          setStatus('✅ ' + extractor + ' → proxy → lecture native (chargement…)', '#4ade80');
+          var durInfo = data.duration ? ' | durée yt-dlp: ' + Math.round(data.duration) + 's' : '';
+          setStatus('✅ ' + extractor + ' → proxy → lecture native (chargement…)' + durInfo, '#4ade80');
           playVideo(data.proxyUrl);
         }
       } catch(e) {
@@ -243,9 +245,10 @@ const server = createServer(async (req, res) => {
           console.warn('[yt-dlp] no cookies found for domain:', cdnDomain);
         }
 
+        console.log('[yt-dlp] duration from JSON:', result.duration, 's');
         const token = cacheEntry({ url: result.url, headers: result.headers, type: 'tiktok' });
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ extractor: 'ytdlp', proxyUrl: `/api/stream?t=${token}` }));
+        res.end(JSON.stringify({ extractor: 'ytdlp', proxyUrl: `/api/stream?t=${token}`, duration: result.duration }));
       } else {
         const cobalt = await resolveCobalt(target);
         if (!cobalt) {

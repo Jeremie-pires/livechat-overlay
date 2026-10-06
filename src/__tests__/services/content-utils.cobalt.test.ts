@@ -42,7 +42,7 @@ import { getContentInformationsFromUrl, isTikTokUrl, isTwitterUrl } from '../../
 
 const PUBLIC_IP = '93.184.216.34';
 const TIKTOK_CDN = 'https://v19-webapp.tiktok.com/video/tos/abc.mp4';
-const TIKTOK_RESULT = { url: TIKTOK_CDN, headers: { 'User-Agent': 'Mozilla/5.0', Cookie: 'tt_chain_token=x' } };
+const TIKTOK_RESULT = { url: TIKTOK_CDN, headers: { 'User-Agent': 'Mozilla/5.0', Cookie: 'tt_chain_token=x' }, duration: 42 };
 
 function makeCobaltResponse(body: object, status = 200) {
   return {
@@ -125,6 +125,16 @@ describe('getContentInformationsFromUrl — TikTok via yt-dlp', () => {
 
     expect(vi.mocked(fetch)).not.toHaveBeenCalled();
     expect(vi.mocked(extractVideoUrl)).toHaveBeenCalledWith('https://www.tiktok.com/@user/video/123456', undefined);
+  });
+
+  it('uses duration from yt-dlp JSON (not ffprobe, which would 403 on CDN without Cookie)', async () => {
+    vi.mocked(extractVideoUrl).mockResolvedValueOnce(TIKTOK_RESULT);
+
+    const result = await getContentInformationsFromUrl('https://www.tiktok.com/@user/video/123456');
+
+    expect(result.mediaDuration).toBe(42);
+    // fetch is not called (no ffprobe HTTP request via fetch mock)
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled();
   });
 
   it('passes vm.tiktok.com short links to yt-dlp directly (no HTTP redirect resolution)', async () => {
