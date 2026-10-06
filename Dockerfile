@@ -26,7 +26,7 @@ RUN apk update && apk upgrade --no-cache && \
     ARCH="$(uname -m)" && \
     if [ "$ARCH" = "aarch64" ]; then YTBIN="yt-dlp_linux_aarch64"; \
     elif [ "$ARCH" = "armv7l" ]; then YTBIN="yt-dlp_linux_armv7l"; \
-    else YTBIN="yt-dlp"; fi && \
+    else YTBIN="yt-dlp_linux"; fi && \
     wget -qO /usr/local/bin/yt-dlp \
       "https://github.com/yt-dlp/yt-dlp/releases/latest/download/${YTBIN}" && \
     chmod a+rx /usr/local/bin/yt-dlp && \
