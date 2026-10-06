@@ -105,6 +105,7 @@ export const enLang = {
 
   invalidDuration: 'Duration must be between 1 and 3600 seconds.',
   invalidUrl: 'The provided URL is invalid.',
+  invalidTwitterUrl: 'To send a Twitter/X video, right-click the video → "Copy video address". The link must contain `/video/1`.',
   noContentProvided: 'You must provide at least a URL, a media, or a text.',
   ttsTextTooLong: 'The text is too long (200 characters max).',
   talkNoAttachment: 'No audio attachment was found in the reply.',

@@ -99,14 +99,13 @@ export function isTikTokUrl(url: string): boolean {
 
 export function isTwitterUrl(url: string): boolean {
   try {
-    const { hostname } = new URL(url);
-    return (
+    const { hostname, pathname } = new URL(url);
+    const isTwitterHost =
       hostname === 'twitter.com' ||
       hostname === 'www.twitter.com' ||
       hostname === 'x.com' ||
-      hostname === 'www.x.com' ||
-      hostname === 't.co'
-    );
+      hostname === 'www.x.com';
+    return isTwitterHost && /\/video\/\d+/.test(pathname);
   } catch {
     return false;
   }
@@ -460,19 +459,44 @@ async function resolveGenericContentInfo(
   return { contentType, mediaDuration };
 }
 
-export const getContentInformationsFromUrl = async (url: string) => {
-  const urlGuard = await assertPublicHttpUrl(url);
-  const mediaIsShort = isYouTubeShortUrl(url);
+function sanitizeTikTokUrl(url: string): string {
+  try {
+    const parsed = new URL(url);
+    if (parsed.hostname === 'www.tiktok.com' || parsed.hostname === 'tiktok.com') {
+      const match = /(\/@[^/]+\/video\/\d+)/.exec(parsed.pathname);
+      if (match) return `${parsed.protocol}//${parsed.hostname}${match[1]}`;
+    }
+    parsed.search = '';
+    return parsed.toString();
+  } catch {
+    return url;
+  }
+}
 
-  if (isYouTubeUrl(url)) {
+function sanitizeTwitterUrl(url: string): string {
+  try {
+    const parsed = new URL(url);
+    parsed.search = '';
+    return parsed.toString();
+  } catch {
+    return url;
+  }
+}
+
+export const getContentInformationsFromUrl = async (url: string) => {
+  const cleanUrl = isTikTokUrl(url) ? sanitizeTikTokUrl(url) : isTwitterUrl(url) ? sanitizeTwitterUrl(url) : url;
+  const urlGuard = await assertPublicHttpUrl(cleanUrl);
+  const mediaIsShort = isYouTubeShortUrl(cleanUrl);
+
+  if (isYouTubeUrl(cleanUrl)) {
     return { contentType: YOUTUBE_CONTENT_TYPE, mediaDuration: undefined, mediaIsShort, resolvedUrl: undefined };
   }
-  if (isTikTokUrl(url)) return handleTikTokUrl(url, urlGuard);
-  if (isTwitterUrl(url)) return handleTwitterUrl(url, urlGuard);
+  if (isTikTokUrl(cleanUrl)) return handleTikTokUrl(cleanUrl, urlGuard);
+  if (isTwitterUrl(cleanUrl)) return handleTwitterUrl(cleanUrl, urlGuard);
 
-  const providerResult = await resolveProviderMediaUrl(url);
+  const providerResult = await resolveProviderMediaUrl(cleanUrl);
   const resolvedUrl = providerResult?.url;
-  const effectiveUrl = resolvedUrl ?? url;
+  const effectiveUrl = resolvedUrl ?? cleanUrl;
   const effectiveGuard = providerResult?.guard ?? urlGuard;
 
   const { contentType, mediaDuration } = await resolveGenericContentInfo(
