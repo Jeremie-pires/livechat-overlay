@@ -92,11 +92,13 @@ describe('isTikTokUrl', () => {
 
 describe('isTwitterUrl', () => {
   it.each([
-    ['https://twitter.com/user/status/123456', true],
-    ['https://www.twitter.com/user/status/123456', true],
-    ['https://x.com/user/status/123456', true],
-    ['https://www.x.com/user/status/123456', true],
-    ['https://t.co/ABCDEF1234', true],
+    ['https://twitter.com/user/status/123456/video/1', true],
+    ['https://www.twitter.com/user/status/123456/video/1', true],
+    ['https://x.com/user/status/123456/video/1', true],
+    ['https://www.x.com/user/status/123456/video/2', true],
+    ['https://x.com/user/status/123456', false],
+    ['https://twitter.com/user/status/123456', false],
+    ['https://t.co/ABCDEF1234', false],
     ['https://tiktok.com/@user/video/123', false],
     ['https://xcom.example.com/status/1', false],
     ['not-a-url', false],
@@ -125,11 +127,11 @@ describe('getContentInformationsFromUrl — tracking param stripping', () => {
     const cdnUrl = 'https://video.twimg.com/ext_tw_video/123/mp4/vid/720x1280/abc.mp4';
     vi.mocked(fetch).mockResolvedValueOnce(makeCobaltResponse({ status: 'redirect', url: cdnUrl }) as never);
 
-    await getContentInformationsFromUrl('https://x.com/user/status/987654321?s=20&t=abc123');
+    await getContentInformationsFromUrl('https://x.com/user/status/987654321/video/1?s=20&t=abc123');
 
     const cobaltCall = vi.mocked(fetch).mock.calls[0];
     const body = JSON.parse(cobaltCall[1]?.body as string) as { url: string };
-    expect(body.url).toBe('https://x.com/user/status/987654321');
+    expect(body.url).toBe('https://x.com/user/status/987654321/video/1');
   });
 });
 
@@ -185,7 +187,7 @@ describe('getContentInformationsFromUrl — Twitter via Cobalt (redirect)', () =
     const cdnUrl = 'https://video.twimg.com/ext_tw_video/123/mp4/vid/720x1280/abc.mp4';
     vi.mocked(fetch).mockResolvedValueOnce(makeCobaltResponse({ status: 'redirect', url: cdnUrl }) as never);
 
-    const result = await getContentInformationsFromUrl('https://x.com/user/status/987654321');
+    const result = await getContentInformationsFromUrl('https://x.com/user/status/987654321/video/1');
 
     expect(result.contentType).toBe('video/mp4');
     expect(result.resolvedUrl).toMatch(/^http:\/\/localhost:3000\/api\/video\?t=[\w-]+$/);
@@ -195,7 +197,7 @@ describe('getContentInformationsFromUrl — Twitter via Cobalt (redirect)', () =
     const cdnUrl = 'https://video.twimg.com/ext_tw_video/123/mp4/vid/720x1280/abc.mp4';
     vi.mocked(fetch).mockResolvedValueOnce(makeCobaltResponse({ status: 'redirect', url: cdnUrl }) as never);
 
-    await getContentInformationsFromUrl('https://x.com/user/status/987654321');
+    await getContentInformationsFromUrl('https://x.com/user/status/987654321/video/1');
 
     expect(vi.mocked(extractVideoUrl)).not.toHaveBeenCalled();
   });
@@ -208,7 +210,7 @@ describe('getContentInformationsFromUrl — Cobalt "stream" status (Twitter)', (
     vi.mocked(fetch).mockResolvedValueOnce(
       makeCobaltResponse({ status: 'stream', url: 'http://cobalt-test:9000/tunnel?id=s1' }) as never,
     );
-    const result = await getContentInformationsFromUrl('https://twitter.com/user/status/111');
+    const result = await getContentInformationsFromUrl('https://twitter.com/user/status/111/video/1');
     expect(result.contentType).toBe('video/mp4');
     expect(result.resolvedUrl).toMatch(/^http:\/\/localhost:3000\/api\/video\?t=[\w-]+$/);
   });
@@ -232,7 +234,7 @@ describe('getContentInformationsFromUrl — iframe fallback when extraction fail
       makeCobaltResponse({ status: 'error', error: { code: 'error.api.unreachable' } }) as never,
     );
 
-    const result = await getContentInformationsFromUrl('https://twitter.com/user/status/987');
+    const result = await getContentInformationsFromUrl('https://twitter.com/user/status/987/video/1');
 
     expect(result.contentType).toBe('video/twitter');
     expect(result.resolvedUrl).toBeUndefined();
@@ -241,7 +243,7 @@ describe('getContentInformationsFromUrl — iframe fallback when extraction fail
   it('returns video/twitter fallback when Cobalt fetch throws (network error)', async () => {
     vi.mocked(fetch).mockRejectedValueOnce(new Error('ECONNREFUSED'));
 
-    const result = await getContentInformationsFromUrl('https://twitter.com/user/status/123456');
+    const result = await getContentInformationsFromUrl('https://twitter.com/user/status/123456/video/1');
 
     expect(result.contentType).toBe('video/twitter');
     expect(result.resolvedUrl).toBeUndefined();
@@ -250,7 +252,7 @@ describe('getContentInformationsFromUrl — iframe fallback when extraction fail
   it('returns video/twitter fallback when Cobalt returns HTTP 500', async () => {
     vi.mocked(fetch).mockResolvedValueOnce(makeCobaltResponse({}, 500) as never);
 
-    const result = await getContentInformationsFromUrl('https://twitter.com/user/status/123456');
+    const result = await getContentInformationsFromUrl('https://twitter.com/user/status/123456/video/1');
 
     expect(result.contentType).toBe('video/twitter');
   });
@@ -292,20 +294,6 @@ describe('getContentInformationsFromUrl — short-link redirect resolution after
     const result = await getContentInformationsFromUrl(shortUrl);
 
     expect(result.contentType).toBe('video/tiktok');
-    expect(result.resolvedUrl).toBe(canonical);
-  });
-
-  it('resolves t.co short URL to canonical Twitter URL when Cobalt fails', async () => {
-    const shortUrl = 'https://t.co/ABCDEF1234';
-    const canonical = 'https://x.com/username/status/1800000000000000001';
-
-    vi.mocked(fetch)
-      .mockResolvedValueOnce(makeCobaltResponse({ status: 'error' }) as never)
-      .mockResolvedValueOnce(makeRedirectResponse(canonical) as never);
-
-    const result = await getContentInformationsFromUrl(shortUrl);
-
-    expect(result.contentType).toBe('video/twitter');
     expect(result.resolvedUrl).toBe(canonical);
   });
 

@@ -99,14 +99,13 @@ export function isTikTokUrl(url: string): boolean {
 
 export function isTwitterUrl(url: string): boolean {
   try {
-    const { hostname } = new URL(url);
-    return (
+    const { hostname, pathname } = new URL(url);
+    const isTwitterHost =
       hostname === 'twitter.com' ||
       hostname === 'www.twitter.com' ||
       hostname === 'x.com' ||
-      hostname === 'www.x.com' ||
-      hostname === 't.co'
-    );
+      hostname === 'www.x.com';
+    return isTwitterHost && /\/video\/\d+/.test(pathname);
   } catch {
     return false;
   }
