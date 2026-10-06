@@ -1,4 +1,5 @@
 import { createServer } from 'node:http';
+import { randomBytes } from 'node:crypto';
 import { Readable } from 'node:stream';
 import { spawn } from 'node:child_process';
 import { join, dirname } from 'node:path';
@@ -55,7 +56,7 @@ function extractWithYtdlp(url) {
 
     let proc;
     try {
-      proc = spawn('yt-dlp', args, { stdio: ['ignore', 'pipe', 'ignore'] });
+      proc = spawn('yt-dlp', args, { stdio: ['ignore', 'pipe', 'ignore'] }); // NOSONAR — yt-dlp expected on PATH by operator
     } catch {
       settle(null);
       return;
@@ -206,7 +207,7 @@ const html = `<!doctype html>
 const urlCache = new Map();
 
 function cacheEntry(entry) {
-  const token = Math.random().toString(36).slice(2);
+  const token = randomBytes(16).toString('hex');
   urlCache.set(token, { ...entry, exp: Date.now() + 5 * 60_000 });
   return token;
 }
@@ -217,110 +218,112 @@ function getCached(token) {
   return entry;
 }
 
+function sendJson(res, status, body) {
+  res.writeHead(status, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify(body));
+}
+
+async function handleTikTokResolve(res) {
+  const result = await extractWithYtdlp(TIKTOK_URL);
+  if (!result) {
+    sendJson(res, 200, { error: 'yt-dlp returned no URL' });
+    return;
+  }
+  console.log('[yt-dlp] url:', result.url.slice(0, 80));
+  console.log('[yt-dlp] headers from yt-dlp:', JSON.stringify(result.headers));
+
+  const cdnDomain = new URL(result.url).hostname;
+  const cookieHeader = await parseCookiesForDomain(COOKIES_FILE, cdnDomain);
+  if (cookieHeader) {
+    result.headers['Cookie'] = cookieHeader;
+    console.log('[yt-dlp] injected Cookie header for', cdnDomain, '—', cookieHeader.slice(0, 80) + '…');
+  } else {
+    console.warn('[yt-dlp] no cookies found for domain:', cdnDomain);
+  }
+
+  console.log('[yt-dlp] duration from JSON:', result.duration, 's');
+  const token = cacheEntry({ url: result.url, headers: result.headers, type: 'tiktok' });
+  sendJson(res, 200, { extractor: 'ytdlp', proxyUrl: `/api/stream?t=${token}`, duration: result.duration });
+}
+
+async function handleTwitterResolve(res) {
+  const cobalt = await resolveCobalt(TWITTER_URL);
+  if (!cobalt) {
+    sendJson(res, 200, { error: 'Cobalt indisponible' });
+    return;
+  }
+  const token = cacheEntry({ url: cobalt.url, headers: {}, type: 'twitter' });
+  sendJson(res, 200, { extractor: 'cobalt', cobaltStatus: cobalt.status, proxyUrl: `/api/stream?t=${token}` });
+}
+
+async function handleResolve(reqUrl, res) {
+  const type = reqUrl.searchParams.get('type');
+  try {
+    if (type === 'tiktok') {
+      await handleTikTokResolve(res);
+    } else {
+      await handleTwitterResolve(res);
+    }
+  } catch (err) {
+    sendJson(res, 200, { error: String(err) });
+  }
+}
+
+async function handleStream(req, res, reqUrl) {
+  const token = reqUrl.searchParams.get('t');
+  const entry = token ? getCached(token) : null;
+  if (!entry) {
+    res.writeHead(404, { 'Content-Type': 'text/plain' });
+    res.end('expired or unknown token');
+    return;
+  }
+
+  const rangeHeader = req.headers['range'];
+  const upstreamHeaders = {
+    ...entry.headers,
+    ...(rangeHeader ? { Range: rangeHeader } : { Range: 'bytes=0-' }),
+  };
+
+  let upstream;
+  try {
+    upstream = await fetch(entry.url, { headers: upstreamHeaders });
+  } catch (err) {
+    res.writeHead(502, { 'Content-Type': 'text/plain' });
+    res.end('upstream fetch failed: ' + String(err));
+    return;
+  }
+
+  console.log(`[stream] ${entry.type} CDN status: ${upstream.status}`);
+
+  if (upstream.status === 403 || upstream.status === 401) {
+    const body = await upstream.text().catch(() => '');
+    console.log('[stream] CDN rejected:', body.slice(0, 200).replace(/[\r\n]/g, ' '));
+    res.writeHead(upstream.status, { 'Content-Type': 'text/plain' });
+    res.end(`CDN ${upstream.status}`);
+    return;
+  }
+
+  const ct = upstream.headers.get('content-type') ?? 'video/mp4';
+  const cl = upstream.headers.get('content-length');
+  const cr = upstream.headers.get('content-range');
+  const outHeaders = { 'Content-Type': ct, 'Accept-Ranges': 'bytes', 'Access-Control-Allow-Origin': 'http://127.0.0.1:4502' };
+  if (cl) outHeaders['Content-Length'] = cl;
+  if (cr) outHeaders['Content-Range'] = cr;
+  res.writeHead(upstream.status === 206 ? 206 : 200, outHeaders);
+
+  const readable = Readable.fromWeb(upstream.body);
+  readable.on('error', (err) => {
+    console.error('[stream] pipe error:', err.message);
+    if (!res.writableEnded) res.end();
+  });
+  res.on('close', () => readable.destroy());
+  readable.pipe(res);
+}
+
 const server = createServer(async (req, res) => {
   const reqUrl = new URL(req.url, 'http://localhost');
-
-  if (reqUrl.pathname === '/api/resolve') {
-    const type = reqUrl.searchParams.get('type');
-    const target = type === 'twitter' ? TWITTER_URL : TIKTOK_URL;
-
-    try {
-      if (type === 'tiktok') {
-        const result = await extractWithYtdlp(target);
-        if (!result) {
-          res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'yt-dlp returned no URL' }));
-          return;
-        }
-        console.log('[yt-dlp] url:', result.url.slice(0, 80));
-        console.log('[yt-dlp] headers from yt-dlp:', JSON.stringify(result.headers));
-
-        // Inject TikTok CDN cookies (tt_chain_token, sessionid, etc.)
-        const cdnDomain = new URL(result.url).hostname;
-        const cookieHeader = await parseCookiesForDomain(COOKIES_FILE, cdnDomain);
-        if (cookieHeader) {
-          result.headers['Cookie'] = cookieHeader;
-          console.log('[yt-dlp] injected Cookie header for', cdnDomain, '—', cookieHeader.slice(0, 80) + '…');
-        } else {
-          console.warn('[yt-dlp] no cookies found for domain:', cdnDomain);
-        }
-
-        console.log('[yt-dlp] duration from JSON:', result.duration, 's');
-        const token = cacheEntry({ url: result.url, headers: result.headers, type: 'tiktok' });
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ extractor: 'ytdlp', proxyUrl: `/api/stream?t=${token}`, duration: result.duration }));
-      } else {
-        const cobalt = await resolveCobalt(target);
-        if (!cobalt) {
-          res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'Cobalt indisponible' }));
-          return;
-        }
-        const token = cacheEntry({ url: cobalt.url, headers: {}, type: 'twitter' });
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ extractor: 'cobalt', cobaltStatus: cobalt.status, proxyUrl: `/api/stream?t=${token}` }));
-      }
-    } catch (err) {
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: String(err) }));
-    }
-    return;
-  }
-
-  if (reqUrl.pathname === '/api/stream') {
-    const token = reqUrl.searchParams.get('t');
-    const entry = token ? getCached(token) : null;
-    if (!entry) {
-      res.writeHead(404, { 'Content-Type': 'text/plain' });
-      res.end('expired or unknown token');
-      return;
-    }
-
-    const rangeHeader = req.headers['range'];
-
-    // Use headers provided by yt-dlp (include cookies, UA, Referer set by extractor)
-    const upstreamHeaders = {
-      ...entry.headers,
-      ...(rangeHeader ? { Range: rangeHeader } : { Range: 'bytes=0-' }),
-    };
-
-    let upstream;
-    try {
-      upstream = await fetch(entry.url, { headers: upstreamHeaders });
-    } catch (err) {
-      res.writeHead(502, { 'Content-Type': 'text/plain' });
-      res.end('upstream fetch failed: ' + String(err));
-      return;
-    }
-
-    console.log(`[stream] ${entry.type} CDN status: ${upstream.status}`);
-
-    if (upstream.status === 403 || upstream.status === 401) {
-      const body = await upstream.text().catch(() => '');
-      console.log('[stream] CDN rejected:', body.slice(0, 200));
-      res.writeHead(upstream.status, { 'Content-Type': 'text/plain' });
-      res.end(`CDN ${upstream.status}`);
-      return;
-    }
-
-    const ct = upstream.headers.get('content-type') ?? 'video/mp4';
-    const cl = upstream.headers.get('content-length');
-    const cr = upstream.headers.get('content-range');
-    const outHeaders = { 'Content-Type': ct, 'Accept-Ranges': 'bytes', 'Access-Control-Allow-Origin': '*' };
-    if (cl) outHeaders['Content-Length'] = cl;
-    if (cr) outHeaders['Content-Range'] = cr;
-    res.writeHead(upstream.status === 206 ? 206 : 200, outHeaders);
-
-    const readable = Readable.fromWeb(upstream.body);
-    readable.on('error', (err) => {
-      console.error('[stream] pipe error:', err.message);
-      if (!res.writableEnded) res.end();
-    });
-    res.on('close', () => readable.destroy());
-    readable.pipe(res);
-    return;
-  }
-
+  if (reqUrl.pathname === '/api/resolve') { await handleResolve(reqUrl, res); return; }
+  if (reqUrl.pathname === '/api/stream') { await handleStream(req, res, reqUrl); return; }
   res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
   res.end(html);
 });

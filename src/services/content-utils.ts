@@ -1,5 +1,5 @@
 import https from 'node:https';
-import { spawn } from 'child_process';
+import { spawn } from 'node:child_process';
 import fetch from 'node-fetch';
 import { fileTypeFromBuffer } from 'file-type';
 import mime from 'mime-types';
@@ -47,7 +47,7 @@ function probeDuration(url: string): Promise<number | undefined> {
         settle(undefined);
         return;
       }
-      const s = parseFloat(stdout.trim());
+      const s = Number.parseFloat(stdout.trim());
       settle(Number.isFinite(s) && s > 0 ? s : undefined);
     });
 
@@ -413,102 +413,70 @@ async function resolveProviderMediaUrl(
   return { url: rawUrl, contentType: derivedContentType, guard: ogGuard };
 }
 
-export const getContentInformationsFromUrl = async (url: string) => {
-  const urlGuard = await assertPublicHttpUrl(url);
-
-  const mediaIsShort = isYouTubeShortUrl(url);
-
-  if (isYouTubeUrl(url)) {
-    return { contentType: YOUTUBE_CONTENT_TYPE, mediaDuration: undefined, mediaIsShort, resolvedUrl: undefined };
+async function handleTikTokUrl(url: string, urlGuard: AssertedUrl) {
+  const extracted = await extractVideoUrl(url, env.YTDLP_COOKIES);
+  if (extracted) {
+    const token = findOrCreateProxy(url, extracted.url, extracted.headers);
+    const proxyUrl = new URL(`/api/video?t=${token}`, env.API_URL).toString();
+    return { contentType: 'video/mp4', mediaDuration: extracted.duration, mediaIsShort: false, resolvedUrl: proxyUrl };
   }
 
-  if (isTikTokUrl(url)) {
-    // yt-dlp handles short links natively — pass the original URL directly
-    const extracted = await extractVideoUrl(url, env.YTDLP_COOKIES);
-    if (extracted) {
-      // Use duration from yt-dlp JSON — probeDuration would 403 on CDN without Cookie header
-      const mediaDuration = extracted.duration;
-      const token = findOrCreateProxy(url, extracted.url, extracted.headers);
-      const proxyUrl = new URL(`/api/video?t=${token}`, env.API_URL).toString();
-      return { contentType: 'video/mp4', mediaDuration, mediaIsShort: false, resolvedUrl: proxyUrl };
-    }
+  const isShortLink = !/\/video\/\d+/.test(new URL(url).pathname);
+  let resolvedUrl: string | undefined;
+  if (isShortLink) {
+    const canonical = await resolveHttpRedirect(url, urlGuard);
+    if (canonical && isTikTokUrl(canonical)) resolvedUrl = canonical;
+  }
+  return { contentType: TIKTOK_CONTENT_TYPE, mediaDuration: undefined, mediaIsShort: false as const, resolvedUrl };
+}
 
-    // yt-dlp failed — iframe fallback.
-    // For iframe we need the canonical URL with /video/ID; resolve short links if needed.
-    const parsedPath = new URL(url).pathname;
-    const isShortLink = !/\/video\/\d+/.test(parsedPath);
-
-    let resolvedUrl: string | undefined;
-    if (isShortLink) {
-      const canonical = await resolveHttpRedirect(url, urlGuard);
-      if (canonical && isTikTokUrl(canonical)) resolvedUrl = canonical;
-    }
-
-    return { contentType: TIKTOK_CONTENT_TYPE, mediaDuration: undefined, mediaIsShort: false, resolvedUrl };
+async function handleTwitterUrl(url: string, urlGuard: AssertedUrl) {
+  const streamUrl = await resolveCobaltUrl(url);
+  if (streamUrl) {
+    const mediaDuration = await probeDuration(streamUrl);
+    const token = findOrCreateProxy(url, streamUrl);
+    const proxyUrl = new URL(`/api/video?t=${token}`, env.API_URL).toString();
+    return { contentType: 'video/mp4', mediaDuration, mediaIsShort: false, resolvedUrl: proxyUrl };
   }
 
-  if (isTwitterUrl(url)) {
-    const streamUrl = await resolveCobaltUrl(url);
-    if (streamUrl) {
-      const mediaDuration = await probeDuration(streamUrl);
-      const token = findOrCreateProxy(url, streamUrl);
-      const proxyUrl = new URL(`/api/video?t=${token}`, env.API_URL).toString();
-      return { contentType: 'video/mp4', mediaDuration, mediaIsShort: false, resolvedUrl: proxyUrl };
-    }
-
-    // Short-link resolution: follow HTTP redirects so the client can extract /status/ID for iframe.
-    const parsedPath = new URL(url).pathname;
-    const isShortLink = !/\/status\/\d+/.test(parsedPath);
-
-    let resolvedUrl: string | undefined;
-    if (isShortLink) {
-      const canonical = await resolveHttpRedirect(url, urlGuard);
-      if (canonical && isTwitterUrl(canonical)) resolvedUrl = canonical;
-    }
-
-    return { contentType: TWITTER_CONTENT_TYPE, mediaDuration: undefined, mediaIsShort: false, resolvedUrl };
+  const isShortLink = !/\/status\/\d+/.test(new URL(url).pathname);
+  let resolvedUrl: string | undefined;
+  if (isShortLink) {
+    const canonical = await resolveHttpRedirect(url, urlGuard);
+    if (canonical && isTwitterUrl(canonical)) resolvedUrl = canonical;
   }
+  return { contentType: TWITTER_CONTENT_TYPE, mediaDuration: undefined, mediaIsShort: false as const, resolvedUrl };
+}
 
-  let contentType: string | undefined;
-  let mediaDuration: number | undefined;
-
-  const providerResult = await resolveProviderMediaUrl(url);
-  const resolvedUrl = providerResult?.url;
-  const effectiveUrl = resolvedUrl ?? url;
-  if (providerResult?.contentType !== undefined) {
-    contentType = providerResult.contentType;
-  }
+async function resolveGenericContentInfo(
+  effectiveUrl: string,
+  effectiveGuard: AssertedUrl,
+  initialContentType?: string,
+): Promise<{ contentType?: string; mediaDuration?: number }> {
+  let contentType = initialContentType;
 
   try {
-    const fileExt = getFileTypeWithRegex(effectiveUrl);
-    const tmpContentType = mime.lookup(fileExt);
-    if (tmpContentType) {
-      contentType = tmpContentType;
-    }
+    const tmpContentType = mime.lookup(getFileTypeWithRegex(effectiveUrl));
+    if (tmpContentType) contentType = tmpContentType;
   } catch (error) {
     logger.debug({ err: error }, 'content-type from URL extension failed');
   }
-
-  const effectiveGuard = providerResult?.guard ?? urlGuard;
 
   try {
     if (!contentType) {
       const [pinnedUrl, pinnedInit] = buildPinnedFetchArgs(effectiveGuard, {}, { redirect: 'error' });
       const file = await fetch(pinnedUrl, pinnedInit as Parameters<typeof fetch>[1]);
-
       contentType = file.headers.get('Content-Type') ?? undefined;
-
       if (!contentType) {
         const res = await fileTypeFromBuffer(await file.arrayBuffer());
-        if (res) {
-          contentType = res.mime;
-        }
+        if (res) contentType = res.mime;
       }
     }
   } catch (error) {
     logger.debug({ err: error }, 'content-type from fetch/buffer failed');
   }
 
+  let mediaDuration: number | undefined;
   try {
     const [pinnedFfprobeUrl] = buildPinnedFetchArgs(effectiveGuard, {}, {});
     mediaDuration = await probeDuration(pinnedFfprobeUrl);
@@ -516,5 +484,28 @@ export const getContentInformationsFromUrl = async (url: string) => {
     logger.debug({ err: error }, 'ffprobe duration detection failed');
   }
 
+  return { contentType, mediaDuration };
+}
+
+export const getContentInformationsFromUrl = async (url: string) => {
+  const urlGuard = await assertPublicHttpUrl(url);
+  const mediaIsShort = isYouTubeShortUrl(url);
+
+  if (isYouTubeUrl(url)) {
+    return { contentType: YOUTUBE_CONTENT_TYPE, mediaDuration: undefined, mediaIsShort, resolvedUrl: undefined };
+  }
+  if (isTikTokUrl(url)) return handleTikTokUrl(url, urlGuard);
+  if (isTwitterUrl(url)) return handleTwitterUrl(url, urlGuard);
+
+  const providerResult = await resolveProviderMediaUrl(url);
+  const resolvedUrl = providerResult?.url;
+  const effectiveUrl = resolvedUrl ?? url;
+  const effectiveGuard = providerResult?.guard ?? urlGuard;
+
+  const { contentType, mediaDuration } = await resolveGenericContentInfo(
+    effectiveUrl,
+    effectiveGuard,
+    providerResult?.contentType,
+  );
   return { contentType, mediaDuration, mediaIsShort, resolvedUrl };
 };

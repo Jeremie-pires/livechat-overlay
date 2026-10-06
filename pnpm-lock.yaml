@@ -7,11 +7,13 @@ settings:
 overrides:
   form-data: '>=2.5.4'
   cross-spawn: ^7.0.5
-  undici: ^6.27.0
+  undici: '>=6.28.1 <7'
   find-my-way: ^8.2.2
   ws: '>=8.21.0'
-  brace-expansion: '>=2.1.4 <3'
-  fast-uri: '>=2.4.4 <3'
+  brace-expansion: '>=2.1.6 <3'
+  fast-uri: '>=2.4.6 <3'
+  proxy-addr: '>=2.0.8'
+  source-map-js: '>=1.2.2'
   nanoid: '>=3.3.18 <4'
   socket.io-parser: '>=4.2.7'
   tar: '>=7.5.21'
@@ -21,7 +23,7 @@ overrides:
   flatted: '>=3.4.2'
   minimatch: '>=9.0.7'
   picomatch: '>=2.3.2'
-  engine.io: '>=6.6.7'
+  engine.io: '>=6.6.10'
   js-yaml: '>=5.2.2'
   postcss: '>=8.5.18'
 
@@ -424,7 +426,7 @@ packages:
       discord-api-types: 0.37.61
       magic-bytes.js: 1.10.0
       tslib: 2.6.2
-      undici: 6.27.0
+      undici: 6.29.0
     dev: false
 
   /@discordjs/util@1.0.2:
@@ -724,7 +726,7 @@ packages:
     dependencies:
       ajv: 8.12.0
       ajv-formats: 2.1.1(ajv@8.12.0)
-      fast-uri: 2.4.5
+      fast-uri: 2.4.7
     dev: false
 
   /@fastify/cors@9.0.1:
@@ -1777,8 +1779,8 @@ packages:
       tweetnacl: 0.14.5
     dev: false
 
-  /brace-expansion@2.1.4:
-    resolution: {integrity: sha512-hGfVzPxthbf3+2yjg/RBs60cB0FhqBS/zvdV/4wn4/BmN0bNMMHPc4V/BbFieqf1TKAGGAHnY4eSjajCl0f2Xg==}
+  /brace-expansion@2.1.7:
+    resolution: {integrity: sha512-uZbew1NqdmPDTMJ8ah1y+b+9QEJrfkXFk3RcTQw3X0jW/xRUvFKsg1CfQdSYGdTbXZWExtU3J3ccxtnfw1Fi0g==}
     dependencies:
       balanced-match: 1.0.2
 
@@ -2219,7 +2221,7 @@ packages:
       fast-deep-equal: 3.1.3
       lodash.snakecase: 4.1.1
       tslib: 2.6.2
-      undici: 6.27.0
+      undici: 6.29.0
       ws: 8.21.0(bufferutil@4.0.8)(utf-8-validate@6.0.3)
     transitivePeerDependencies:
       - bufferutil
@@ -2306,15 +2308,14 @@ packages:
     engines: {node: '>=10.0.0'}
     dev: false
 
-  /engine.io@6.6.9(bufferutil@4.0.8)(utf-8-validate@6.0.3):
-    resolution: {integrity: sha512-clKkw4C7nJ22mGgoVcCg6V/W/TxdNyIOTr89k2ONZu81qqkddPFDF0LXcbAwhzPD8DjkiRCjzuiO6Y+fkpD4vg==}
+  /engine.io@6.6.11(bufferutil@4.0.8)(utf-8-validate@6.0.3):
+    resolution: {integrity: sha512-z34mGpLoY/82ZbkX1LqGMIaf3wjVMPL6gVC681QDqnmzJ26synI8qAE32P+a7UazmpJZ8UGrFIeAavgRfXzYrg==}
     engines: {node: '>=10.2.0'}
     dependencies:
       '@types/cors': 2.8.17
       '@types/node': 20.11.17
       '@types/ws': 8.18.1
       accepts: 1.3.8
-      base64id: 2.0.0
       cookie: 0.7.2
       cors: 2.8.5
       debug: 4.4.3
@@ -2822,7 +2823,7 @@ packages:
       ajv: 8.12.0
       ajv-formats: 2.1.1(ajv@8.12.0)
       fast-deep-equal: 3.1.3
-      fast-uri: 2.4.5
+      fast-uri: 2.4.7
       json-schema-ref-resolver: 1.0.1
       rfdc: 1.3.1
     dev: false
@@ -2846,8 +2847,8 @@ packages:
     resolution: {integrity: sha512-W+KJc2dmILlPplD/H4K9l9LcAHAfPtP6BY84uVLXQ6Evcz9Lcg33Y2z1IVblT6xdY54PXYVHEv+0Wpq8Io6zkA==}
     dev: true
 
-  /fast-uri@2.4.5:
-    resolution: {integrity: sha512-k9Nq2gfGrPow/wJcIQ+dbhLqSTdHx2eH+e6IAjAam0Xs9W5Uda8eXu6Ns73byuuyYvIXYnEJ9ziARtlXm9opgw==}
+  /fast-uri@2.4.7:
+    resolution: {integrity: sha512-b8mggfg2R+m2OAb3Z+2HcJxUgU+2cY1JQondBDyXLdrEKNPxd96MvnB5yWKZdupsuX6GdBaAZHZo9msHX/Bb7A==}
     dev: false
 
   /fastify-plugin@4.5.1:
@@ -2879,7 +2880,7 @@ packages:
       light-my-request: 5.11.0
       pino: 8.18.0
       process-warning: 3.0.0
-      proxy-addr: 2.0.7
+      proxy-addr: 2.0.8
       rfdc: 1.3.1
       secure-json-parse: 2.7.0
       semver: 7.6.0
@@ -4170,7 +4171,7 @@ packages:
     resolution: {integrity: sha512-OBwBN9AL4dqmETlpS2zasx+vTeWclWzkblfZk7KTA5j3jeOONz/tRCnZomUyvNg83wL5Zv9Ss6HMJXAgL8R2Yg==}
     engines: {node: '>=16 || 14 >=14.17'}
     dependencies:
-      brace-expansion: 2.1.4
+      brace-expansion: 2.1.7
 
   /minimist-options@4.1.0:
     resolution: {integrity: sha512-Q4r8ghd80yhO/0j1O3B2BjweX3fiHg9cdOwjJd2J76Q135c+NDxGCqdYKQ1SKBuFfgWbAUzBfvYjPUEeNgqN1A==}
@@ -4706,7 +4707,7 @@ packages:
     dependencies:
       nanoid: 3.3.18
       picocolors: 1.1.1
-      source-map-js: 1.2.1
+      source-map-js: 1.2.2
     dev: true
 
   /prelude-ls@1.2.1:
@@ -4765,8 +4766,8 @@ packages:
       retry: 0.12.0
     dev: false
 
-  /proxy-addr@2.0.7:
-    resolution: {integrity: sha512-llQsMLSUDUPT44jdrU/O37qlnifitDP+ZwrmmZcoSKyLKvtZxpyV0n2/bD/N4tBAAZ/gJEdZU7KMraoK1+XYAg==}
+  /proxy-addr@2.0.8:
+    resolution: {integrity: sha512-5nnx0yGyVUcY6t9RnWcARWtwT9F1D8O9rt08htPvnd49W1IgZtmLkhu9WfMzQj1cFxjHIO6connUNVW5k7AVyQ==}
     engines: {node: '>= 0.10'}
     dependencies:
       forwarded: 0.2.0
@@ -5274,7 +5275,7 @@ packages:
       base64id: 2.0.0
       cors: 2.8.5
       debug: 4.3.4
-      engine.io: 6.6.9(bufferutil@4.0.8)(utf-8-validate@6.0.3)
+      engine.io: 6.6.11(bufferutil@4.0.8)(utf-8-validate@6.0.3)
       socket.io-adapter: 2.5.2(bufferutil@4.0.8)(utf-8-validate@6.0.3)
       socket.io-parser: 4.2.7
     transitivePeerDependencies:
@@ -5307,8 +5308,8 @@ packages:
     dependencies:
       atomic-sleep: 1.0.0
 
-  /source-map-js@1.2.1:
-    resolution: {integrity: sha512-UXWMKhLOwVKb728IUtQPXxfYU+usdybtUrK/8uGE8CQMvrhOpwvzDBwj0QhSL7MQc7vIsISBG8VQ8+IDQxpfQA==}
+  /source-map-js@1.2.2:
+    resolution: {integrity: sha512-KGj/8Y43x35aZVDtt+J4mK1hoLGHULMYfSkODJNQjNDC3oW1PqPoxMwo0pLUsWM/UEGzON/NxeHywEfNXNP3Vw==}
     engines: {node: '>=0.10.0'}
     dev: true
 
@@ -5774,8 +5775,8 @@ packages:
   /undici-types@5.26.5:
     resolution: {integrity: sha512-JlCMO+ehdEIKqlFxk6IfVoAUVmgz7cU7zD/h9XZ0qzeosSHmUJVOzSQvvYSYWXkFXC+IfLKSIffhv0sVZup6pA==}
 
-  /undici@6.27.0:
-    resolution: {integrity: sha512-YmfV3YnEDzXRC5lZ2jWtWWHKGUm1zIt8AhesR1tens+HTNv+YZlN/dp6G727LOvMJ8xjP9Be7Y2Sdr96LDm+pg==}
+  /undici@6.29.0:
+    resolution: {integrity: sha512-R+RODBqp6i2pPflGdq+xIOUkl+RNfGgHwoinecKu/JCuf2uO06cOKoDbI2P7Dn6KcswdKwrczbU6IYJ6K8X+wg==}
     engines: {node: '>=18.17'}
     dev: false
 
@@ -6188,7 +6189,7 @@ packages:
     dependencies:
       '@bufbuild/protobuf': 2.9.0
       jintr: 3.3.1
-      undici: 6.27.0
+      undici: 6.29.0
     dev: false
 
   /zlib-sync@0.1.10:

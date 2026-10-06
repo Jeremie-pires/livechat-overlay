@@ -50,5 +50,5 @@ Branch `feature/tiktok-twitter-integration` — TikTok + Twitter validés en liv
 
 1. **[NEXT]** PR `feature/tiktok-twitter-integration` → `main`
 2. **H-AUD-06** — Socket.IO payload scope : filtrer `media` (Discord proxy URL) du payload `new-message`
-3. **Fastify v5 upgrade**
+3. **Fastify v5 upgrade** — obligatoire pour CVE-2026-76169/84428/84469/84504 (HIGH, tous fixés en v5.12.2 uniquement)
 4. **`displayMediaFull`** feature
