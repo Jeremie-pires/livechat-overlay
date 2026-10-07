@@ -51,7 +51,7 @@ async function _runYtdlp(url: string, cookiesFile?: string): Promise<YtdlpResult
     const args = [
       '--no-playlist',
       '--format',
-      'best[ext=mp4]/best',
+      'best[ext=mp4][vcodec^=h264]/best[ext=mp4]/best',
       '-J',
       ...(cookiesFile ? ['--cookies', cookiesFile] : []),
       url,

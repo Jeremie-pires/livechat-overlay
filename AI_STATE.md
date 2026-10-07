@@ -1,30 +1,22 @@
 # AI_STATE.md — LiveChat CCB
 
 ## Status
-Branch `feature/tiktok-twitter-integration` — TikTok URL sanitization + Twitter/Cobalt fix done. En attente de merge vers `develop` puis `main`.
+Branch `develop` — TikTok + Twitter fixes merged to develop. Prêt pour PR `develop` → `main` + déploiement prod.
 
 ---
 
 ## 1. Accomplished
 
-### This session (session 4)
-- **TikTok URL sanitization** — strip query params (`?is_from_webapp=1&sender_device=pc`) ET chemin après `/video/ID` avant yt-dlp. Résout les 404 en prod.
-- **Twitter/Cobalt revert** — supprimé la contrainte `/video/N` (Cobalt ne supporte pas ce format). `isTwitterUrl` accepte désormais `status/\d+`. `sanitizeTwitterUrl` strip les params ET le suffixe `/video/N` avant d'envoyer à Cobalt. URL du post standard acceptée.
-- **Fix Docker crash** — `fastify.all('/socket.io/*')` en Fastify v5 itère `http.METHODS` qui inclut `QUERY` (Node 20.14+) ; `find-my-way` le rejette avec `AssertionError`. Remplacé par `fastify.route({ method: ['DELETE','GET','HEAD','OPTIONS','PATCH','POST','PUT'], ... })`. Commit `c7fead6`.
-- **Fix Trivy esbuild CVEs** — `tsx` déplacé en `dependencies` amenait `esbuild` dans l'image prod. Trivy suivait les symlinks pnpm vers `node_modules/@esbuild`. Fix: ajout `app/node_modules/@esbuild` aux `skip-dirs` dans `release.yml`. Commit `1f3deaa`.
-- **Fix Docker startup** — `tsx` était devDep, `pnpm prune --prod` le supprimait → `Cannot find module tsx`. Déplacé en `dependencies`.
+### Sessions 3–4 (feature/tiktok-twitter-integration → develop)
+- **TikTok URL sanitization** — `sanitizeTikTokUrl` strip les query params ET le chemin après `/video/ID`. Résout les 404 yt-dlp causés par `?is_from_webapp=1&sender_device=pc`.
+- **Twitter/Cobalt fix** — Cobalt ne supporte pas `/video/N`. `isTwitterUrl` accepte désormais `/status/\d+` (sans exiger `/video/N`). `sanitizeTwitterUrl` strip query params + suffixe `/video/N` avant Cobalt. URL post classique et URL `/video/N` toutes deux acceptées.
+- **Fix Docker crash** — `fastify.all('/socket.io/*')` rejeté par `find-my-way` (QUERY dans `http.METHODS` Node 20.14+). Remplacé par `fastify.route({ method: [...] })`.
+- **Fix Trivy CVEs** — `app/node_modules/@esbuild` dans `skip-dirs` de `release.yml`.
+- **Fix Docker startup** — `tsx` déplacé en `dependencies` (supprimé par `pnpm prune --prod`).
 
-### Session 2
-- **Fastify v5 migration** — `fastify@5.12.5`, `@fastify/cors@^11`, `@fastify/rate-limit@^11`
-- **Removed `fastify-socket.io`** — Socket.IO direct : `new SocketIOServer(fastify.server)` + `fastify.decorate('io', io)`
-- **Removed `unify-fastify`** — remplacé par `setErrorHandler` inline 6 lignes
-- **SonarQube duplication** — `buildProxyUrl()` + `resolveShortLink()` dans `content-utils.ts` ; `runProcess<T>()` dans `spawn-process.ts` partagé entre `content-utils.ts` et `ytdlp.ts`
-- **SonarQube Security B→A** — `YTDLP_PATH` + `FFPROBE_PATH` dans `env.ts` ; chemins absolus dans `docker-compose.yml`
-- **4 CVE Fastify HIGH** (CVE-2026-76169/84428/84469/84504) éliminés
-- **tsconfig** — supprimé `ignoreDeprecations: "6.0"` invalide
-
-### Session 1
-- TikTok CDN 403, durée, proxy Range-aware, iframe fallback, Cobalt (Twitter), 367 tests verts.
+### Sessions 1–2
+- TikTok CDN 403, proxy Range-aware, iframe fallback, Cobalt pour Twitter.
+- Fastify v5 migration, suppression `fastify-socket.io` + `unify-fastify`, SonarQube A, 4 CVE HIGH éliminés.
 
 ---
 
@@ -33,25 +25,24 @@ Branch `feature/tiktok-twitter-integration` — TikTok URL sanitization + Twitte
 | File | Rôle |
 |---|---|
 | `src/server.ts` | Fastify v5 + Socket.IO direct ; `fastify.route()` explicite pour `/socket.io/*` |
-| `src/services/env.ts` | YTDLP_PATH, FFPROBE_PATH, COBALT_* |
-| `src/services/spawn-process.ts` | `runProcess<T>()` générique — spawn/settle/timeout partagé |
+| `src/services/content-utils.ts` | `sanitizeTikTokUrl` (strip params + path) ; `sanitizeTwitterUrl` (strip params + `/video/N`) ; `isTwitterUrl` = hostname + `/status/\d+` |
 | `src/services/ytdlp.ts` | yt-dlp -J wrapper, semaphore 5 concurrent, cookie injection |
-| `src/services/cookies-parser.ts` | Parse Netscape cookies.txt → Cookie header |
 | `src/services/video-proxy-cache.ts` | Token → CDN entry avec headers |
 | `src/components/api/videoProxyRoute.ts` | GET /api/video?t=TOKEN — stream proxy Range-aware |
-| `src/services/content-utils.ts` | TikTok → yt-dlp → proxy ; Twitter → Cobalt → proxy |
+| `src/services/env.ts` | YTDLP_PATH, FFPROBE_PATH, COBALT_API_URL, COBALT_PUBLIC_URL, API_URL |
 | `.github/workflows/release.yml` | skip-dirs inclut `app/node_modules/@esbuild` |
 
 ### Flow (Discord → browser)
-1. Discord `/send <url>` → `getContentInformationsFromUrl`
+1. Discord `/msg <url>` → `getContentInformationsFromUrl` (sanitize → detect)
 2. TikTok: `extractVideoUrl` (yt-dlp) → `buildProxyUrl` → `/api/video?t=TOKEN`
-3. Twitter: `resolveCobaltUrl` → `buildProxyUrl` → `/api/video?t=TOKEN`
+3. Twitter: `resolveCobaltUrl` (URL nettoyée) → `buildProxyUrl` → `/api/video?t=TOKEN`
 4. Queue → Socket.IO `new-message` → Vidstack client
 
 ---
 
 ## 3. Remaining / Next Steps
 
-1. **[NEXT]** Valider déploiement dev après fix Docker crash → PR `feature/tiktok-twitter-integration` → `main`
-2. **H-AUD-06** — Socket.IO payload scope : filtrer `media` (Discord proxy URL) du payload `new-message`
-3. **`displayMediaFull`** feature
+1. **[NEXT]** Déploiement prod sur VPS : `cd ~/livechat/livechat-overlay && git pull && docker compose build --no-cache && docker compose down && docker compose up -d`
+2. Vérifier après déploiement : lancer test TikTok + Twitter via Discord, confirmer logs `info`/`warn` dans `docker logs`
+3. **H-AUD-06** — Filtrer `media` (Discord proxy URL) du payload Socket.IO `new-message`
+4. **`displayMediaFull`** feature
