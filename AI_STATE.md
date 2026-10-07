@@ -42,6 +42,7 @@ Branch `develop` — TikTok + Twitter fixes merged to develop. Prêt pour PR `de
 
 ## 3. Remaining / Next Steps
 
-1. **[NEXT]** PR `develop` → `main` sur GitHub + déploiement prod : `git pull && docker compose build --no-cache && docker compose down && docker compose up -d`
-2. **H-AUD-06** — Filtrer `media` (Discord proxy URL) du payload Socket.IO `new-message`
-3. **`displayMediaFull`** feature
+1. **[NEXT]** Déploiement prod sur VPS : `cd ~/livechat/livechat-overlay && git pull && docker compose build --no-cache && docker compose down && docker compose up -d`
+2. Vérifier après déploiement : lancer test TikTok + Twitter via Discord, confirmer logs `info`/`warn` dans `docker logs`
+3. **H-AUD-06** — Filtrer `media` (Discord proxy URL) du payload Socket.IO `new-message`
+4. **`displayMediaFull`** feature

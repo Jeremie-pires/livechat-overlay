@@ -402,9 +402,11 @@ async function resolveShortLink(
 async function handleTikTokUrl(url: string, urlGuard: AssertedUrl) {
   const extracted = await extractVideoUrl(url, env.YTDLP_COOKIES);
   if (extracted) {
+    logger.info({ url, duration: extracted.duration }, 'tiktok: yt-dlp extraction succeeded');
     const proxyUrl = buildProxyUrl(url, extracted.url, extracted.headers);
     return { contentType: 'video/mp4', mediaDuration: extracted.duration, mediaIsShort: false, resolvedUrl: proxyUrl };
   }
+  logger.warn({ url }, 'tiktok: yt-dlp extraction failed — falling back to iframe');
   const resolvedUrl = await resolveShortLink(url, urlGuard, /\/video\/\d+/, isTikTokUrl);
   return { contentType: TIKTOK_CONTENT_TYPE, mediaDuration: undefined, mediaIsShort: false as const, resolvedUrl };
 }
@@ -412,10 +414,12 @@ async function handleTikTokUrl(url: string, urlGuard: AssertedUrl) {
 async function handleTwitterUrl(url: string, urlGuard: AssertedUrl) {
   const streamUrl = await resolveCobaltUrl(url);
   if (streamUrl) {
+    logger.info({ url }, 'twitter: cobalt resolution succeeded');
     const mediaDuration = await probeDuration(streamUrl);
     const proxyUrl = buildProxyUrl(url, streamUrl);
     return { contentType: 'video/mp4', mediaDuration, mediaIsShort: false, resolvedUrl: proxyUrl };
   }
+  logger.warn({ url }, 'twitter: cobalt resolution failed — falling back to iframe');
   const resolvedUrl = await resolveShortLink(url, urlGuard, /\/status\/\d+/, isTwitterUrl);
   return { contentType: TWITTER_CONTENT_TYPE, mediaDuration: undefined, mediaIsShort: false as const, resolvedUrl };
 }
