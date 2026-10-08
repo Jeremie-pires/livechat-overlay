@@ -34,8 +34,6 @@ export interface YtdlpResult {
 }
 
 // In-flight dedup: concurrent callers for the same URL share one yt-dlp process.
-// Keys are namespaced ("video:<url>" / "audio:<url>") to allow simultaneous video
-// and audio extraction of the same source URL without sharing the same promise.
 const inFlight = new Map<string, Promise<YtdlpResult | null>>();
 
 export async function extractVideoUrl(url: string, cookiesFile?: string): Promise<YtdlpResult | null> {
@@ -46,50 +44,6 @@ export async function extractVideoUrl(url: string, cookiesFile?: string): Promis
   const promise = _runYtdlp(url, cookiesFile).finally(() => inFlight.delete(key));
   inFlight.set(key, promise);
   return promise;
-}
-
-export async function extractAudioUrl(url: string, cookiesFile?: string): Promise<YtdlpResult | null> {
-  const key = `audio:${url}`;
-  const existing = inFlight.get(key);
-  if (existing) return existing;
-
-  const promise = _runYtdlpAudio(url, cookiesFile).finally(() => inFlight.delete(key));
-  inFlight.set(key, promise);
-  return promise;
-}
-
-async function _runYtdlpAudio(url: string, cookiesFile?: string): Promise<YtdlpResult | null> {
-  await acquireSemaphore();
-  try {
-    const args = [
-      '--no-playlist',
-      '--format',
-      'bestaudio[ext=m4a]/bestaudio',
-      '-J',
-      ...(cookiesFile ? ['--cookies', cookiesFile] : []),
-      url,
-    ];
-    return await runProcess<YtdlpResult>(env.YTDLP_PATH, args, YTDLP_TIMEOUT_MS, (stdout) => {
-      try {
-        const info = JSON.parse(stdout) as {
-          url?: string;
-          http_headers?: Record<string, string>;
-          duration?: number;
-        };
-        const cdnUrl = info.url;
-        if (!cdnUrl?.startsWith('http')) return null;
-        const duration =
-          typeof info.duration === 'number' && Number.isFinite(info.duration) && info.duration > 0
-            ? info.duration
-            : undefined;
-        return { url: cdnUrl, headers: info.http_headers ?? {}, duration };
-      } catch {
-        return null;
-      }
-    });
-  } finally {
-    releaseSemaphore();
-  }
 }
 
 async function _runYtdlp(url: string, cookiesFile?: string): Promise<YtdlpResult | null> {
