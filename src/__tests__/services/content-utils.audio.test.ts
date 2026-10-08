@@ -1,5 +1,8 @@
 import dns from 'node:dns';
+import { spawn } from 'child_process';
+import fetch from 'node-fetch';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { getAudioInfoFromUrl } from '../../services/content-utils';
 
 vi.mock('node-fetch', () => ({
   default: vi.fn(),
@@ -20,10 +23,6 @@ vi.mock('file-type', () => ({
 vi.mock('../../services/video-proxy-cache', () => ({
   findOrCreateProxy: vi.fn().mockReturnValue('test-token'),
 }));
-
-import fetch from 'node-fetch';
-import { spawn } from 'child_process';
-import { getAudioInfoFromUrl } from '../../services/content-utils';
 
 const PUBLIC_IP = '93.184.216.34';
 const YOUTUBE_URL = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
