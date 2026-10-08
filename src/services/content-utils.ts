@@ -516,8 +516,9 @@ export async function getAudioInfoFromUrl(url: string): Promise<AudioInfo | null
     }
     logger.info({ url }, 'audio: cobalt extraction succeeded');
     const proxyUrl = buildProxyUrl(url, streamUrl);
-    const duration = await probeDuration(streamUrl);
-    return { audioUrl: proxyUrl, audioDuration: duration };
+    // Cobalt tunnel URLs are single-use — probing them via ffprobe consumes the stream
+    // before the client can play it. Duration falls back to DEFAULT_DURATION or temps param.
+    return { audioUrl: proxyUrl, audioDuration: undefined };
   }
 
   if (isTikTokUrl(url) || isTwitterUrl(url)) {
