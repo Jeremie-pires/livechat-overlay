@@ -90,14 +90,24 @@ export const executeMessagesWorker = async (fastify: FastifyCustomInstance) => {
 
   const dequeuedAt = Date.now();
 
+  // Strip the Discord CDN proxy URL (media) from the Socket.IO payload (H-AUD-06).
+  // Promote media → url only when url is strictly absent (null/undefined) so an
+  // explicit empty url is preserved. The DB record is never mutated.
+  const { media, ...sanitizedContent } = content as Record<string, unknown>;
+  if (sanitizedContent.url == null && media != null) {
+    sanitizedContent.url = media;
+  }
+
+  const emittedContent = JSON.stringify(sanitizedContent);
+
   fastify.io.to(`${env.APP_ENV}:messages-${lastMessage.discordGuildId}`).emit('new-message', {
     author: lastMessage.author,
     authorImage: lastMessage.authorImage,
-    content: lastMessage.content,
+    content: emittedContent,
     duration: lastMessage.duration,
     displayAt: dequeuedAt + MESSAGE_SYNC_LEAD_TIME_MS,
   });
-  logger.debug(`[SOCKET] New message ${lastMessage.id} (guild: ${lastMessage.discordGuildId}): ${lastMessage.content}`);
+  logger.debug(`[SOCKET] New message ${lastMessage.id} (guild: ${lastMessage.discordGuildId})`);
 
   const emittedAt = Date.now();
 
@@ -117,8 +127,8 @@ export const executeMessagesWorker = async (fastify: FastifyCustomInstance) => {
     logger.debug(`[WORKER] message ${lastMessage.id} missing discordReceivedAt — ingestionMs reported as 0`);
   }
 
-  const payloadBytes = Buffer.byteLength(lastMessage.content, 'utf8');
-  const mediaType = getMediaType(lastMessage.type, content);
+  const payloadBytes = Buffer.byteLength(emittedContent, 'utf8');
+  const mediaType = getMediaType(lastMessage.type, sanitizedContent);
   const countField = `${mediaType}Count` as const;
 
   await Promise.all([
@@ -171,7 +181,7 @@ export const executeMessagesWorker = async (fastify: FastifyCustomInstance) => {
     }),
   ]);
 
-  return resolveMediaDurationMs(content.mediaDuration);
+  return resolveMediaDurationMs(sanitizedContent.mediaDuration);
 };
 
 export const loadMessagesWorker = async (fastify: FastifyCustomInstance) => {

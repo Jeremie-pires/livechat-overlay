@@ -100,28 +100,7 @@ Cette section s'adresse aux personnes qui veulent faire tourner leur propre inst
 
 ### Lancer avec Docker
 
-```yaml
-# docker-compose.yml
-services:
-  livechatccb:
-    build: .
-    restart: unless-stopped
-    ports:
-      - "3000:3000"
-    environment:
-      DATABASE_URL: file:/data/sqlite.db
-      DISCORD_TOKEN: ${DISCORD_TOKEN}
-      DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID}
-      DISCORD_OWNER_ID: ${DISCORD_OWNER_ID}   # optionnel, pour /announce et les DMs de crash
-      API_URL: ${API_URL}
-      DEFAULT_DURATION: ${DEFAULT_DURATION:-5}
-      HIDE_COMMANDS_DISABLED: ${HIDE_COMMANDS_DISABLED:-false}
-    volumes:
-      - livechat_data:/data
-
-volumes:
-  livechat_data:
-```
+Le projet inclut un `docker-compose.yml` prêt à l'emploi avec le backend CCB et un service [Cobalt](https://github.com/imputnet/cobalt) pour l'extraction vidéo TikTok/Twitter.
 
 ```bash
 cp .env.example .env
@@ -129,16 +108,54 @@ cp .env.example .env
 docker compose up -d --build
 ```
 
+Le service Cobalt démarre automatiquement sur le port 9000. Si tu n'as pas besoin de l'extraction vidéo TikTok/Twitter, tu peux omettre les variables `COBALT_*` — l'app se rabattra sur l'affichage iframe.
+
 ### Variables d'environnement
 
-| Variable | Description |
-|---|---|
-| `API_URL` | URL publique du backend (ex: `https://livechat.ton-domaine.fr`) |
-| `DISCORD_TOKEN` | Token du bot Discord |
-| `DISCORD_CLIENT_ID` | ID de l'application Discord |
-| `DISCORD_OWNER_ID` | Ton ID Discord — permet d'utiliser `/announce` et de recevoir les DMs de crash |
-| `DEFAULT_DURATION` | Durée d'affichage par défaut en secondes (défaut: `5`) |
-| `HIDE_COMMANDS_DISABLED` | Désactiver `/cmsg` et `/cdire` (`true`/`false`) |
+| Variable | Obligatoire | Description |
+|---|---|---|
+| `API_URL` | ✅ | URL publique du backend (ex: `https://livechat.ton-domaine.fr`) |
+| `DISCORD_TOKEN` | ✅ | Token du bot Discord |
+| `DISCORD_CLIENT_ID` | ✅ | ID de l'application Discord |
+| `DISCORD_CLIENT_SECRET` | ✅ | Secret OAuth2 de l'application Discord (pour le dashboard) |
+| `DISCORD_OWNER_ID` | ✅ | Ton ID Discord — permet d'utiliser `/announce`, le dashboard et les DMs de crash |
+| `DATABASE_URL` | ✅ | URL SQLite (ex: `file:/data/sqlite.db`) |
+| `APP_ENV` | — | `production` / `staging` / `development` (défaut: `development`) |
+| `DEFAULT_DURATION` | — | Durée d'affichage par défaut en secondes (défaut: `5`) |
+| `HIDE_COMMANDS_DISABLED` | — | Désactiver `/cmsg` et `/cdire` (`true`/`false`, défaut: `false`) |
+| `COBALT_API_URL` | — | URL interne du service Cobalt (ex: `http://cobalt:9000` en Docker). Laisser vide pour désactiver. |
+| `COBALT_PUBLIC_URL` | — | URL publique de Cobalt accessible depuis le navigateur (identique à `COBALT_API_URL` si le port est exposé) |
+| `YTDLP_COOKIES` | — | Chemin vers le fichier `cookies.txt` (format Netscape) pour yt-dlp. Monté depuis `./cobalt-cookies/` en Docker. |
+| `YTDLP_PATH` | — | Chemin vers l'exécutable `yt-dlp` (défaut: `yt-dlp`) |
+| `FFPROBE_PATH` | — | Chemin vers `ffprobe` (défaut: `ffprobe`) |
+
+### Extraction vidéo TikTok et Twitter/X
+
+Par défaut, les liens TikTok et Twitter/X s'affichent en iframe. Pour extraire le flux vidéo directement (meilleure qualité, contrôle de durée, proxy Range-aware), deux mécanismes sont disponibles.
+
+#### Twitter/X — Cobalt
+
+Le service [Cobalt](https://github.com/imputnet/cobalt) est intégré au `docker-compose.yml`. Il suffit de renseigner `COBALT_API_URL` et `COBALT_PUBLIC_URL` dans ton `.env`.
+
+#### TikTok — yt-dlp + cookies
+
+TikTok exige un cookie CDN (`tt_chain_token`) pour accéder aux flux vidéo. Sans ce cookie, yt-dlp obtient l'URL mais le CDN retourne 403 à la lecture.
+
+**Comment obtenir les cookies :**
+
+1. Installe l'extension [Get cookies.txt LOCALLY](https://chromewebstore.google.com/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc) (ou équivalent)
+2. Connecte-toi sur [tiktok.com](https://www.tiktok.com) dans ton navigateur
+3. Exporte les cookies en **format Netscape** (`cookies.txt`)
+4. Dépose le fichier dans le dossier `cobalt-cookies/` à la racine du projet :
+   ```
+   cobalt-cookies/cookies.txt
+   ```
+
+Ce dossier est monté en volume dans les deux services Docker (`livechatccb` et `cobalt`). La variable `YTDLP_COOKIES` pointe vers ce fichier (valeur par défaut en Docker : `/cookies/cookies.txt`).
+
+> Les cookies TikTok expirent. Si les vidéos TikTok retombent en iframe, renouvelle le fichier `cookies.txt`.
+
+---
 
 ### Démarrage automatique (Linux / systemd)
 
@@ -146,7 +163,9 @@ Voir [livechat-overlay.service.example](livechat-overlay.service.example) pour u
 
 ### Reverse proxy HTTPS (HAProxy)
 
-Voir [haproxy.cfg.example](haproxy.cfg.example) pour un exemple de configuration HAProxy avec terminaison TLS.
+Voir [`docs/infra/haproxy.cfg.example`](docs/infra/haproxy.cfg.example) pour un exemple de configuration HAProxy avec terminaison TLS et routage prod/staging.
+
+> **Healthcheck HAProxy** : utilise `/health` (liveness — répond toujours 200 tant que le serveur HTTP tourne). N'utilise **pas** `/health/ready` pour la probe HAProxy : cet endpoint vérifie aussi la DB et le bot Discord — un redémarrage Discord marquerait le backend DOWN malgré un serveur HTTP opérationnel. Réserve `/health/ready` au monitoring/alerting externe.
 
 ### Développement local
 

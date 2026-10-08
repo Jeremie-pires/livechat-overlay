@@ -386,7 +386,7 @@
           content: JSON.stringify({
             text: `Test de format : ${format.toUpperCase()}`,
             mediaContentType: mediaType,
-            media: mediaUrl,
+            url: mediaUrl,
             mediaIsShort: isShort
           })
         };
@@ -535,14 +535,15 @@
         emptyState.style.display = 'none';
 
         if (data.mediaContentType) {
+          if (!data.url) { onDone(); return; }
           if (data.mediaContentType.indexOf('image') === 0) {
-            element.appendChild(generateImg(data.media || data.url));
+            element.appendChild(generateImg(data.url));
           } else if (data.mediaContentType === 'video/tiktok' || data.mediaContentType === 'video/twitter') {
             var iframeEl = generateIframe(data.url, data.mediaContentType);
             if (iframeEl) element.appendChild(iframeEl);
             // Duration is handled by the message timeout — no ended event from iframe
           } else {
-            element.appendChild(generateAudioVideo(data.media || data.url, data.mediaIsShort, onDone));
+            element.appendChild(generateAudioVideo(data.url, data.mediaIsShort, onDone));
           }
         }
       }
