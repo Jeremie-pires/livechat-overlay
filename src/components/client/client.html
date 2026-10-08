@@ -262,7 +262,8 @@
 
       globalThis.__setVolume = function(vol) {
         currentVolume = Math.max(0, Math.min(1, vol));
-        document.querySelectorAll('audio, video').forEach(function(el) {
+        // Only update plain <audio> elements (overlay); Vidstack <video> is controlled via player.volume below
+        document.querySelectorAll('audio').forEach(function(el) {
           el.volume = currentVolume;
           el.muted = currentVolume === 0;
         });
@@ -288,9 +289,11 @@
         var el = document.getElementById('message-block');
         var ab = document.getElementById('author-block');
         var mt = document.getElementById('message-text');
+        var au = document.getElementById('message-audio');
         if (el) el.replaceChildren();
         if (ab) ab.style.display = 'none';
         if (mt) mt.style.display = 'none';
+        if (au) { au.pause(); au.remove(); }
         if (!isDesktop) emptyState.style.display = 'block';
       }
 
@@ -432,7 +435,7 @@
         return wrapper;
       }
 
-      function generateAudioVideo(src, mediaIsShort, onDone) {
+      function generateAudioVideo(src, mediaIsShort, onDone, muteVideo) {
         var wrapper = document.createElement('div');
         wrapper.id = 'message-player';
         if (mediaIsShort) wrapper.classList.add('is-short');
@@ -448,15 +451,17 @@
               playsInline: true,
               load: 'eager',
               autoplay: true,
-              muted: !isDesktop,
+              muted: !isDesktop || !!muteVideo,
             });
 
             const player = document.querySelector('media-player');
 
-            // Apply stored volume to this new player
-            try { player.volume = currentVolume; } catch {}
-            var vid = player.querySelector('video');
-            if (vid) { vid.volume = currentVolume; vid.muted = currentVolume === 0; }
+            // Apply stored volume to this new player (skip if video is intentionally muted for audio overlay)
+            if (!muteVideo) {
+              try { player.volume = currentVolume; } catch {}
+              var vid = player.querySelector('video');
+              if (vid) { vid.volume = currentVolume; vid.muted = currentVolume === 0; }
+            }
 
             // Adjust player aspect-ratio to the video's real dimensions
             player.addEventListener('loaded-metadata', () => {
@@ -482,11 +487,13 @@
               async () => {
                 try {
                   await player.play();
-                  player.muted = false;
-                  // Re-apply volume after unmute
-                  try { player.volume = currentVolume; } catch {}
-                  var v = player.querySelector('video');
-                  if (v) v.volume = currentVolume;
+                  if (!muteVideo) {
+                    player.muted = false;
+                    // Re-apply volume after unmute
+                    try { player.volume = currentVolume; } catch {}
+                    var v = player.querySelector('video');
+                    if (v) v.volume = currentVolume;
+                  }
                 } catch (e) {
                   console.warn('Autoplay blocked:', e);
                 }
@@ -534,6 +541,22 @@
         element.replaceChildren();
         emptyState.style.display = 'none';
 
+        // Stop any previous background audio before starting the new item
+        var prevAudio = document.getElementById('message-audio');
+        if (prevAudio) { prevAudio.pause(); prevAudio.remove(); }
+
+        if (data.audioUrl) {
+          var audioEl = document.createElement('audio');
+          audioEl.id = 'message-audio';
+          audioEl.src = data.audioUrl;
+          audioEl.style.display = 'none';
+          audioEl.autoplay = true;
+          audioEl.volume = currentVolume;
+          audioEl.muted = currentVolume === 0;
+          document.body.appendChild(audioEl);
+          audioEl.play().catch(function() {});
+        }
+
         if (data.mediaContentType) {
           if (!data.url) { onDone(); return; }
           if (data.mediaContentType.indexOf('image') === 0) {
@@ -543,7 +566,8 @@
             if (iframeEl) element.appendChild(iframeEl);
             // Duration is handled by the message timeout — no ended event from iframe
           } else {
-            element.appendChild(generateAudioVideo(data.url, data.mediaIsShort, onDone));
+            // Mute video sound when a separate audio track is provided
+            element.appendChild(generateAudioVideo(data.url, data.mediaIsShort, onDone, !!data.audioUrl));
           }
         }
       }
@@ -607,7 +631,7 @@
           displayTimeout = setTimeout(done, message.duration * 1000 + 100);
         }
 
-        if (!data.text && !data.mediaContentType) {
+        if (!data.text && !data.mediaContentType && !data.audioUrl) {
           if (!isDesktop) {
             emptyState.style.display = 'block';
           }
