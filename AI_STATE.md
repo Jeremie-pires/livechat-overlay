@@ -1,48 +1,44 @@
 # AI_STATE.md — LiveChat CCB
 
 ## Status
-Branch `develop` — TikTok + Twitter fixes merged to develop. Prêt pour PR `develop` → `main` + déploiement prod.
+Branch `develop` — session 6 complete. Rate-limit fix + H-AUD-06 sanitization + 6 code-review findings resolved. Ready for PR `develop` → `main` + prod deploy.
 
 ---
 
 ## 1. Accomplished
 
-### Sessions 3–4 (feature/tiktok-twitter-integration → develop)
-- **TikTok URL sanitization** — `sanitizeTikTokUrl` strip les query params ET le chemin après `/video/ID`. Résout les 404 yt-dlp causés par `?is_from_webapp=1&sender_device=pc`.
-- **Twitter/Cobalt fix** — Cobalt ne supporte pas `/video/N`. `isTwitterUrl` accepte désormais `/status/\d+` (sans exiger `/video/N`). `sanitizeTwitterUrl` strip query params + suffixe `/video/N` avant Cobalt. URL post classique et URL `/video/N` toutes deux acceptées.
-- **Fix Docker crash** — `fastify.all('/socket.io/*')` rejeté par `find-my-way` (QUERY dans `http.METHODS` Node 20.14+). Remplacé par `fastify.route({ method: [...] })`.
-- **Fix Trivy CVEs** — `app/node_modules/@esbuild` dans `skip-dirs` de `release.yml`.
-- **Fix Docker startup** — `tsx` déplacé en `dependencies` (supprimé par `pnpm prune --prod`).
+### Session 6 (code-review fixes)
+- **`allowList` fix** — `server.ts`: `skip` (invalid in @fastify/rate-limit v11, silently ignored) → `allowList`. Socket.io and `/health*` now actually exempt. `isRateLimitExempt` extracted to `src/services/utils.ts`; test imports real predicate (no longer self-referential).
+- **Worker sanitize refactor** — `messagesWorker.ts`: spread+delete → destructuring `{ media, ...sanitizedContent }`; promotion guard changed to `== null` (not falsy); `emittedContent = JSON.stringify(sanitizedContent)` cached once — used for both emit and `payloadBytes`; `getMediaType` and `resolveMediaDurationMs` now receive `sanitizedContent` (stats no longer miscategorised).
+- **Client mock fix** — `client.html:389`: `__triggerTestFormat` mock changed `media: mediaUrl` → `url: mediaUrl` (regression: test buttons were broken post H-AUD-06 change).
+- **Client guard** — `client.html:displayContent`: `if (!data.url) { onDone(); return; }` before media type dispatch — prevents `generateImg(undefined)` / `generateAudioVideo(undefined)` and potential queue stall.
+- **HAProxy config** — `docs/infra/haproxy.cfg.example`: reverted both backends to probe `GET /health` (liveness). `/health/ready` returns 503 on Discord flap — would mark backend DOWN despite HTTP server being healthy. README note updated.
+- **Tests** — `messagesWorker.sanitize.test.ts`: added `url: ""` case confirming `== null` guard (empty string does NOT trigger promotion). All 377 tests pass.
 
-### Sessions 1–2
-- TikTok CDN 403, proxy Range-aware, iframe fallback, Cobalt pour Twitter.
-- Fastify v5 migration, suppression `fastify-socket.io` + `unify-fastify`, SonarQube A, 4 CVE HIGH éliminés.
+### Session 5 (TikTok H.264 fix — already on main)
+- Format selector `best[ext=mp4][vcodec^=h264]/best[ext=mp4]/best` — forces H.264 over H.265.
 
 ---
 
 ## 2. Current Architecture (key files)
 
-| File | Rôle |
+| File | Role |
 |---|---|
-| `src/server.ts` | Fastify v5 + Socket.IO direct ; `fastify.route()` explicite pour `/socket.io/*` |
-| `src/services/content-utils.ts` | `sanitizeTikTokUrl` (strip params + path) ; `sanitizeTwitterUrl` (strip params + `/video/N`) ; `isTwitterUrl` = hostname + `/status/\d+` |
-| `src/services/ytdlp.ts` | yt-dlp -J wrapper, semaphore 5 concurrent, cookie injection |
-| `src/services/video-proxy-cache.ts` | Token → CDN entry avec headers |
-| `src/components/api/videoProxyRoute.ts` | GET /api/video?t=TOKEN — stream proxy Range-aware |
-| `src/services/env.ts` | YTDLP_PATH, FFPROBE_PATH, COBALT_API_URL, COBALT_PUBLIC_URL, API_URL |
-| `.github/workflows/release.yml` | skip-dirs inclut `app/node_modules/@esbuild` |
-
-### Flow (Discord → browser)
-1. Discord `/msg <url>` → `getContentInformationsFromUrl` (sanitize → detect)
-2. TikTok: `extractVideoUrl` (yt-dlp) → `buildProxyUrl` → `/api/video?t=TOKEN`
-3. Twitter: `resolveCobaltUrl` (URL nettoyée) → `buildProxyUrl` → `/api/video?t=TOKEN`
-4. Queue → Socket.IO `new-message` → Vidstack client
+| `src/server.ts` | Fastify v5 + Socket.IO; `allowList: isRateLimitExempt` |
+| `src/services/utils.ts` | `isRateLimitExempt(req)` exported; used by server + test |
+| `src/components/messages/messagesWorker.ts` | Destructuring sanitize; `emittedContent` cached; stats use `sanitizedContent` |
+| `src/components/client/client.html` | `displayContent` guards `!data.url`; test mock uses `url:` |
+| `src/services/content-utils.ts` | TikTok/Twitter URL sanitization + Cobalt + yt-dlp proxy |
+| `src/services/ytdlp.ts` | H.264 format selector; semaphore 5; cookie injection |
+| `docs/infra/haproxy.cfg.example` | Probes `GET /health` (liveness only) |
 
 ---
 
-## 3. Remaining / Next Steps
+## 3. Next Steps
 
-1. **[NEXT]** Déploiement prod sur VPS : `cd ~/livechat/livechat-overlay && git pull && docker compose build --no-cache && docker compose down && docker compose up -d`
-2. Vérifier après déploiement : lancer test TikTok + Twitter via Discord, confirmer logs `info`/`warn` dans `docker logs`
-3. **H-AUD-06** — Filtrer `media` (Discord proxy URL) du payload Socket.IO `new-message`
-4. **`displayMediaFull`** feature
+1. **[NEXT]** Commit session 6 changes
+2. **[NEXT]** PR `develop` → `main` + prod deploy
+3. **[NEXT]** Vérif prod : TikTok + Twitter + boutons test overlay
+4. **[LATER]** Fix prod 429 sur `/health` — déjà résolu côté code (`allowList`), vérifier que la config HAProxy prod est bien sur `GET /health`
+5. **[LATER]** H-AUD-06 write-side : les 4 commandes (`send`, `hidesend`, `talk`, `hidetalk`) stockent encore `media` en DB. Envisager migration ou write-time sanitization pour couper la surface à la source.
+6. **[LATER]** `displayMediaFull` — feature en attente, non prioritaire

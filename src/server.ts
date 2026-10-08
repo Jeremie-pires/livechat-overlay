@@ -11,6 +11,7 @@ import { env, validateEnvCoherence } from './services/env';
 import { loadDiscord } from './loaders/DiscordLoader';
 import { loadRosetty } from './services/i18n/loader';
 import { loadPrismaClient } from './services/prisma/loadPrisma';
+import { isRateLimitExempt } from './services/utils';
 import './services/cpuSampler';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -181,10 +182,7 @@ export const runServer = async () => {
     max: 100,
     timeWindow: '1 minute',
     keyGenerator: (req) => req.ip,
-    // Socket.IO transport requests (polling, WS upgrade) must not count toward the REST
-    // rate limit — repeated reconnects from the local OBS proxy would exhaust the budget
-    // and cause 429s on subsequent asset requests (SVGs, etc.).
-    skip: (req) => (req.url ?? '').startsWith('/socket.io'),
+    allowList: isRateLimitExempt,
   });
 
   loadRosetty();

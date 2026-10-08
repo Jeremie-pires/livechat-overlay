@@ -1,5 +1,10 @@
 const MAX_DURATION_SECONDS = 3600;
 
+export const isRateLimitExempt = (req: { url?: string }): boolean => {
+  const url = req.url ?? '';
+  return url.startsWith('/socket.io') || url.startsWith('/health');
+};
+
 export function parseDuration(trimmed: string, mediaDuration: number | null | undefined): number | 'error' {
   if (trimmed === 'full') {
     return mediaDuration ? Math.ceil(mediaDuration) : 0;
