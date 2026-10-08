@@ -2,6 +2,7 @@ import { ChatInputCommandInteraction, EmbedBuilder, SlashCommandBuilder } from '
 import { QueueType } from '../../services/prisma/loadPrisma';
 import { measureContentProcessing, ContentInfo } from '../../services/telemetry';
 import { getDurationFromGuildId, parseDuration } from '../../services/utils';
+import { getAudioInfoFromUrl, AudioInfo } from '../../services/content-utils';
 
 function isValidUrl(value: string): boolean {
   try {
@@ -43,6 +44,12 @@ export const hideSendCommand = () => ({
         .setName(rosetty.t('hideSendCommandOptionDuration')!)
         .setDescription(rosetty.t('hideSendCommandOptionDurationDescription')!)
         .setRequired(false),
+    )
+    .addStringOption((option) =>
+      option
+        .setName(rosetty.t('hideSendCommandOptionAudio')!)
+        .setDescription(rosetty.t('hideSendCommandOptionAudioDescription')!)
+        .setRequired(false),
     ),
   handler: async (interaction: ChatInputCommandInteraction) => {
     const discordReceivedAt = interaction.createdTimestamp;
@@ -52,6 +59,7 @@ export const hideSendCommand = () => ({
     const url = interaction.options.get(rosetty.t('hideSendCommandOptionURL')!)?.value as string | undefined;
     const text = interaction.options.get(rosetty.t('hideSendCommandOptionText')!)?.value as string | undefined;
     const media = interaction.options.get(mediaKey)?.attachment?.proxyURL;
+    const audio = interaction.options.get(rosetty.t('hideSendCommandOptionAudio')!)?.value as string | undefined;
     const customDurationString = interaction.options.get(rosetty.t('hideSendCommandOptionDuration')!)?.value as
       | string
       | undefined;
@@ -59,7 +67,7 @@ export const hideSendCommand = () => ({
     let mediaDuration = interaction.options.get(mediaKey)?.attachment?.duration;
     let mediaIsShort = false;
 
-    if (!url && !media && !text) {
+    if (!url && !media && !text && !audio) {
       await interaction.editReply({
         embeds: [
           new EmbedBuilder()
@@ -75,6 +83,18 @@ export const hideSendCommand = () => ({
       await interaction.editReply({
         embeds: [
           new EmbedBuilder().setTitle(rosetty.t('error')!).setDescription(rosetty.t('invalidUrl')!).setColor(0xe74c3c),
+        ],
+      });
+      return;
+    }
+
+    if (audio && !isValidUrl(audio)) {
+      await interaction.editReply({
+        embeds: [
+          new EmbedBuilder()
+            .setTitle(rosetty.t('error')!)
+            .setDescription(rosetty.t('invalidAudioUrl')!)
+            .setColor(0xe74c3c),
         ],
       });
       return;
@@ -100,11 +120,32 @@ export const hideSendCommand = () => ({
 
     let processingMs = 0;
     let additionalContent: ContentInfo | undefined;
-    if ((!mediaContentType || !mediaDuration) && (media || url)) {
-      const result = await measureContentProcessing((media ?? url) as string);
-      processingMs = result.processingMs;
-      additionalContent = result.contentInfo;
+    let audioInfo: AudioInfo | null = null;
+
+    const [contentResult, resolvedAudio] = await Promise.all([
+      (!mediaContentType || !mediaDuration) && (media || url)
+        ? measureContentProcessing((media ?? url) as string)
+        : Promise.resolve(null),
+      audio ? getAudioInfoFromUrl(audio) : Promise.resolve(null),
+    ]);
+
+    if (contentResult) {
+      processingMs = contentResult.processingMs;
+      additionalContent = contentResult.contentInfo;
     }
+
+    if (audio && !resolvedAudio) {
+      await interaction.editReply({
+        embeds: [
+          new EmbedBuilder()
+            .setTitle(rosetty.t('error')!)
+            .setDescription(rosetty.t('invalidAudioUrl')!)
+            .setColor(0xe74c3c),
+        ],
+      });
+      return;
+    }
+    audioInfo = resolvedAudio;
 
     mediaContentType = mediaContentType ?? additionalContent?.contentType;
 
@@ -124,6 +165,10 @@ export const hideSendCommand = () => ({
       finalDuration = Math.ceil(mediaDuration);
     }
 
+    if (finalDuration === undefined && audioInfo?.audioDuration) {
+      finalDuration = Math.ceil(audioInfo.audioDuration);
+    }
+
     const resolvedDuration = await getDurationFromGuildId(
       finalDuration !== undefined ? Math.ceil(finalDuration) : undefined,
       interaction.guildId!,
@@ -138,6 +183,7 @@ export const hideSendCommand = () => ({
           mediaContentType,
           mediaDuration: resolvedDuration,
           mediaIsShort,
+          ...(audioInfo ? { audioUrl: audioInfo.audioUrl, audioDuration: audioInfo.audioDuration } : {}),
         }),
         type: QueueType.MESSAGE,
         discordGuildId: interaction.guildId!,

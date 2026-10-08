@@ -1,44 +1,53 @@
 # AI_STATE.md — LiveChat CCB
 
 ## Status
-Branch `develop` — session 6 complete. Rate-limit fix + H-AUD-06 sanitization + 6 code-review findings resolved. Ready for PR `develop` → `main` + prod deploy.
+Branch `feature/audio-msg` — implémentation complète + 6 bugs corrigés. 385/385 tests passent. Prêt pour test sur docker dev.
 
 ---
 
 ## 1. Accomplished
 
-### Session 6 (code-review fixes)
-- **`allowList` fix** — `server.ts`: `skip` (invalid in @fastify/rate-limit v11, silently ignored) → `allowList`. Socket.io and `/health*` now actually exempt. `isRateLimitExempt` extracted to `src/services/utils.ts`; test imports real predicate (no longer self-referential).
-- **Worker sanitize refactor** — `messagesWorker.ts`: spread+delete → destructuring `{ media, ...sanitizedContent }`; promotion guard changed to `== null` (not falsy); `emittedContent = JSON.stringify(sanitizedContent)` cached once — used for both emit and `payloadBytes`; `getMediaType` and `resolveMediaDurationMs` now receive `sanitizedContent` (stats no longer miscategorised).
-- **Client mock fix** — `client.html:389`: `__triggerTestFormat` mock changed `media: mediaUrl` → `url: mediaUrl` (regression: test buttons were broken post H-AUD-06 change).
-- **Client guard** — `client.html:displayContent`: `if (!data.url) { onDone(); return; }` before media type dispatch — prevents `generateImg(undefined)` / `generateAudioVideo(undefined)` and potential queue stall.
-- **HAProxy config** — `docs/infra/haproxy.cfg.example`: reverted both backends to probe `GET /health` (liveness). `/health/ready` returns 503 on Discord flap — would mark backend DOWN despite HTTP server being healthy. README note updated.
-- **Tests** — `messagesWorker.sanitize.test.ts`: added `url: ""` case confirming `== null` guard (empty string does NOT trigger promotion). All 377 tests pass.
+### Session 7 (feature/audio-msg — implémentation)
+- **`extractAudioUrl`** — `ytdlp.ts`: nouvelle fonction, semaphore partagé, in-flight dedup `audio:<url>`, format `bestaudio[ext=m4a]/bestaudio`.
+- **`getAudioInfoFromUrl`** — `content-utils.ts`: SSRF guard → YouTube via yt-dlp + proxy, direct audio via HEAD `Content-Type: audio/*`, TikTok/Twitter rejetés.
+- **`sendCommand` + `hidesendCommand`** — option `audio` (string, non-required), validation URL, `getAudioInfoFromUrl` en parallèle avec `measureContentProcessing`, `audioUrl`/`audioDuration` dans le JSON queue.
+- **`client.html`** — `generateAudioVideo` accepte `muteVideo`, `displayContent` crée `<audio id="message-audio">`, `clearDisplay` nettoie l'élément audio.
+- **i18n** — `sendCommandOptionAudio`, `hideSendCommandOptionAudio`, `invalidAudioUrl` en FR et EN.
+- **Tests** — `content-utils.audio.test.ts` : 8 tests (YouTube OK/fail, direct audio, TikTok/Twitter rejetés, SSRF). 385/385 passent.
 
-### Session 5 (TikTok H.264 fix — already on main)
-- Format selector `best[ext=mp4][vcodec^=h264]/best[ext=mp4]/best` — forces H.264 over H.265.
+### Session 6 (develop — déjà mergé sur main)
+- `allowList` rate-limit, worker sanitize, client guard, HAProxy config.
 
 ---
 
-## 2. Current Architecture (key files)
+## 2. Bugs corrigés (code review — session 7)
 
-| File | Role |
+| # | Fichier | Fix appliqué |
+|---|---|---|
+| 1 | `content-utils.ts` | Ajout `redirect: 'error'` sur HEAD fetch — bloque SSRF via redirect |
+| 2 | `sendCommand.ts` / `hidesendCommand.ts` | `audioDuration` utilisé comme `finalDuration` si pas de vidéo — évite coupure à 5s |
+| 3 | `client.html` | `__setVolume` itère uniquement `<audio>` (pas `<video>`) — Vidstack géré via `player.volume` |
+| 4 | `client.html` | `displayMessage` : condition `!data.audioUrl` ajoutée — audio-only ne réaffiche pas l'emptyState |
+| 5 | `content-utils.ts` | `probeDuration` reçoit l'URL pinnée (IP) au lieu de l'URL originale — ferme fenêtre DNS rebinding |
+| 6 | `client.html` | `.play().catch()` ajouté après `appendChild(audioEl)` — fallback si autoplay bloqué (OBS) |
+
+---
+
+## 3. Architecture actuelle (fichiers clés feature)
+
+| Fichier | Rôle |
 |---|---|
-| `src/server.ts` | Fastify v5 + Socket.IO; `allowList: isRateLimitExempt` |
-| `src/services/utils.ts` | `isRateLimitExempt(req)` exported; used by server + test |
-| `src/components/messages/messagesWorker.ts` | Destructuring sanitize; `emittedContent` cached; stats use `sanitizedContent` |
-| `src/components/client/client.html` | `displayContent` guards `!data.url`; test mock uses `url:` |
-| `src/services/content-utils.ts` | TikTok/Twitter URL sanitization + Cobalt + yt-dlp proxy |
-| `src/services/ytdlp.ts` | H.264 format selector; semaphore 5; cookie injection |
-| `docs/infra/haproxy.cfg.example` | Probes `GET /health` (liveness only) |
+| `src/services/ytdlp.ts` | `extractAudioUrl` + `extractVideoUrl` (clés namespaced `audio:/video:`) |
+| `src/services/content-utils.ts` | `getAudioInfoFromUrl` — SSRF + YouTube + direct audio |
+| `src/components/messages/sendCommand.ts` | Option `audio`, Promise.all parallèle, queue JSON avec `audioUrl` |
+| `src/components/messages/hidesendCommand.ts` | Idem sendCommand |
+| `src/components/client/client.html` | `generateAudioVideo(muteVideo)`, `<audio id="message-audio">`, cleanup dans `clearDisplay` |
 
 ---
 
-## 3. Next Steps
+## 4. Next Steps
 
-1. **[NEXT]** Commit session 6 changes
-2. **[NEXT]** PR `develop` → `main` + prod deploy
-3. **[NEXT]** Vérif prod : TikTok + Twitter + boutons test overlay
-4. **[LATER]** Fix prod 429 sur `/health` — déjà résolu côté code (`allowList`), vérifier que la config HAProxy prod est bien sur `GET /health`
-5. **[LATER]** H-AUD-06 write-side : les 4 commandes (`send`, `hidesend`, `talk`, `hidetalk`) stockent encore `media` en DB. Envisager migration ou write-time sanitization pour couper la surface à la source.
-6. **[LATER]** `displayMediaFull` — feature en attente, non prioritaire
+1. **[NEXT]** Test sur docker dev (commande `/msg audio:` avec YouTube et mp3 direct)
+2. **[NEXT]** PR `feature/audio-msg` → `develop` → `main`
+3. **[LATER]** H-AUD-06 write-side : les 4 commandes stockent encore `media` en DB
+4. **[LATER]** `displayMediaFull` — feature en attente, non prioritaire
