@@ -6,7 +6,7 @@ import { runProcess } from './spawn-process';
 import { assertPublicHttpUrl, type AssertedUrl } from './url-guard';
 import { env } from './env';
 import { findOrCreateProxy } from './video-proxy-cache';
-import { extractVideoUrl, extractAudioUrl } from './ytdlp';
+import { extractVideoUrl } from './ytdlp';
 
 const MAX_HTML_CHARS = 256 * 1024;
 const FETCH_TIMEOUT_MS = 5_000;
@@ -161,9 +161,12 @@ async function resolveHttpRedirect(startUrl: string, startGuard: AssertedUrl): P
 
 // Sends url to a self-hosted Cobalt instance and returns the resolved stream URL.
 // Returns null if Cobalt is unconfigured, unreachable, or returns an unexpected response.
-async function resolveCobaltUrl(url: string): Promise<string | null> {
+async function resolveCobaltUrl(url: string, options: { audioOnly?: boolean } = {}): Promise<string | null> {
   const apiUrl = env.COBALT_API_URL;
   if (!apiUrl) return null;
+
+  const body: Record<string, string> = { url };
+  if (options.audioOnly) body.downloadMode = 'audio';
 
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
   try {
@@ -171,7 +174,7 @@ async function resolveCobaltUrl(url: string): Promise<string | null> {
       fetch(apiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify(body),
       }),
       new Promise<never>((_, reject) => {
         timeoutId = setTimeout(() => reject(new Error('cobalt timeout')), COBALT_TIMEOUT_MS);
@@ -494,7 +497,7 @@ export interface AudioInfo {
 }
 
 // Validates a user-supplied audio URL and returns proxied CDN URL + duration.
-// Accepts YouTube (extracted via yt-dlp) or direct audio URLs (Content-Type: audio/*).
+// Accepts YouTube (extracted via Cobalt) or direct audio URLs (Content-Type: audio/*).
 // Returns null for TikTok, Twitter, and any non-audio URL.
 export async function getAudioInfoFromUrl(url: string): Promise<AudioInfo | null> {
   let guard;
@@ -506,14 +509,15 @@ export async function getAudioInfoFromUrl(url: string): Promise<AudioInfo | null
   }
 
   if (isYouTubeUrl(url)) {
-    const extracted = await extractAudioUrl(url, env.YTDLP_COOKIES);
-    if (!extracted) {
-      logger.warn({ url }, 'audio: yt-dlp extraction failed');
+    const streamUrl = await resolveCobaltUrl(url, { audioOnly: true });
+    if (!streamUrl) {
+      logger.warn({ url }, 'audio: cobalt extraction failed');
       return null;
     }
-    logger.info({ url, duration: extracted.duration }, 'audio: yt-dlp extraction succeeded');
-    const proxyUrl = buildProxyUrl(url, extracted.url, extracted.headers);
-    return { audioUrl: proxyUrl, audioDuration: extracted.duration };
+    logger.info({ url }, 'audio: cobalt extraction succeeded');
+    const proxyUrl = buildProxyUrl(url, streamUrl);
+    const duration = await probeDuration(streamUrl);
+    return { audioUrl: proxyUrl, audioDuration: duration };
   }
 
   if (isTikTokUrl(url) || isTwitterUrl(url)) {
