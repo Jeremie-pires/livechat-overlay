@@ -1,31 +1,38 @@
 # AI_STATE.md — LiveChat CCB
 
 ## Status
-Branch `feature/audio-msg` — implémentation complète + 7 bugs corrigés + tests live passés. Prêt pour PR.
+Branch `feature/audio-msg` — PR #72 ouvert (`feature/audio-msg` → `develop`). yt-dlp audio restauré (Cobalt retiré du chemin YouTube). En attente de cookies yt-dlp pour que l'extraction YouTube fonctionne.
 
 ---
 
 ## 1. Accomplished
 
-### Session 10 (feature/audio-msg — fix Cobalt tunnel bug)
-- **Bug fix** (`3fca5cc`): `probeDuration(streamUrl)` supprimé du chemin Cobalt audio dans `getAudioInfoFromUrl` (`content-utils.ts` ~ligne 519). ffprobe consommait le tunnel single-use avant que le client puisse le lire → 404 video-proxy.
-- **Docker rebuild** déployé sur dev container.
-- **Tests live confirmés** :
-  - `texte + audio (YT)` ✅ — cobalt extraction succeeded, audio lu
-  - `lien + audio + texte` ✅ — tunnel préservé (plus de 404 immédiate liée à probeDuration)
-  - `audio only (direct MP3)` ✅ — Succès
-  - `/cmsg audio (YT) + texte` ✅ — Succès + réponse éphémère confirmée
-- **Finding** : Cobalt tunnel TTL ≈ 90s. Si délai queue > 90s (ex: yt-dlp lent sur lien YouTube), audio expire silencieusement. Problème distinct du bug probeDuration — non bloquant pour le PR.
+### Session 11 (feature/audio-msg — retour yt-dlp audio)
+- Restauré `extractAudioUrl` + `_runYtdlpAudio` dans `ytdlp.ts` (supprimés au commit `6cc72a6`)
+- `getAudioInfoFromUrl` dans `content-utils.ts` : bloc Cobalt remplacé par `extractAudioUrl(url, env.YTDLP_COOKIES)`
+- Tests `content-utils.audio.test.ts` : mocks Cobalt → mocks yt-dlp spawn
+- 386/386 tests passent
+- Phase test live en cours : erreurs cookies yt-dlp attendues (YTDLP_COOKIES non configuré)
 
-### Session 9 (feature/audio-msg — YouTube audio via Cobalt)
-- YouTube audio via Cobalt (`resolveCobaltUrl` + `downloadMode: "audio"`). `extractAudioUrl` supprimé de `ytdlp.ts`.
+### Session 10 (feature/audio-msg — fix Cobalt tunnel + diagnostic)
+- **Bug fix** (`3fca5cc`): `probeDuration(streamUrl)` supprimé du chemin Cobalt dans `getAudioInfoFromUrl`. Tunnel single-use n'est plus consommé par ffprobe.
+- **Tests live** :
+  - `texte + audio (YT dQw4w9WgXcQ)` ✅ — cobalt extraction succeeded
+  - `lien + audio + texte` ✅ — plus de 404 immédiate (tunnel préservé)
+  - `audio only (direct MP3 soundhelix)` ✅
+  - `/cmsg audio (YT) + texte` ✅ éphémère confirmé
+- **Diagnostic Cobalt** (via `docker exec node`): seul `dQw4w9WgXcQ` passe. Toutes les autres URLs YouTube → `error.api.youtube.login`. Cobalt ne peut pas extraire sans session YouTube authentifiée.
+- **PR #72** créé (`feature/audio-msg` → `develop`).
+
+### Session 9 (YouTube audio via Cobalt)
+- `resolveCobaltUrl` + `downloadMode: "audio"`. `extractAudioUrl` supprimé de `ytdlp.ts`.
 - 9 tests unitaires. 386/386 passent.
 
-### Session 7-8 (feature/audio-msg — implémentation + tests live)
-- `getAudioInfoFromUrl` : SSRF guard → YouTube via Cobalt, direct audio via HEAD, TikTok/Twitter rejetés.
-- `sendCommand` + `hidesendCommand` : option `audio`, Promise.all parallèle, `audioUrl`/`audioDuration` dans queue JSON.
-- `client.html` : `generateAudioVideo(muteVideo)`, `<audio id="message-audio">`, cleanup dans `clearDisplay`.
-- 6 bugs corrigés (code review session 7).
+### Session 7-8 (implémentation audio)
+- `getAudioInfoFromUrl` : SSRF guard → YouTube via Cobalt, direct audio via HEAD.
+- `sendCommand` / `hidesendCommand` : option `audio`, queue JSON avec `audioUrl`/`audioDuration`.
+- `client.html` : `<audio id="message-audio">`, muteVideo, cleanup, emptyState masqué en audio-only.
+- 6 bugs corrigés (code review).
 
 ---
 
@@ -33,25 +40,25 @@ Branch `feature/audio-msg` — implémentation complète + 7 bugs corrigés + te
 
 | Fichier | Rôle |
 |---|---|
-| `src/services/content-utils.ts` | `getAudioInfoFromUrl` — SSRF + YouTube via Cobalt + direct audio. `probeDuration` NON appelé sur tunnel Cobalt. |
-| `src/services/ytdlp.ts` | `extractVideoUrl` uniquement |
-| `src/components/messages/sendCommand.ts` | Option `audio`, queue JSON avec `audioUrl`/`audioDuration` |
-| `src/components/messages/hidesendCommand.ts` | Idem sendCommand |
-| `src/components/client/client.html` | `<audio id="message-audio">`, cleanup, emptyState masqué en audio-only |
+| `src/services/content-utils.ts` | `getAudioInfoFromUrl` — SSRF + YouTube via yt-dlp + direct audio HEAD |
+| `src/services/ytdlp.ts` | `extractVideoUrl` + `extractAudioUrl` (restauré). Semaphore + in-flight dedup pour les deux. |
+| `src/components/messages/sendCommand.ts` | Option `audio`, Promise.all, queue JSON `audioUrl`/`audioDuration` |
+| `src/components/messages/hidesendCommand.ts` | Idem |
+| `src/components/client/client.html` | `<audio id="message-audio">`, muteVideo, clearDisplay |
 
 ---
 
-## 3. Notes techniques
+## 3. Bugs / Next Steps
 
-- **Cobalt tunnel TTL** : ~90s. Si `Promise.all(yt-dlp lien, cobalt audio)` + délai queue > 90s → audio 404 silencieux. Fix potentiel : re-fetch Cobalt à la déqueue (non implémenté).
-- **YouTube CDN 403** : URLs googlevideo.com bound à l'IP — pré-existant, non-régressif.
-- **`audioDuration`** : retourne `undefined` pour Cobalt (tunnel non sondé) → fallback `DEFAULT_DURATION=5s` ou param `temps`.
+### [NEXT] Ajouter les cookies yt-dlp
+- Configurer `YTDLP_COOKIES` dans le `.env` du VPS (chemin vers `cookies.txt` YouTube)
+- Format Netscape (`# Netscape HTTP Cookie File`) — exportable depuis l'extension browser `Get cookies.txt`
+- Une fois configuré, relancer un test live `/msg audio: <URL YouTube>` pour confirmer l'extraction
+
+### [NEXT] Merger PR #72 puis `develop` → `main`
 
 ---
 
-## 4. Next Steps
-
-1. **[NEXT]** PR `feature/audio-msg` → `develop` → `main`
-2. **[LATER]** H-AUD-06 write-side : 4 commandes stockent encore `media` en DB (pas `audioUrl`/`audioDuration`)
-3. **[LATER]** Re-fetch Cobalt à la déqueue pour éviter expiry tunnel > 90s
-4. **[LATER]** `displayMediaFull` — non prioritaire
+### [LATER]
+- H-AUD-06 : 4 commandes stockent encore `media` en DB
+- `displayMediaFull` — non prioritaire

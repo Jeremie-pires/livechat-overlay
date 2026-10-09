@@ -38,7 +38,6 @@ vi.mock('../../services/video-proxy-cache', () => ({
 }));
 
 const PUBLIC_IP = '93.184.216.34';
-const COBALT_API_URL = 'https://cobalt.example.com/api/json';
 const YOUTUBE_URL = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
 const AUDIO_DIRECT_URL = 'https://example.com/track.mp3';
 const TIKTOK_URL = 'https://www.tiktok.com/@user/video/123456';
@@ -46,10 +45,6 @@ const TWITTER_URL = 'https://x.com/user/status/123456789';
 
 function makeHeadResponse(contentType: string | null) {
   return { headers: { get: () => contentType } };
-}
-
-function makeCobaltResponse(status: string, url: string) {
-  return { ok: true, json: async () => ({ status, url }) };
 }
 
 // Returns a process mock that exits immediately with no stdout output.
@@ -64,9 +59,42 @@ function spawnNoOutput() {
   } as unknown as ReturnType<typeof spawn>;
 }
 
+// Returns a process mock that emits JSON on stdout then exits 0.
+function spawnYtdlpOutput(data: object) {
+  const dataListeners: Array<(chunk: Buffer) => void> = [];
+  const stdout = {
+    on: vi.fn().mockImplementation((event: string, cb: (chunk: Buffer) => void) => {
+      if (event === 'data') dataListeners.push(cb);
+    }),
+  };
+  return {
+    stdout,
+    kill: vi.fn(),
+    on: vi.fn().mockImplementation((event: string, cb: (...args: unknown[]) => void) => {
+      if (event === 'close') {
+        setImmediate(() => {
+          dataListeners.forEach((l) => l(Buffer.from(JSON.stringify(data))));
+          cb(0);
+        });
+      }
+    }),
+  } as unknown as ReturnType<typeof spawn>;
+}
+
+// Returns a process mock that exits with a non-zero code.
+function spawnExitCode(code: number) {
+  const stdout = { on: vi.fn() };
+  return {
+    stdout,
+    kill: vi.fn(),
+    on: vi.fn().mockImplementation((event: string, cb: (...args: unknown[]) => void) => {
+      if (event === 'close') setImmediate(() => cb(code));
+    }),
+  } as unknown as ReturnType<typeof spawn>;
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
-  mockEnv.COBALT_API_URL = COBALT_API_URL;
   (global as Record<string, unknown>).logger = {
     debug: vi.fn(),
     info: vi.fn(),
@@ -86,42 +114,47 @@ afterEach(() => {
 });
 
 describe('getAudioInfoFromUrl — YouTube', () => {
-  it('returns proxy URL when Cobalt succeeds', async () => {
-    vi.mocked(fetch).mockResolvedValueOnce(
-      makeCobaltResponse('redirect', 'https://cdn.example.com/audio.m4a') as never,
+  it('returns proxy URL with duration when yt-dlp succeeds', async () => {
+    vi.mocked(spawn).mockReturnValueOnce(
+      spawnYtdlpOutput({
+        url: 'https://cdn.example.com/audio.m4a',
+        http_headers: { 'User-Agent': 'yt-dlp' },
+        duration: 212.5,
+      }),
     );
 
     const result = await getAudioInfoFromUrl(YOUTUBE_URL);
 
     expect(result).not.toBeNull();
     expect(result!.audioUrl).toContain('/api/video?t=test-token');
+    expect(result!.audioDuration).toBe(212.5);
     expect(vi.mocked((global as Record<string, { info: ReturnType<typeof vi.fn> }>).logger.info)).toHaveBeenCalledWith(
-      { url: YOUTUBE_URL },
-      'audio: cobalt extraction succeeded',
+      { url: YOUTUBE_URL, duration: 212.5 },
+      'audio: yt-dlp extraction succeeded',
     );
   });
 
-  it('returns null when Cobalt is not configured', async () => {
-    mockEnv.COBALT_API_URL = undefined;
+  it('returns null when yt-dlp returns no output', async () => {
+    vi.mocked(spawn).mockReturnValueOnce(spawnNoOutput());
 
     const result = await getAudioInfoFromUrl(YOUTUBE_URL);
 
     expect(result).toBeNull();
     expect(vi.mocked((global as Record<string, { warn: ReturnType<typeof vi.fn> }>).logger.warn)).toHaveBeenCalledWith(
       { url: YOUTUBE_URL },
-      'audio: cobalt extraction failed',
+      'audio: yt-dlp extraction failed',
     );
   });
 
-  it('returns null when Cobalt returns an error response', async () => {
-    vi.mocked(fetch).mockResolvedValueOnce({ ok: false, status: 500 } as never);
+  it('returns null when yt-dlp process exits with non-zero code', async () => {
+    vi.mocked(spawn).mockReturnValueOnce(spawnExitCode(1));
 
     const result = await getAudioInfoFromUrl(YOUTUBE_URL);
 
     expect(result).toBeNull();
     expect(vi.mocked((global as Record<string, { warn: ReturnType<typeof vi.fn> }>).logger.warn)).toHaveBeenCalledWith(
       { url: YOUTUBE_URL },
-      'audio: cobalt extraction failed',
+      'audio: yt-dlp extraction failed',
     );
   });
 });

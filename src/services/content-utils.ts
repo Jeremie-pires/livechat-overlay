@@ -6,7 +6,7 @@ import { runProcess } from './spawn-process';
 import { assertPublicHttpUrl, type AssertedUrl } from './url-guard';
 import { env } from './env';
 import { findOrCreateProxy } from './video-proxy-cache';
-import { extractVideoUrl } from './ytdlp';
+import { extractVideoUrl, extractAudioUrl } from './ytdlp';
 
 const MAX_HTML_CHARS = 256 * 1024;
 const FETCH_TIMEOUT_MS = 5_000;
@@ -497,7 +497,7 @@ export interface AudioInfo {
 }
 
 // Validates a user-supplied audio URL and returns proxied CDN URL + duration.
-// Accepts YouTube (extracted via Cobalt) or direct audio URLs (Content-Type: audio/*).
+// Accepts YouTube (extracted via yt-dlp) or direct audio URLs (Content-Type: audio/*).
 // Returns null for TikTok, Twitter, and any non-audio URL.
 export async function getAudioInfoFromUrl(url: string): Promise<AudioInfo | null> {
   let guard;
@@ -509,16 +509,14 @@ export async function getAudioInfoFromUrl(url: string): Promise<AudioInfo | null
   }
 
   if (isYouTubeUrl(url)) {
-    const streamUrl = await resolveCobaltUrl(url, { audioOnly: true });
-    if (!streamUrl) {
-      logger.warn({ url }, 'audio: cobalt extraction failed');
+    const extracted = await extractAudioUrl(url, env.YTDLP_COOKIES);
+    if (!extracted) {
+      logger.warn({ url }, 'audio: yt-dlp extraction failed');
       return null;
     }
-    logger.info({ url }, 'audio: cobalt extraction succeeded');
-    const proxyUrl = buildProxyUrl(url, streamUrl);
-    // Cobalt tunnel URLs are single-use — probing them via ffprobe consumes the stream
-    // before the client can play it. Duration falls back to DEFAULT_DURATION or temps param.
-    return { audioUrl: proxyUrl, audioDuration: undefined };
+    logger.info({ url, duration: extracted.duration }, 'audio: yt-dlp extraction succeeded');
+    const proxyUrl = buildProxyUrl(url, extracted.url, extracted.headers);
+    return { audioUrl: proxyUrl, audioDuration: extracted.duration };
   }
 
   if (isTikTokUrl(url) || isTwitterUrl(url)) {
