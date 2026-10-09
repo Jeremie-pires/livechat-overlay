@@ -20,9 +20,10 @@ FROM node:20-alpine AS runner
 
 # No build toolchain (alpine-sdk / gcc / make) — native modules are copied pre-compiled from builder
 # openssl is required by the Prisma schema engine at runtime
-# yt-dlp via apk (Alpine community repo) — avoids glibc/musl incompatibility with standalone binaries
+# yt-dlp via pip (PyPI) — always latest version; apk lags ~90 days behind
 RUN apk update && apk upgrade --no-cache && \
-    apk add --no-cache ffmpeg openssl yt-dlp && \
+    apk add --no-cache ffmpeg openssl py3-pip && \
+    pip3 install --break-system-packages yt-dlp && \
     corepack enable && corepack prepare pnpm@8.15.9 --activate
 
 ENV HUSKY=0
