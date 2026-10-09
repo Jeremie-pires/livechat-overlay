@@ -1,5 +1,5 @@
 # ─────────────── Stage 1 – Builder ────────────────────────────────────────────
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 
 RUN apk update && apk upgrade --no-cache && \
     apk add --no-cache python3 py3-pip py3-setuptools alpine-sdk ffmpeg
@@ -16,14 +16,15 @@ COPY . .
 RUN pnpm prune --prod
 
 # ─────────────── Stage 2 – Runtime ────────────────────────────────────────────
-FROM node:20-alpine AS runner
+FROM node:22-alpine AS runner
 
 # No build toolchain (alpine-sdk / gcc / make) — native modules are copied pre-compiled from builder
 # openssl is required by the Prisma schema engine at runtime
-# yt-dlp via pip (PyPI) — always latest version; apk lags ~90 days behind
+# yt-dlp + yt-dlp-ejs via pip (PyPI) — yt-dlp-ejs provides the n-challenge JS solver scripts
+# Node.js 22+ is required by yt-dlp's NodeJCP challenge solver (MIN_SUPPORTED_VERSION = 22)
 RUN apk update && apk upgrade --no-cache && \
     apk add --no-cache ffmpeg openssl py3-pip && \
-    pip3 install --break-system-packages yt-dlp && \
+    pip3 install --break-system-packages yt-dlp yt-dlp-ejs && \
     corepack enable && corepack prepare pnpm@8.15.9 --activate
 
 ENV HUSKY=0

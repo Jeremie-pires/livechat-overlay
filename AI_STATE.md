@@ -1,11 +1,17 @@
 # AI_STATE.md — LiveChat CCB
 
 ## Status
-Branch `feature/audio-msg` — PR #72 ouvert (`feature/audio-msg` → `develop`). yt-dlp audio restauré. Cookies corrigés sur VPS. Volume `:ro` maintenu. ytdlp.ts copie les cookies dans `/tmp` avant chaque appel yt-dlp pour éviter l'erreur OSError read-only. Test live en cours.
+Branch `feature/audio-msg` — PR #72 ouvert (`feature/audio-msg` → `develop`). Root cause n-challenge identifiée et corrigée. En attente de rebuild Docker + test live.
 
 ---
 
 ## 1. Accomplished
+
+### Session 14 (feature/audio-msg — fix yt-dlp n-challenge: node:22 + --js-runtimes)
+- Root cause n-challenge identifiée : `NodeJsRuntime.MIN_SUPPORTED_VERSION = (22, 0, 0)` dans `_jsruntime.py` → node:20 → `is_available() = False` → "node (unavailable)"
+- `Dockerfile` : `node:20-alpine` → `node:22-alpine` (builder + runner). Ajout `yt-dlp-ejs` au pip install.
+- `ytdlp.ts` : ajout `'--js-runtimes', 'node'` dans les args de `_runYtdlpAudio` et `_runYtdlp`.
+- Changements commités, rebuild VPS requis.
 
 ### Session 13 (feature/audio-msg — fix temp cookies copy)
 - Root cause finale : yt-dlp (même 2026.08.19 via pip) tente d'écrire le cookie-jar en teardown → `OSError: [Errno 30] Read-only file system` → stdout vide → extraction échoue
@@ -61,8 +67,8 @@ Branch `feature/audio-msg` — PR #72 ouvert (`feature/audio-msg` → `develop`)
 
 ## 3. Bugs / Next Steps
 
-### [NEXT] Test live YouTube audio
-- Redémarrer container : `docker compose -f docker-compose.dev.yml up -d --force-recreate livechatccb-dev`
+### [NEXT] Rebuild container VPS + test live
+- `docker compose -f docker-compose.dev.yml build --no-cache livechatccb-dev && docker compose -f docker-compose.dev.yml up -d --force-recreate livechatccb-dev`
 - Tester : `/msg audio: https://youtu.be/7EJqHYFF3Qo`
 - Attendre log : `audio: yt-dlp extraction succeeded`
 
