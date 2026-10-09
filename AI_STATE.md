@@ -1,11 +1,17 @@
 # AI_STATE.md — LiveChat CCB
 
 ## Status
-Branch `feature/audio-msg` — PR #72 ouvert (`feature/audio-msg` → `develop`). yt-dlp audio restauré (Cobalt retiré du chemin YouTube). En attente de cookies yt-dlp pour que l'extraction YouTube fonctionne.
+Branch `feature/audio-msg` — PR #72 ouvert (`feature/audio-msg` → `develop`). yt-dlp audio restauré. Cookies corrigés sur VPS (fichier complet restauré manuellement). Volume docker-compose passé en `:ro` fichier unique. Test live en cours.
 
 ---
 
 ## 1. Accomplished
+
+### Session 12 (feature/audio-msg — fix cookies + docker volume)
+- Diagnostiqué : yt-dlp écrasait `cookies.txt` via comportement cookie-jar → perte des cookies YouTube auth
+- `docker-compose.yml` + `docker-compose.dev.yml` : volume `./cobalt-cookies` → `./cobalt-cookies/cookies.txt:/cookies/cookies.txt:ro` (fichier seul, lecture seule)
+- Cookies restaurés manuellement sur VPS avec les cookies YouTube complets (SID, SSID, HSID, SAPISID, LOGIN_INFO, etc.)
+- Test live à confirmer après redémarrage container
 
 ### Session 11 (feature/audio-msg — retour yt-dlp audio)
 - Restauré `extractAudioUrl` + `_runYtdlpAudio` dans `ytdlp.ts` (supprimés au commit `6cc72a6`)
@@ -50,10 +56,10 @@ Branch `feature/audio-msg` — PR #72 ouvert (`feature/audio-msg` → `develop`)
 
 ## 3. Bugs / Next Steps
 
-### [NEXT] Ajouter les cookies yt-dlp
-- Configurer `YTDLP_COOKIES` dans le `.env` du VPS (chemin vers `cookies.txt` YouTube)
-- Format Netscape (`# Netscape HTTP Cookie File`) — exportable depuis l'extension browser `Get cookies.txt`
-- Une fois configuré, relancer un test live `/msg audio: <URL YouTube>` pour confirmer l'extraction
+### [NEXT] Test live YouTube audio
+- Redémarrer container : `docker compose -f docker-compose.dev.yml up -d --force-recreate livechatccb-dev`
+- Tester : `/msg audio: https://youtu.be/7EJqHYFF3Qo`
+- Attendre log : `audio: yt-dlp extraction succeeded`
 
 ### [NEXT] Merger PR #72 puis `develop` → `main`
 
