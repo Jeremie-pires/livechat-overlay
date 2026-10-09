@@ -1,17 +1,22 @@
 # AI_STATE.md — LiveChat CCB
 
 ## Status
-Branch `feature/audio-msg` — PR #72 ouvert (`feature/audio-msg` → `develop`). yt-dlp audio restauré. Cookies corrigés sur VPS (fichier complet restauré manuellement). Volume docker-compose passé en `:ro` fichier unique. Test live en cours.
+Branch `feature/audio-msg` — PR #72 ouvert (`feature/audio-msg` → `develop`). yt-dlp audio restauré. Cookies corrigés sur VPS. Volume `:ro` maintenu. ytdlp.ts copie les cookies dans `/tmp` avant chaque appel yt-dlp pour éviter l'erreur OSError read-only. Test live en cours.
 
 ---
 
 ## 1. Accomplished
 
+### Session 13 (feature/audio-msg — fix temp cookies copy)
+- Root cause finale : yt-dlp (même 2026.08.19 via pip) tente d'écrire le cookie-jar en teardown → `OSError: [Errno 30] Read-only file system` → stdout vide → extraction échoue
+- Fix : `ytdlp.ts` — `makeTempCookies()` copie `/cookies/cookies.txt` dans `/tmp/ytdlp-cookies-<id>.txt` avant chaque appel. yt-dlp écrit dans le temp, le vrai fichier reste intact. Temp supprimé en `finally`.
+- Appliqué aux deux fonctions : `_runYtdlpAudio` et `_runYtdlp`
+
 ### Session 12 (feature/audio-msg — fix cookies + docker volume)
 - Diagnostiqué : yt-dlp écrasait `cookies.txt` via comportement cookie-jar → perte des cookies YouTube auth
 - `docker-compose.yml` + `docker-compose.dev.yml` : volume `./cobalt-cookies` → `./cobalt-cookies/cookies.txt:/cookies/cookies.txt:ro` (fichier seul, lecture seule)
 - Cookies restaurés manuellement sur VPS avec les cookies YouTube complets (SID, SSID, HSID, SAPISID, LOGIN_INFO, etc.)
-- Test live à confirmer après redémarrage container
+- yt-dlp mis à jour via pip (`pip3 install --break-system-packages yt-dlp` → 2026.08.19) car version apk trop ancienne (2026.03.17) bloquée par YouTube
 
 ### Session 11 (feature/audio-msg — retour yt-dlp audio)
 - Restauré `extractAudioUrl` + `_runYtdlpAudio` dans `ytdlp.ts` (supprimés au commit `6cc72a6`)

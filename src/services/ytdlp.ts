@@ -1,6 +1,16 @@
+import { copyFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
 import { parseCookiesForDomain } from './cookies-parser';
 import { env } from './env';
 import { runProcess } from './spawn-process';
+
+async function makeTempCookies(cookiesFile: string): Promise<string> {
+  const tempPath = join(tmpdir(), `ytdlp-cookies-${Date.now()}-${Math.random().toString(36).slice(2)}.txt`);
+  await copyFile(cookiesFile, tempPath);
+  return tempPath;
+}
 
 const YTDLP_TIMEOUT_MS = 20_000;
 const MAX_CONCURRENT = 5;
@@ -60,13 +70,17 @@ export async function extractAudioUrl(url: string, cookiesFile?: string): Promis
 
 async function _runYtdlpAudio(url: string, cookiesFile?: string): Promise<YtdlpResult | null> {
   await acquireSemaphore();
+  let tempCookies: string | undefined;
   try {
+    if (cookiesFile) {
+      tempCookies = await makeTempCookies(cookiesFile);
+    }
     const args = [
       '--no-playlist',
       '--format',
       'bestaudio[ext=m4a]/bestaudio',
       '-J',
-      ...(cookiesFile ? ['--cookies', cookiesFile] : []),
+      ...(tempCookies ? ['--cookies', tempCookies] : []),
       url,
     ];
     return await runProcess<YtdlpResult>(env.YTDLP_PATH, args, YTDLP_TIMEOUT_MS, (stdout) => {
@@ -89,18 +103,23 @@ async function _runYtdlpAudio(url: string, cookiesFile?: string): Promise<YtdlpR
     });
   } finally {
     releaseSemaphore();
+    if (tempCookies) rm(tempCookies, { force: true }).catch(() => undefined);
   }
 }
 
 async function _runYtdlp(url: string, cookiesFile?: string): Promise<YtdlpResult | null> {
   await acquireSemaphore();
+  let tempCookies: string | undefined;
   try {
+    if (cookiesFile) {
+      tempCookies = await makeTempCookies(cookiesFile);
+    }
     const args = [
       '--no-playlist',
       '--format',
       'best[ext=mp4][vcodec^=h264]/best[ext=mp4]/best',
       '-J',
-      ...(cookiesFile ? ['--cookies', cookiesFile] : []),
+      ...(tempCookies ? ['--cookies', tempCookies] : []),
       url,
     ];
 
@@ -139,5 +158,6 @@ async function _runYtdlp(url: string, cookiesFile?: string): Promise<YtdlpResult
     return result;
   } finally {
     releaseSemaphore();
+    if (tempCookies) rm(tempCookies, { force: true }).catch(() => undefined);
   }
 }
