@@ -461,12 +461,16 @@
               try { player.volume = currentVolume; } catch {}
               var vid = player.querySelector('video');
               if (vid) { vid.volume = currentVolume; vid.muted = currentVolume === 0; }
+            } else {
+              try { player.muted = true; } catch {}
             }
 
             // Adjust player aspect-ratio to the video's real dimensions
             player.addEventListener('loaded-metadata', () => {
               const videoEl = player.querySelector('video');
-              if (videoEl && videoEl.videoWidth && videoEl.videoHeight) {
+              if (!videoEl) return;
+              if (muteVideo) { videoEl.muted = true; videoEl.volume = 0; }
+              if (videoEl.videoWidth && videoEl.videoHeight) {
                 const { videoWidth, videoHeight } = videoEl;
                 player.style.setProperty('aspect-ratio', `${videoWidth} / ${videoHeight}`, 'important');
                 if (videoHeight > videoWidth) {
@@ -486,6 +490,11 @@
               'can-play',
               async () => {
                 try {
+                  if (muteVideo) {
+                    player.muted = true;
+                    var vid = player.querySelector('video');
+                    if (vid) { vid.muted = true; vid.volume = 0; }
+                  }
                   await player.play();
                   if (!muteVideo) {
                     player.muted = false;

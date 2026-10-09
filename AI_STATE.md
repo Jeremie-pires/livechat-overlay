@@ -7,6 +7,10 @@ Branch `feature/audio-msg` — PR #72 ouvert (`feature/audio-msg` → `develop`)
 
 ## 1. Accomplished
 
+### Session 15 (feature/audio-msg — fix video mute when audio overlay active)
+- Bug : vidéo + audio overlay jouaient leurs sons simultanément — VidstackPlayer ne garantit pas la persistance de `muted: true` après `player.play()`
+- Fix : `client.html` `generateAudioVideo` — enforce `player.muted = true` + `videoEl.muted = true; videoEl.volume = 0` à 3 points : après create, dans `loaded-metadata`, dans `can-play` avant `player.play()`
+
 ### Session 14 (feature/audio-msg — fix yt-dlp n-challenge: node:22 + --js-runtimes)
 - Root cause n-challenge identifiée : `NodeJsRuntime.MIN_SUPPORTED_VERSION = (22, 0, 0)` dans `_jsruntime.py` → node:20 → `is_available() = False` → "node (unavailable)"
 - `Dockerfile` : `node:20-alpine` → `node:22-alpine` (builder + runner). Ajout `yt-dlp-ejs` au pip install.
@@ -67,10 +71,9 @@ Branch `feature/audio-msg` — PR #72 ouvert (`feature/audio-msg` → `develop`)
 
 ## 3. Bugs / Next Steps
 
-### [NEXT] Rebuild container VPS + test live
+### [NEXT] Rebuild container VPS + test live (audio mute fix)
 - `docker compose -f docker-compose.dev.yml build --no-cache livechatccb-dev && docker compose -f docker-compose.dev.yml up -d --force-recreate livechatccb-dev`
-- Tester : `/msg audio: https://youtu.be/7EJqHYFF3Qo`
-- Attendre log : `audio: yt-dlp extraction succeeded`
+- Tester : `/msg lien: <url_video> audio: <url_audio>` — vérifier que seul l'audio overlay joue, pas le son de la vidéo
 
 ### [NEXT] Merger PR #72 puis `develop` → `main`
 
