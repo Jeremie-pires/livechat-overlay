@@ -441,75 +441,92 @@
         if (mediaIsShort) wrapper.classList.add('is-short');
 
         setTimeout(() => {
-          (async () => {
-            await VidstackPlayer.create({
-              target: '#message-player',
-              src: src,
-              layout: new VidstackPlayerLayout({}),
-              logLevel: 'debug',
-              crossOrigin: true,
-              playsInline: true,
-              load: 'eager',
-              autoplay: true,
-              muted: !isDesktop || !!muteVideo,
+          if (muteVideo) {
+            // When an audio overlay is active, bypass VidstackPlayer entirely.
+            // Vidstack restores muted/volume from localStorage and silently overrides
+            // muted:true at init. A native <video muted> attribute is browser-enforced
+            // and cannot be cleared by library internals.
+            var video = document.createElement('video');
+            video.setAttribute('muted', '');
+            video.muted = true;
+            video.volume = 0;
+            video.autoplay = true;
+            video.playsInline = true;
+            video.crossOrigin = 'anonymous';
+            video.src = src;
+            // Re-enforce muting if anything attempts to change volume/muted state
+            video.addEventListener('volumechange', function() {
+              if (!video.muted || video.volume > 0) { video.muted = true; video.volume = 0; }
             });
+            video.addEventListener('loadedmetadata', function() {
+              if (video.videoWidth && video.videoHeight && video.videoHeight > video.videoWidth) {
+                var pw = document.getElementById('message-player');
+                if (pw) pw.classList.add('is-short');
+              }
+            });
+            video.addEventListener('ended', function() { if (onDone) onDone(); });
+            video.play().catch(function() {});
+            wrapper.appendChild(video);
+          } else {
+            (async () => {
+              await VidstackPlayer.create({
+                target: '#message-player',
+                src: src,
+                layout: new VidstackPlayerLayout({}),
+                logLevel: 'debug',
+                crossOrigin: true,
+                playsInline: true,
+                load: 'eager',
+                autoplay: true,
+                muted: !isDesktop,
+              });
 
-            const player = document.querySelector('media-player');
+              const player = document.querySelector('media-player');
 
-            // Apply stored volume to this new player (skip if video is intentionally muted for audio overlay)
-            if (!muteVideo) {
               try { player.volume = currentVolume; } catch {}
               var vid = player.querySelector('video');
               if (vid) { vid.volume = currentVolume; vid.muted = currentVolume === 0; }
-            } else {
-              try { player.muted = true; } catch {}
-            }
 
-            // Adjust player aspect-ratio to the video's real dimensions
-            player.addEventListener('loaded-metadata', () => {
-              const videoEl = player.querySelector('video');
-              if (!videoEl) return;
-              if (muteVideo) { videoEl.muted = true; videoEl.volume = 0; }
-              if (videoEl.videoWidth && videoEl.videoHeight) {
-                const { videoWidth, videoHeight } = videoEl;
-                player.style.setProperty('aspect-ratio', `${videoWidth} / ${videoHeight}`, 'important');
-                if (videoHeight > videoWidth) {
-                  const playerWrapper = document.getElementById('message-player');
-                  if (playerWrapper) playerWrapper.classList.add('is-short');
-                }
-              }
-            });
-
-            // When video ends, advance the queue
-            player.addEventListener('ended', () => {
-              console.debug('Video ended');
-              if (onDone) onDone();
-            });
-
-            player.addEventListener(
-              'can-play',
-              async () => {
-                try {
-                  if (muteVideo) {
-                    player.muted = true;
-                    var vid = player.querySelector('video');
-                    if (vid) { vid.muted = true; vid.volume = 0; }
+              // Adjust player aspect-ratio to the video's real dimensions
+              player.addEventListener('loaded-metadata', () => {
+                const videoEl = player.querySelector('video');
+                if (!videoEl) return;
+                if (videoEl.videoWidth && videoEl.videoHeight) {
+                  const { videoWidth, videoHeight } = videoEl;
+                  player.style.setProperty('aspect-ratio', `${videoWidth} / ${videoHeight}`, 'important');
+                  if (videoHeight > videoWidth) {
+                    const playerWrapper = document.getElementById('message-player');
+                    if (playerWrapper) playerWrapper.classList.add('is-short');
                   }
-                  await player.play();
-                  if (!muteVideo) {
-                    player.muted = false;
-                    // Re-apply volume after unmute
-                    try { player.volume = currentVolume; } catch {}
-                    var v = player.querySelector('video');
-                    if (v) v.volume = currentVolume;
-                  }
-                } catch (e) {
-                  console.warn('Autoplay blocked:', e);
                 }
-              },
-              { once: true },
-            );
-          })();
+              });
+
+              // When video ends, advance the queue
+              player.addEventListener('ended', () => {
+                console.debug('Video ended');
+                if (onDone) onDone();
+              });
+
+              player.addEventListener(
+                'can-play',
+                async () => {
+                  try {
+                    await player.play();
+                    if (!isDesktop) {
+                      player.muted = false;
+                      // Re-apply volume after unmute
+                      try { player.volume = currentVolume; } catch {}
+                      var v = player.querySelector('video');
+                      if (v) v.volume = currentVolume;
+                    }
+                  } catch (e) {
+                    console.warn('Autoplay blocked:', e);
+                  }
+                },
+                { once: true },
+              );
+            })();
+          }
         }, 100);
 
         return wrapper;
