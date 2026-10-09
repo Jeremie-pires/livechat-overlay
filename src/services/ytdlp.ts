@@ -1,6 +1,16 @@
+import { copyFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
 import { parseCookiesForDomain } from './cookies-parser';
 import { env } from './env';
 import { runProcess } from './spawn-process';
+
+async function makeTempCookies(cookiesFile: string): Promise<string> {
+  const tempPath = join(tmpdir(), `ytdlp-cookies-${Date.now()}-${Math.random().toString(36).slice(2)}.txt`);
+  await copyFile(cookiesFile, tempPath);
+  return tempPath;
+}
 
 const YTDLP_TIMEOUT_MS = 20_000;
 const MAX_CONCURRENT = 5;
@@ -34,6 +44,8 @@ export interface YtdlpResult {
 }
 
 // In-flight dedup: concurrent callers for the same URL share one yt-dlp process.
+// Keys are namespaced ("video:<url>" / "audio:<url>") to allow simultaneous video
+// and audio extraction of the same source URL without sharing the same promise.
 const inFlight = new Map<string, Promise<YtdlpResult | null>>();
 
 export async function extractVideoUrl(url: string, cookiesFile?: string): Promise<YtdlpResult | null> {
@@ -46,15 +58,72 @@ export async function extractVideoUrl(url: string, cookiesFile?: string): Promis
   return promise;
 }
 
+export async function extractAudioUrl(url: string, cookiesFile?: string): Promise<YtdlpResult | null> {
+  const key = `audio:${url}`;
+  const existing = inFlight.get(key);
+  if (existing) return existing;
+
+  const promise = _runYtdlpAudio(url, cookiesFile).finally(() => inFlight.delete(key));
+  inFlight.set(key, promise);
+  return promise;
+}
+
+async function _runYtdlpAudio(url: string, cookiesFile?: string): Promise<YtdlpResult | null> {
+  await acquireSemaphore();
+  let tempCookies: string | undefined;
+  try {
+    if (cookiesFile) {
+      tempCookies = await makeTempCookies(cookiesFile);
+    }
+    const args = [
+      '--no-playlist',
+      '--format',
+      'bestaudio[ext=m4a]/bestaudio',
+      '--js-runtimes',
+      'node',
+      '-J',
+      ...(tempCookies ? ['--cookies', tempCookies] : []),
+      url,
+    ];
+    return await runProcess<YtdlpResult>(env.YTDLP_PATH, args, YTDLP_TIMEOUT_MS, (stdout) => {
+      try {
+        const info = JSON.parse(stdout) as {
+          url?: string;
+          http_headers?: Record<string, string>;
+          duration?: number;
+        };
+        const cdnUrl = info.url;
+        if (!cdnUrl?.startsWith('http')) return null;
+        const duration =
+          typeof info.duration === 'number' && Number.isFinite(info.duration) && info.duration > 0
+            ? info.duration
+            : undefined;
+        return { url: cdnUrl, headers: info.http_headers ?? {}, duration };
+      } catch {
+        return null;
+      }
+    });
+  } finally {
+    releaseSemaphore();
+    if (tempCookies) rm(tempCookies, { force: true }).catch(() => undefined);
+  }
+}
+
 async function _runYtdlp(url: string, cookiesFile?: string): Promise<YtdlpResult | null> {
   await acquireSemaphore();
+  let tempCookies: string | undefined;
   try {
+    if (cookiesFile) {
+      tempCookies = await makeTempCookies(cookiesFile);
+    }
     const args = [
       '--no-playlist',
       '--format',
       'best[ext=mp4][vcodec^=h264]/best[ext=mp4]/best',
+      '--js-runtimes',
+      'node',
       '-J',
-      ...(cookiesFile ? ['--cookies', cookiesFile] : []),
+      ...(tempCookies ? ['--cookies', tempCookies] : []),
       url,
     ];
 
@@ -93,5 +162,6 @@ async function _runYtdlp(url: string, cookiesFile?: string): Promise<YtdlpResult
     return result;
   } finally {
     releaseSemaphore();
+    if (tempCookies) rm(tempCookies, { force: true }).catch(() => undefined);
   }
 }
