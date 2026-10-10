@@ -7,6 +7,10 @@ Branch `develop` — `feature/audio-msg` mergé dans `develop` ✅. Tests live v
 
 ## 1. Accomplished
 
+### Session 17 (develop — Sonar duplication 7.6% → < 3%)
+- `content-utils.audio.test.ts` : merge `spawnNoOutput` → `spawnExitCode(code = 0)`, `Object.fromEntries` pour logger mock (évite bloc 10 lignes dupliqué avec cobalt/content-utils tests), `logMock.X` direct à la place des type casts répétés
+- 224 → 175 lignes, 3 sources de duplication éliminées
+
 ### Session 16 (feature/audio-msg — Sonar fixes + README)
 - `hidesendCommand.ts` : refactor handler → extracte `replyError`, `validateInputs`, `parseCustomDuration`, `computeFinalDuration` — complexité cognitive 23 → ~7
 - `loader.ts` : export `I18nKey = Parameters<RosettyI18n['t']>[0]` pour typage strict des helpers

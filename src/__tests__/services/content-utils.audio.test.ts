@@ -47,14 +47,14 @@ function makeHeadResponse(contentType: string | null) {
   return { headers: { get: () => contentType } };
 }
 
-// Returns a process mock that exits immediately with no stdout output.
-function spawnNoOutput() {
+// Returns a process mock that exits with the given code and no stdout output.
+function spawnExitCode(code = 0) {
   const stdout = { on: vi.fn() };
   return {
     stdout,
     kill: vi.fn(),
     on: vi.fn().mockImplementation((event: string, cb: (...args: unknown[]) => void) => {
-      if (event === 'close') setImmediate(() => cb(0));
+      if (event === 'close') setImmediate(() => cb(code));
     }),
   } as unknown as ReturnType<typeof spawn>;
 }
@@ -81,32 +81,16 @@ function spawnYtdlpOutput(data: object) {
   } as unknown as ReturnType<typeof spawn>;
 }
 
-// Returns a process mock that exits with a non-zero code.
-function spawnExitCode(code: number) {
-  const stdout = { on: vi.fn() };
-  return {
-    stdout,
-    kill: vi.fn(),
-    on: vi.fn().mockImplementation((event: string, cb: (...args: unknown[]) => void) => {
-      if (event === 'close') setImmediate(() => cb(code));
-    }),
-  } as unknown as ReturnType<typeof spawn>;
-}
+const LOG_KEYS = ['debug', 'info', 'warn', 'error', 'fatal', 'trace', 'silent'];
+let logMock: Record<string, ReturnType<typeof vi.fn>>;
 
 beforeEach(() => {
   vi.clearAllMocks();
-  (global as Record<string, unknown>).logger = {
-    debug: vi.fn(),
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-    fatal: vi.fn(),
-    trace: vi.fn(),
-    silent: vi.fn(),
-    child: vi.fn().mockReturnThis(),
-  };
+  logMock = Object.fromEntries(LOG_KEYS.map((k) => [k, vi.fn()]));
+  logMock.child = vi.fn().mockReturnThis();
+  (global as Record<string, unknown>).logger = logMock;
   vi.spyOn(dns.promises, 'lookup').mockResolvedValue([{ address: PUBLIC_IP, family: 4 }] as dns.LookupAddress[]);
-  vi.mocked(spawn).mockImplementation(spawnNoOutput);
+  vi.mocked(spawn).mockImplementation(() => spawnExitCode());
 });
 
 afterEach(() => {
@@ -128,22 +112,17 @@ describe('getAudioInfoFromUrl — YouTube', () => {
     expect(result).not.toBeNull();
     expect(result!.audioUrl).toContain('/api/video?t=test-token');
     expect(result!.audioDuration).toBe(212.5);
-    expect(vi.mocked((global as Record<string, { info: ReturnType<typeof vi.fn> }>).logger.info)).toHaveBeenCalledWith(
+    expect(logMock.info).toHaveBeenCalledWith(
       { url: YOUTUBE_URL, duration: 212.5 },
       'audio: yt-dlp extraction succeeded',
     );
   });
 
   it('returns null when yt-dlp returns no output', async () => {
-    vi.mocked(spawn).mockReturnValueOnce(spawnNoOutput());
-
     const result = await getAudioInfoFromUrl(YOUTUBE_URL);
 
     expect(result).toBeNull();
-    expect(vi.mocked((global as Record<string, { warn: ReturnType<typeof vi.fn> }>).logger.warn)).toHaveBeenCalledWith(
-      { url: YOUTUBE_URL },
-      'audio: yt-dlp extraction failed',
-    );
+    expect(logMock.warn).toHaveBeenCalledWith({ url: YOUTUBE_URL }, 'audio: yt-dlp extraction failed');
   });
 
   it('returns null when yt-dlp process exits with non-zero code', async () => {
@@ -152,10 +131,7 @@ describe('getAudioInfoFromUrl — YouTube', () => {
     const result = await getAudioInfoFromUrl(YOUTUBE_URL);
 
     expect(result).toBeNull();
-    expect(vi.mocked((global as Record<string, { warn: ReturnType<typeof vi.fn> }>).logger.warn)).toHaveBeenCalledWith(
-      { url: YOUTUBE_URL },
-      'audio: yt-dlp extraction failed',
-    );
+    expect(logMock.warn).toHaveBeenCalledWith({ url: YOUTUBE_URL }, 'audio: yt-dlp extraction failed');
   });
 });
 
@@ -175,7 +151,7 @@ describe('getAudioInfoFromUrl — direct audio URL', () => {
     const result = await getAudioInfoFromUrl(AUDIO_DIRECT_URL);
 
     expect(result).toBeNull();
-    expect(vi.mocked((global as Record<string, { debug: ReturnType<typeof vi.fn> }>).logger.debug)).toHaveBeenCalledWith(
+    expect(logMock.debug).toHaveBeenCalledWith(
       expect.objectContaining({ url: AUDIO_DIRECT_URL }),
       'audio: not an audio content-type',
     );
@@ -195,7 +171,7 @@ describe('getAudioInfoFromUrl — rejected domains', () => {
     const result = await getAudioInfoFromUrl(TIKTOK_URL);
 
     expect(result).toBeNull();
-    expect(vi.mocked((global as Record<string, { debug: ReturnType<typeof vi.fn> }>).logger.debug)).toHaveBeenCalledWith(
+    expect(logMock.debug).toHaveBeenCalledWith(
       { url: TIKTOK_URL },
       'audio: rejected domain (tiktok/twitter not supported for audio)',
     );
@@ -215,7 +191,7 @@ describe('getAudioInfoFromUrl — SSRF', () => {
     const result = await getAudioInfoFromUrl('https://internal.corp/audio.mp3');
 
     expect(result).toBeNull();
-    expect(vi.mocked((global as Record<string, { debug: ReturnType<typeof vi.fn> }>).logger.debug)).toHaveBeenCalledWith(
+    expect(logMock.debug).toHaveBeenCalledWith(
       expect.objectContaining({ err: expect.any(Error) }),
       'audio: SSRF guard failed',
     );
