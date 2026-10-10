@@ -24,7 +24,7 @@ FROM node:22-alpine AS runner
 # Node.js 22+ is required by yt-dlp's NodeJCP challenge solver (MIN_SUPPORTED_VERSION = 22)
 RUN apk update && apk upgrade --no-cache && \
     apk add --no-cache ffmpeg openssl py3-pip && \
-    pip3 install --break-system-packages --only-binary :all: "yt-dlp>=2024.11.4" "yt-dlp-ejs>=0.1.0" && \
+    pip3 install --break-system-packages --only-binary :all: "yt-dlp-ejs==0.1.0" "yt-dlp==2025.01.26" && \
     corepack enable && corepack prepare pnpm@8.15.9 --activate
 
 ENV HUSKY=0
