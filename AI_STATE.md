@@ -1,81 +1,57 @@
 # AI_STATE.md — LiveChat CCB
 
 ## Status
-Branch `develop` — `feature/audio-msg` mergé dans `develop` ✅. Tests live validés.
+Branch `develop` — PR #74 (`develop → main`) — CI fixed, Sonar CPD fixes applied (awaiting new analysis).
 
 ---
 
 ## 1. Accomplished
 
-### Session 20 (develop — Sonar duplication 4.7% → pending)
-- `src/services/ytdlp.ts` : extrait `deduplicatedExtract(key, factory)` — élimine le corps dupliqué de `extractVideoUrl`/`extractAudioUrl` (~14 lignes de new-code dupliquées)
-- `src/services/session.ts` : ajoute `error: string` dans `AuthCheckResult` pour que les callsites tombent sous le seuil CPD de 50 tokens
-- `src/components/api/adminDbRoutes.ts` + `dashboardRoutes.ts` : simplifie `if (!auth.ok)` → `auth.error` (de ~52 → ~41 tokens)
+### Session 22 (CI fix + Sonar CPD fixes)
+- **CI fix**: `adminDbRoutes.test.ts` — added `checkRouteAuth` and `requireAuth` to the session mock (DELETE route tests were crashing with 500 because `checkRouteAuth` was undefined in the mock → all 8 tests now pass)
+- **Fix A**: `content-utils.ts` — extracted `fetchWithTimeout(pinnedUrl, pinnedInit, timeoutMs, timeoutMsg)` helper; replaced both `Promise.race([fetch, setTimeout])` blocks (redirect loop lines 130-134 and `getAudioInfoFromUrl` lines 527-534) with it
+- **Fix B**: `session.ts` — exported `requireAuth` Fastify preHandler; `adminDbRoutes.ts` DELETE and `dashboardRoutes.ts` POST now use `{ preHandler: requireAuth }` instead of inline `checkRouteAuth + if (!auth.ok)` pattern
 
-### Session 19 (develop — Sonar duplication 4.9% → pending)
-- `sonar-project.properties` : ajout `src/__tests__/**` aux CPD exclusions (belt-and-suspenders avec `**/*.test.ts`)
-- `src/services/session.ts` : ajout helper `checkRouteAuth` (type `AuthCheckResult`) — centralise auth+CSRF check en ~45 tokens (sous le seuil CPD TypeScript de 50 tokens)
-- `src/components/api/adminDbRoutes.ts` : import `checkRouteAuth`, remplace bloc 5 lignes auth+CSRF par 2 lignes
-- `src/components/dashboard/dashboardRoutes.ts` : idem pour `/api/maintenance/toggle`
-- `desktop-client/src/renderer/renderer.js` : ajout `syncBaseSettingsToElements()` — élimine le bloc 8 lignes dupliqué (init + onSettingsChanged)
+### Session 21 (Sonar diagnostics — root cause identified)
+- Ran jscpd at 50 tokens → found exactly TWO ≥50-token clones involving PR-changed new code (now fixed in session 22)
 
-### Session 18 (develop — Sonar duplication 5.1% → pending)
-- `talkCommand.ts` + `hidetalkCommand.ts` : 19-line identical block (fetch+nullcheck+measureContent) extracted into `resolveTTSAttachment` helper in `commandHelpers.ts`
-- `commandHelpers.ts` : add `resolveTTSAttachment`, import `InteractionResponse`, `Message`
-- `sonar-project.properties` : added `**/*.test.ts` to CPD exclusions (previous commit)
-- `content-utils.ts` : collapsed isTwitterUrl hostname check to one line (fmt)
-- `ytdlp.ts` + `fr.ts` : minor formatting fixes (uncommitted from previous session)
+### Session 20 (develop — Sonar duplication 4.7% → stuck)
+- `ytdlp.ts`: extracted `deduplicatedExtract(key, factory)`
+- `session.ts`: added `error: string` to `AuthCheckResult`
 
-### Session 17 (develop — Sonar duplication 7.6% → 5.5% → in progress)
-- `content-utils.audio.test.ts` : merge `spawnNoOutput` → `spawnExitCode(code = 0)`, `Object.fromEntries` pour logger mock (évite bloc 10 lignes dupliqué avec cobalt/content-utils tests), `logMock.X` direct à la place des type casts répétés
-- 224 → 175 lignes, 3 sources de duplication éliminées
-- `content-utils.cobalt.test.ts` : même fix Object.fromEntries pour logger mock
-- `commandHelpers.ts` : ajout `createTalkQueueEntry` — extrait le bloc prisma.queue.create commun
-- `talkCommand.ts` + `hidetalkCommand.ts` : utilisent `createTalkQueueEntry`, blocs dupliqués (~15 lignes) supprimés
-
-### Session 16 (feature/audio-msg — Sonar fixes + README)
-- `hidesendCommand.ts` : refactor handler → extracte `replyError`, `validateInputs`, `parseCustomDuration`, `computeFinalDuration` — complexité cognitive 23 → ~7
-- `loader.ts` : export `I18nKey = Parameters<RosettyI18n['t']>[0]` pour typage strict des helpers
-- `ytdlp.ts` : `Math.random()` → `randomUUID()` (node:crypto) — fix Sonar pseudorandom warning
-- `Dockerfile` : `pip3 install` + `--only-binary :all:` + contraintes `>=2024.11.4` / `>=0.1.0`
-- `README.md` : section détaillée option `audio` pour `/msg` / `/cmsg` (sources, exemples, durée auto)
-
-### Session 15 (feature/audio-msg — fix video mute quand audio overlay actif)
-- **Bug** : `/msg lien: <video> audio: <audio>` → son vidéo + son audio overlay simultanés
-- **Fix** : `generateAudioVideo` dans `client.html` → branche `<video>` natif si `muteVideo=true` (setAttribute muted + gardien volumechange)
-- Tests live validés ✅
-
-### Session 14 (feature/audio-msg — fix yt-dlp n-challenge)
-- `Dockerfile` : `node:20-alpine` → `node:22-alpine` + `yt-dlp-ejs` via pip
-- `ytdlp.ts` : `--js-runtimes node` dans args `_runYtdlpAudio` et `_runYtdlp`
-
-### Sessions 7–13 (feature/audio-msg — implémentation audio complète)
-- `getAudioInfoFromUrl` → YouTube via yt-dlp, direct audio via HEAD
-- `sendCommand` / `hidesendCommand` : option `audio`, queue JSON `audioUrl`/`audioDuration`
-- `client.html` : `<audio id="message-audio">`, queue system, clearDisplay
-- `makeTempCookies()` + volume cookies `:ro` + spawn stdout non-zero fix
+### Sessions 17–19 (Sonar fixes: 7.6% → 5.5% → 5.1% → 4.9% → 4.7%)
+- `content-utils.audio.test.ts`: refactored; CPD exclusions added
+- `commandHelpers.ts`: `createTalkQueueEntry`, `resolveTTSAttachment` extracted
+- `renderer.js`: `syncBaseSettingsToElements()` extracted
 
 ---
 
-## 2. Architecture actuelle (fichiers clés)
+## 2. Architecture actuelle
 
 | Fichier | Rôle |
 |---|---|
-| `src/components/client/client.html` | `generateAudioVideo` : branche native `<video>` si `muteVideo=true`, Vidstack sinon |
-| `src/services/content-utils.ts` | `getAudioInfoFromUrl` — SSRF + YouTube yt-dlp + direct audio HEAD |
-| `src/services/ytdlp.ts` | `extractVideoUrl` + `extractAudioUrl`. `--js-runtimes node`. `randomUUID()` pour temp cookies. |
-| `src/components/messages/sendCommand.ts` | Option `audio`, Promise.all, queue JSON `audioUrl`/`audioDuration` |
-| `src/components/messages/hidesendCommand.ts` | Idem + helpers extraits (complexité Sonar OK) |
-| `src/services/i18n/loader.ts` | `I18nKey` exporté |
-| `Dockerfile` | `node:22-alpine` builder+runner, `yt-dlp yt-dlp-ejs` via pip `--only-binary :all:` |
+| `src/components/client/client.html` | `generateAudioVideo` — native `<video>` si `muteVideo=true`, Vidstack sinon |
+| `src/services/content-utils.ts` | `fetchWithTimeout` helper + `getAudioInfoFromUrl` — SSRF + YouTube yt-dlp + direct audio HEAD |
+| `src/services/ytdlp.ts` | `extractVideoUrl` + `extractAudioUrl` via `deduplicatedExtract`. `--js-runtimes node`. |
+| `src/components/messages/commandHelpers.ts` | Helpers extraits: `executeMessageHandler`, `resolveTTSAttachment`, `createTalkQueueEntry`, `replyError` |
+| `src/services/session.ts` | `checkRouteAuth` + `requireAuth` preHandler Fastify |
+| `src/components/api/adminDbRoutes.ts` | DELETE uses `{ preHandler: requireAuth }` |
+| `src/components/dashboard/dashboardRoutes.ts` | POST `/api/maintenance/toggle` uses `{ preHandler: requireAuth }` |
+| `Dockerfile` | `node:22-alpine`, `yt-dlp yt-dlp-ejs` via pip `--only-binary :all:` |
 
 ---
 
 ## 3. Next Steps
 
-### [NEXT]
-- Merger `develop` → `main`
+### [WAITING — Sonar re-analysis]
+- Push triggered new CI run; await SonarCloud analysis on PR #74
+- If duplication still > 3%: run jscpd at 50 tokens on all src files and identify remaining clones
+
+### [MANUAL — user action required]
+- Security Rating C (Dockerfile pip hotspot) — navigate to SonarCloud → hotspot → acknowledge as "Safe"
+
+### [AFTER SONAR PASSES]
+- Merge `develop → main` (PR #74)
 
 ### [LATER]
-- H-AUD-06 : 4 commandes stockent encore `media` en DB au lieu de `audio`
-- `displayMediaFull` — non prioritaire
+- H-AUD-06: 4 commands store `media` in DB instead of `audio`

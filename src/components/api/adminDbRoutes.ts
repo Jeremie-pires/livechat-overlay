@@ -1,4 +1,4 @@
-import { checkRouteAuth, getSessionToken, isValidSession } from '../../services/session';
+import { getSessionToken, isValidSession, requireAuth } from '../../services/session';
 
 const SNOWFLAKE_RE = /^\d{17,20}$/;
 
@@ -56,10 +56,7 @@ export const AdminDbRoutes = () =>
       return reply.send(rows);
     });
 
-    fastify.delete('/db/guilds/:id', async (req, reply) => {
-      const auth = checkRouteAuth(req.headers.cookie, req.headers['x-csrf-token']);
-      if (!auth.ok) return reply.status(auth.status).send({ error: auth.error });
-
+    fastify.delete('/db/guilds/:id', { preHandler: requireAuth }, async (req, reply) => {
       const { id } = req.params as { id: string };
       if (!SNOWFLAKE_RE.test(id)) return reply.status(400).send({ error: 'Invalid guild ID format' });
 

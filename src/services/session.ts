@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import type { FastifyReply, FastifyRequest } from 'fastify';
 
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const EVICTION_INTERVAL_MS = 60 * 60 * 1000;
@@ -70,6 +71,12 @@ export const checkRouteAuth = (
 ): AuthCheckResult => {
   const token = getSessionToken(cookie);
   if (!isValidSession(token)) return { ok: false, status: 401, error: 'Unauthorized' };
-  if (!validateCsrfToken(token, csrfHeader as string | undefined)) return { ok: false, status: 403, error: 'Invalid CSRF token' };
+  if (!validateCsrfToken(token, csrfHeader as string | undefined))
+    return { ok: false, status: 403, error: 'Invalid CSRF token' };
   return { ok: true, token: token as string };
+};
+
+export const requireAuth = async (req: FastifyRequest, reply: FastifyReply): Promise<void> => {
+  const auth = checkRouteAuth(req.headers.cookie, req.headers['x-csrf-token']);
+  if (!auth.ok) reply.status(auth.status).send({ error: auth.error });
 };

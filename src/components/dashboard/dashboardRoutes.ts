@@ -3,12 +3,12 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import fetch from 'node-fetch';
 import {
-  checkRouteAuth,
   createCsrfToken,
   createSession,
   deleteSession,
   getSessionToken,
   isValidSession,
+  requireAuth,
   validateCsrfToken,
 } from '../../services/session';
 import { broadcastToAllGuilds } from '../../services/broadcast';
@@ -125,10 +125,7 @@ async function dashboardPlugin(fastify: FastifyCustomInstance) {
     return reply.redirect('/dashboard', 302);
   });
 
-  fastify.post('/api/maintenance/toggle', async (req, reply) => {
-    const auth = checkRouteAuth(req.headers.cookie, req.headers['x-csrf-token']);
-    if (!auth.ok) return reply.status(auth.status).send({ error: auth.error });
-
+  fastify.post('/api/maintenance/toggle', { preHandler: requireAuth }, async (req, reply) => {
     const stats = await prisma.stats.findUnique({ where: { id: 'singleton' } });
     const silentMode = !(stats?.silentMode ?? false);
 

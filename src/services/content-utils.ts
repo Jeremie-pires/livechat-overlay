@@ -108,6 +108,25 @@ export function isTwitterUrl(url: string): boolean {
   }
 }
 
+async function fetchWithTimeout(
+  pinnedUrl: string,
+  pinnedInit: Parameters<typeof fetch>[1],
+  timeoutMs: number,
+  timeoutMsg: string,
+): Promise<Awaited<ReturnType<typeof fetch>>> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      fetch(pinnedUrl, pinnedInit),
+      new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error(timeoutMsg)), timeoutMs);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 // Follows HTTP redirects (up to 3 hops) from a short URL to its canonical URL.
 // Each redirect target is validated by assertPublicHttpUrl to prevent SSRF.
 // Returns the resolved URL if at least one redirect was followed, otherwise null.
@@ -118,7 +137,6 @@ async function resolveHttpRedirect(startUrl: string, startGuard: AssertedUrl): P
   let hops = 0;
 
   while (hops < MAX_HOPS) {
-    let timeoutId: ReturnType<typeof setTimeout> | undefined;
     let location: string | null = null;
 
     try {
@@ -127,16 +145,14 @@ async function resolveHttpRedirect(startUrl: string, startGuard: AssertedUrl): P
         { 'User-Agent': 'Mozilla/5.0 (compatible; LiveChatCCB/1.0)' },
         { redirect: 'manual' },
       );
-      const response = await Promise.race([
-        fetch(pinnedUrl, pinnedInit as Parameters<typeof fetch>[1]),
-        new Promise<never>((_, reject) => {
-          timeoutId = setTimeout(() => reject(new Error('redirect timeout')), FETCH_TIMEOUT_MS);
-        }),
-      ]);
-      clearTimeout(timeoutId);
+      const response = await fetchWithTimeout(
+        pinnedUrl,
+        pinnedInit as Parameters<typeof fetch>[1],
+        FETCH_TIMEOUT_MS,
+        'redirect timeout',
+      );
       location = response.headers.get('location');
     } catch {
-      clearTimeout(timeoutId);
       break;
     }
 
@@ -524,14 +540,12 @@ export async function getAudioInfoFromUrl(url: string): Promise<AudioInfo | null
   // Direct audio URL: verify Content-Type via HEAD request
   try {
     const [pinnedUrl, pinnedInit] = buildPinnedFetchArgs(guard, {}, { method: 'HEAD', redirect: 'error' });
-    let timeoutId: ReturnType<typeof setTimeout> | undefined;
-    const response = await Promise.race([
-      fetch(pinnedUrl, pinnedInit as Parameters<typeof fetch>[1]),
-      new Promise<never>((_, reject) => {
-        timeoutId = setTimeout(() => reject(new Error('audio HEAD timeout')), FETCH_TIMEOUT_MS);
-      }),
-    ]);
-    clearTimeout(timeoutId);
+    const response = await fetchWithTimeout(
+      pinnedUrl,
+      pinnedInit as Parameters<typeof fetch>[1],
+      FETCH_TIMEOUT_MS,
+      'audio HEAD timeout',
+    );
     const contentType = response.headers.get('Content-Type') ?? '';
     if (!contentType.startsWith('audio/')) {
       logger.debug({ url, contentType }, 'audio: not an audio content-type');
