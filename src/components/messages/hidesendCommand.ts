@@ -2,7 +2,7 @@ import { ChatInputCommandInteraction, EmbedBuilder, SlashCommandBuilder } from '
 import { QueueType } from '../../services/prisma/loadPrisma';
 import { measureContentProcessing, ContentInfo } from '../../services/telemetry';
 import { getDurationFromGuildId } from '../../services/utils';
-import { getAudioInfoFromUrl, AudioInfo } from '../../services/content-utils';
+import { getAudioInfoFromUrl } from '../../services/content-utils';
 import { replyError, validateInputs, parseCustomDuration, computeFinalDuration } from './commandHelpers';
 
 function detectShortFromAttachment(interaction: ChatInputCommandInteraction, optionKey: string): boolean {
