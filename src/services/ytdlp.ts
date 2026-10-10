@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { copyFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -7,7 +8,7 @@ import { env } from './env';
 import { runProcess } from './spawn-process';
 
 async function makeTempCookies(cookiesFile: string): Promise<string> {
-  const tempPath = join(tmpdir(), `ytdlp-cookies-${Date.now()}-${Math.random().toString(36).slice(2)}.txt`);
+  const tempPath = join(tmpdir(), `ytdlp-cookies-${randomUUID()}.txt`);
   await copyFile(cookiesFile, tempPath);
   return tempPath;
 }
