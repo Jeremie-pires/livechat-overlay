@@ -62,14 +62,14 @@ export const validateCsrfToken = (sessionToken: string | undefined, csrfToken: s
   return crypto.timingSafeEqual(a, b);
 };
 
-type AuthCheckResult = { ok: true; token: string } | { ok: false; status: 401 | 403 };
+type AuthCheckResult = { ok: true; token: string } | { ok: false; status: 401 | 403; error: string };
 
 export const checkRouteAuth = (
   cookie: string | undefined,
   csrfHeader: string | string[] | undefined,
 ): AuthCheckResult => {
   const token = getSessionToken(cookie);
-  if (!isValidSession(token)) return { ok: false, status: 401 };
-  if (!validateCsrfToken(token, csrfHeader as string | undefined)) return { ok: false, status: 403 };
+  if (!isValidSession(token)) return { ok: false, status: 401, error: 'Unauthorized' };
+  if (!validateCsrfToken(token, csrfHeader as string | undefined)) return { ok: false, status: 403, error: 'Invalid CSRF token' };
   return { ok: true, token: token as string };
 };

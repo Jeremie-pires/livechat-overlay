@@ -127,7 +127,7 @@ async function dashboardPlugin(fastify: FastifyCustomInstance) {
 
   fastify.post('/api/maintenance/toggle', async (req, reply) => {
     const auth = checkRouteAuth(req.headers.cookie, req.headers['x-csrf-token']);
-    if (!auth.ok) return reply.status(auth.status).send({ error: auth.status === 401 ? 'Unauthorized' : 'Invalid CSRF token' });
+    if (!auth.ok) return reply.status(auth.status).send({ error: auth.error });
 
     const stats = await prisma.stats.findUnique({ where: { id: 'singleton' } });
     const silentMode = !(stats?.silentMode ?? false);

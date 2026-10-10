@@ -58,7 +58,7 @@ export const AdminDbRoutes = () =>
 
     fastify.delete('/db/guilds/:id', async (req, reply) => {
       const auth = checkRouteAuth(req.headers.cookie, req.headers['x-csrf-token']);
-      if (!auth.ok) return reply.status(auth.status).send({ error: auth.status === 401 ? 'Unauthorized' : 'Invalid CSRF token' });
+      if (!auth.ok) return reply.status(auth.status).send({ error: auth.error });
 
       const { id } = req.params as { id: string };
       if (!SNOWFLAKE_RE.test(id)) return reply.status(400).send({ error: 'Invalid guild ID format' });

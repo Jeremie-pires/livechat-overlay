@@ -49,24 +49,23 @@ export interface YtdlpResult {
 // and audio extraction of the same source URL without sharing the same promise.
 const inFlight = new Map<string, Promise<YtdlpResult | null>>();
 
-export async function extractVideoUrl(url: string, cookiesFile?: string): Promise<YtdlpResult | null> {
-  const key = `video:${url}`;
+function deduplicatedExtract(
+  key: string,
+  factory: () => Promise<YtdlpResult | null>,
+): Promise<YtdlpResult | null> {
   const existing = inFlight.get(key);
   if (existing) return existing;
-
-  const promise = _runYtdlp(url, cookiesFile).finally(() => inFlight.delete(key));
+  const promise = factory().finally(() => inFlight.delete(key));
   inFlight.set(key, promise);
   return promise;
 }
 
-export async function extractAudioUrl(url: string, cookiesFile?: string): Promise<YtdlpResult | null> {
-  const key = `audio:${url}`;
-  const existing = inFlight.get(key);
-  if (existing) return existing;
+export async function extractVideoUrl(url: string, cookiesFile?: string): Promise<YtdlpResult | null> {
+  return deduplicatedExtract(`video:${url}`, () => _runYtdlp(url, cookiesFile));
+}
 
-  const promise = _runYtdlpAudio(url, cookiesFile).finally(() => inFlight.delete(key));
-  inFlight.set(key, promise);
-  return promise;
+export async function extractAudioUrl(url: string, cookiesFile?: string): Promise<YtdlpResult | null> {
+  return deduplicatedExtract(`audio:${url}`, () => _runYtdlpAudio(url, cookiesFile));
 }
 
 function parseYtdlpOutput(stdout: string): YtdlpResult | null {

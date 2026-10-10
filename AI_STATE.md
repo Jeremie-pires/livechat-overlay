@@ -7,6 +7,11 @@ Branch `develop` — `feature/audio-msg` mergé dans `develop` ✅. Tests live v
 
 ## 1. Accomplished
 
+### Session 20 (develop — Sonar duplication 4.7% → pending)
+- `src/services/ytdlp.ts` : extrait `deduplicatedExtract(key, factory)` — élimine le corps dupliqué de `extractVideoUrl`/`extractAudioUrl` (~14 lignes de new-code dupliquées)
+- `src/services/session.ts` : ajoute `error: string` dans `AuthCheckResult` pour que les callsites tombent sous le seuil CPD de 50 tokens
+- `src/components/api/adminDbRoutes.ts` + `dashboardRoutes.ts` : simplifie `if (!auth.ok)` → `auth.error` (de ~52 → ~41 tokens)
+
 ### Session 19 (develop — Sonar duplication 4.9% → pending)
 - `sonar-project.properties` : ajout `src/__tests__/**` aux CPD exclusions (belt-and-suspenders avec `**/*.test.ts`)
 - `src/services/session.ts` : ajout helper `checkRouteAuth` (type `AuthCheckResult`) — centralise auth+CSRF check en ~45 tokens (sous le seuil CPD TypeScript de 50 tokens)
