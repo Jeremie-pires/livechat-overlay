@@ -1,44 +1,55 @@
 # AI_STATE.md — LiveChat CCB
 
 ## Status
-Branch `develop` — session 6 complete. Rate-limit fix + H-AUD-06 sanitization + 6 code-review findings resolved. Ready for PR `develop` → `main` + prod deploy.
+Branch `develop` — `feature/audio-msg` mergé dans `develop` ✅. Tests live validés.
 
 ---
 
 ## 1. Accomplished
 
-### Session 6 (code-review fixes)
-- **`allowList` fix** — `server.ts`: `skip` (invalid in @fastify/rate-limit v11, silently ignored) → `allowList`. Socket.io and `/health*` now actually exempt. `isRateLimitExempt` extracted to `src/services/utils.ts`; test imports real predicate (no longer self-referential).
-- **Worker sanitize refactor** — `messagesWorker.ts`: spread+delete → destructuring `{ media, ...sanitizedContent }`; promotion guard changed to `== null` (not falsy); `emittedContent = JSON.stringify(sanitizedContent)` cached once — used for both emit and `payloadBytes`; `getMediaType` and `resolveMediaDurationMs` now receive `sanitizedContent` (stats no longer miscategorised).
-- **Client mock fix** — `client.html:389`: `__triggerTestFormat` mock changed `media: mediaUrl` → `url: mediaUrl` (regression: test buttons were broken post H-AUD-06 change).
-- **Client guard** — `client.html:displayContent`: `if (!data.url) { onDone(); return; }` before media type dispatch — prevents `generateImg(undefined)` / `generateAudioVideo(undefined)` and potential queue stall.
-- **HAProxy config** — `docs/infra/haproxy.cfg.example`: reverted both backends to probe `GET /health` (liveness). `/health/ready` returns 503 on Discord flap — would mark backend DOWN despite HTTP server being healthy. README note updated.
-- **Tests** — `messagesWorker.sanitize.test.ts`: added `url: ""` case confirming `== null` guard (empty string does NOT trigger promotion). All 377 tests pass.
+### Session 16 (feature/audio-msg — Sonar fixes + README)
+- `hidesendCommand.ts` : refactor handler → extracte `replyError`, `validateInputs`, `parseCustomDuration`, `computeFinalDuration` — complexité cognitive 23 → ~7
+- `loader.ts` : export `I18nKey = Parameters<RosettyI18n['t']>[0]` pour typage strict des helpers
+- `ytdlp.ts` : `Math.random()` → `randomUUID()` (node:crypto) — fix Sonar pseudorandom warning
+- `Dockerfile` : `pip3 install` + `--only-binary :all:` + contraintes `>=2024.11.4` / `>=0.1.0`
+- `README.md` : section détaillée option `audio` pour `/msg` / `/cmsg` (sources, exemples, durée auto)
 
-### Session 5 (TikTok H.264 fix — already on main)
-- Format selector `best[ext=mp4][vcodec^=h264]/best[ext=mp4]/best` — forces H.264 over H.265.
+### Session 15 (feature/audio-msg — fix video mute quand audio overlay actif)
+- **Bug** : `/msg lien: <video> audio: <audio>` → son vidéo + son audio overlay simultanés
+- **Fix** : `generateAudioVideo` dans `client.html` → branche `<video>` natif si `muteVideo=true` (setAttribute muted + gardien volumechange)
+- Tests live validés ✅
+
+### Session 14 (feature/audio-msg — fix yt-dlp n-challenge)
+- `Dockerfile` : `node:20-alpine` → `node:22-alpine` + `yt-dlp-ejs` via pip
+- `ytdlp.ts` : `--js-runtimes node` dans args `_runYtdlpAudio` et `_runYtdlp`
+
+### Sessions 7–13 (feature/audio-msg — implémentation audio complète)
+- `getAudioInfoFromUrl` → YouTube via yt-dlp, direct audio via HEAD
+- `sendCommand` / `hidesendCommand` : option `audio`, queue JSON `audioUrl`/`audioDuration`
+- `client.html` : `<audio id="message-audio">`, queue system, clearDisplay
+- `makeTempCookies()` + volume cookies `:ro` + spawn stdout non-zero fix
 
 ---
 
-## 2. Current Architecture (key files)
+## 2. Architecture actuelle (fichiers clés)
 
-| File | Role |
+| Fichier | Rôle |
 |---|---|
-| `src/server.ts` | Fastify v5 + Socket.IO; `allowList: isRateLimitExempt` |
-| `src/services/utils.ts` | `isRateLimitExempt(req)` exported; used by server + test |
-| `src/components/messages/messagesWorker.ts` | Destructuring sanitize; `emittedContent` cached; stats use `sanitizedContent` |
-| `src/components/client/client.html` | `displayContent` guards `!data.url`; test mock uses `url:` |
-| `src/services/content-utils.ts` | TikTok/Twitter URL sanitization + Cobalt + yt-dlp proxy |
-| `src/services/ytdlp.ts` | H.264 format selector; semaphore 5; cookie injection |
-| `docs/infra/haproxy.cfg.example` | Probes `GET /health` (liveness only) |
+| `src/components/client/client.html` | `generateAudioVideo` : branche native `<video>` si `muteVideo=true`, Vidstack sinon |
+| `src/services/content-utils.ts` | `getAudioInfoFromUrl` — SSRF + YouTube yt-dlp + direct audio HEAD |
+| `src/services/ytdlp.ts` | `extractVideoUrl` + `extractAudioUrl`. `--js-runtimes node`. `randomUUID()` pour temp cookies. |
+| `src/components/messages/sendCommand.ts` | Option `audio`, Promise.all, queue JSON `audioUrl`/`audioDuration` |
+| `src/components/messages/hidesendCommand.ts` | Idem + helpers extraits (complexité Sonar OK) |
+| `src/services/i18n/loader.ts` | `I18nKey` exporté |
+| `Dockerfile` | `node:22-alpine` builder+runner, `yt-dlp yt-dlp-ejs` via pip `--only-binary :all:` |
 
 ---
 
 ## 3. Next Steps
 
-1. **[NEXT]** Commit session 6 changes
-2. **[NEXT]** PR `develop` → `main` + prod deploy
-3. **[NEXT]** Vérif prod : TikTok + Twitter + boutons test overlay
-4. **[LATER]** Fix prod 429 sur `/health` — déjà résolu côté code (`allowList`), vérifier que la config HAProxy prod est bien sur `GET /health`
-5. **[LATER]** H-AUD-06 write-side : les 4 commandes (`send`, `hidesend`, `talk`, `hidetalk`) stockent encore `media` en DB. Envisager migration ou write-time sanitization pour couper la surface à la source.
-6. **[LATER]** `displayMediaFull` — feature en attente, non prioritaire
+### [NEXT]
+- Merger `develop` → `main`
+
+### [LATER]
+- H-AUD-06 : 4 commandes stockent encore `media` en DB au lieu de `audio`
+- `displayMediaFull` — non prioritaire

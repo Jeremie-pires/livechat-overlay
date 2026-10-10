@@ -4,6 +4,7 @@ import { enLang } from './en';
 import { frLang } from './fr';
 
 export type RosettyI18n = RosettyReturn<typeof enLang>;
+export type I18nKey = Parameters<RosettyI18n['t']>[0];
 
 export const loadRosetty = () => {
   const r = rosetty<typeof enLang>(
