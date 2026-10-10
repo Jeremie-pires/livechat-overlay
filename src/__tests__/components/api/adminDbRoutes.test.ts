@@ -6,6 +6,31 @@ vi.mock('../../../services/session', () => ({
   getSessionToken: vi.fn((cookie?: string) => (cookie?.includes('session=valid') ? 'valid-token' : undefined)),
   isValidSession: vi.fn((token?: string) => token === 'valid-token'),
   validateCsrfToken: vi.fn((token?: string, csrf?: string) => token === 'valid-token' && csrf === 'valid-csrf'),
+  checkRouteAuth: vi.fn((cookie?: string, csrfHeader?: string | string[]) => {
+    const token = cookie?.includes('session=valid') ? 'valid-token' : undefined;
+    if (token !== 'valid-token') return { ok: false, status: 401, error: 'Unauthorized' };
+    const csrf = Array.isArray(csrfHeader) ? csrfHeader[0] : csrfHeader;
+    if (csrf !== 'valid-csrf') return { ok: false, status: 403, error: 'Invalid CSRF token' };
+    return { ok: true, token };
+  }),
+  requireAuth: vi.fn(
+    async (
+      req: { headers: Record<string, string | undefined> },
+      reply: { code: (s: number) => { send: (b: unknown) => void } },
+    ) => {
+      const cookie = req.headers?.cookie;
+      const csrfHeader = req.headers?.['x-csrf-token'];
+      const token = cookie?.includes('session=valid') ? 'valid-token' : undefined;
+      if (token !== 'valid-token') {
+        reply.code(401).send({ error: 'Unauthorized' });
+        return;
+      }
+      if (csrfHeader !== 'valid-csrf') {
+        reply.code(403).send({ error: 'Invalid CSRF token' });
+        return;
+      }
+    },
+  ),
 }));
 
 const CSRF_HEADER = 'valid-csrf';

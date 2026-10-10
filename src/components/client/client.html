@@ -262,7 +262,8 @@
 
       globalThis.__setVolume = function(vol) {
         currentVolume = Math.max(0, Math.min(1, vol));
-        document.querySelectorAll('audio, video').forEach(function(el) {
+        // Only update plain <audio> elements (overlay); Vidstack <video> is controlled via player.volume below
+        document.querySelectorAll('audio').forEach(function(el) {
           el.volume = currentVolume;
           el.muted = currentVolume === 0;
         });
@@ -288,9 +289,11 @@
         var el = document.getElementById('message-block');
         var ab = document.getElementById('author-block');
         var mt = document.getElementById('message-text');
+        var au = document.getElementById('message-audio');
         if (el) el.replaceChildren();
         if (ab) ab.style.display = 'none';
         if (mt) mt.style.display = 'none';
+        if (au) { au.pause(); au.remove(); }
         if (!isDesktop) emptyState.style.display = 'block';
       }
 
@@ -432,68 +435,98 @@
         return wrapper;
       }
 
-      function generateAudioVideo(src, mediaIsShort, onDone) {
+      function generateAudioVideo(src, mediaIsShort, onDone, muteVideo) {
         var wrapper = document.createElement('div');
         wrapper.id = 'message-player';
         if (mediaIsShort) wrapper.classList.add('is-short');
 
         setTimeout(() => {
-          (async () => {
-            await VidstackPlayer.create({
-              target: '#message-player',
-              src: src,
-              layout: new VidstackPlayerLayout({}),
-              logLevel: 'debug',
-              crossOrigin: true,
-              playsInline: true,
-              load: 'eager',
-              autoplay: true,
-              muted: !isDesktop,
+          if (muteVideo) {
+            // When an audio overlay is active, bypass VidstackPlayer entirely.
+            // Vidstack restores muted/volume from localStorage and silently overrides
+            // muted:true at init. A native <video muted> attribute is browser-enforced
+            // and cannot be cleared by library internals.
+            var video = document.createElement('video');
+            video.setAttribute('muted', '');
+            video.muted = true;
+            video.volume = 0;
+            video.autoplay = true;
+            video.playsInline = true;
+            video.crossOrigin = 'anonymous';
+            video.src = src;
+            // Re-enforce muting if anything attempts to change volume/muted state
+            video.addEventListener('volumechange', function() {
+              if (!video.muted || video.volume > 0) { video.muted = true; video.volume = 0; }
             });
-
-            const player = document.querySelector('media-player');
-
-            // Apply stored volume to this new player
-            try { player.volume = currentVolume; } catch {}
-            var vid = player.querySelector('video');
-            if (vid) { vid.volume = currentVolume; vid.muted = currentVolume === 0; }
-
-            // Adjust player aspect-ratio to the video's real dimensions
-            player.addEventListener('loaded-metadata', () => {
-              const videoEl = player.querySelector('video');
-              if (videoEl && videoEl.videoWidth && videoEl.videoHeight) {
-                const { videoWidth, videoHeight } = videoEl;
-                player.style.setProperty('aspect-ratio', `${videoWidth} / ${videoHeight}`, 'important');
-                if (videoHeight > videoWidth) {
-                  const playerWrapper = document.getElementById('message-player');
-                  if (playerWrapper) playerWrapper.classList.add('is-short');
-                }
+            video.addEventListener('loadedmetadata', function() {
+              if (video.videoWidth && video.videoHeight && video.videoHeight > video.videoWidth) {
+                var pw = document.getElementById('message-player');
+                if (pw) pw.classList.add('is-short');
               }
             });
+            video.addEventListener('ended', function() { if (onDone) onDone(); });
+            video.play().catch(function() {});
+            wrapper.appendChild(video);
+          } else {
+            (async () => {
+              await VidstackPlayer.create({
+                target: '#message-player',
+                src: src,
+                layout: new VidstackPlayerLayout({}),
+                logLevel: 'debug',
+                crossOrigin: true,
+                playsInline: true,
+                load: 'eager',
+                autoplay: true,
+                muted: !isDesktop,
+              });
 
-            // When video ends, advance the queue
-            player.addEventListener('ended', () => {
-              console.debug('Video ended');
-              if (onDone) onDone();
-            });
+              const player = document.querySelector('media-player');
 
-            player.addEventListener(
-              'can-play',
-              async () => {
-                try {
-                  await player.play();
-                  player.muted = false;
-                  // Re-apply volume after unmute
-                  try { player.volume = currentVolume; } catch {}
-                  var v = player.querySelector('video');
-                  if (v) v.volume = currentVolume;
-                } catch (e) {
-                  console.warn('Autoplay blocked:', e);
+              try { player.volume = currentVolume; } catch {}
+              var vid = player.querySelector('video');
+              if (vid) { vid.volume = currentVolume; vid.muted = currentVolume === 0; }
+
+              // Adjust player aspect-ratio to the video's real dimensions
+              player.addEventListener('loaded-metadata', () => {
+                const videoEl = player.querySelector('video');
+                if (!videoEl) return;
+                if (videoEl.videoWidth && videoEl.videoHeight) {
+                  const { videoWidth, videoHeight } = videoEl;
+                  player.style.setProperty('aspect-ratio', `${videoWidth} / ${videoHeight}`, 'important');
+                  if (videoHeight > videoWidth) {
+                    const playerWrapper = document.getElementById('message-player');
+                    if (playerWrapper) playerWrapper.classList.add('is-short');
+                  }
                 }
-              },
-              { once: true },
-            );
-          })();
+              });
+
+              // When video ends, advance the queue
+              player.addEventListener('ended', () => {
+                console.debug('Video ended');
+                if (onDone) onDone();
+              });
+
+              player.addEventListener(
+                'can-play',
+                async () => {
+                  try {
+                    await player.play();
+                    if (!isDesktop) {
+                      player.muted = false;
+                      // Re-apply volume after unmute
+                      try { player.volume = currentVolume; } catch {}
+                      var v = player.querySelector('video');
+                      if (v) v.volume = currentVolume;
+                    }
+                  } catch (e) {
+                    console.warn('Autoplay blocked:', e);
+                  }
+                },
+                { once: true },
+              );
+            })();
+          }
         }, 100);
 
         return wrapper;
@@ -534,6 +567,22 @@
         element.replaceChildren();
         emptyState.style.display = 'none';
 
+        // Stop any previous background audio before starting the new item
+        var prevAudio = document.getElementById('message-audio');
+        if (prevAudio) { prevAudio.pause(); prevAudio.remove(); }
+
+        if (data.audioUrl) {
+          var audioEl = document.createElement('audio');
+          audioEl.id = 'message-audio';
+          audioEl.src = data.audioUrl;
+          audioEl.style.display = 'none';
+          audioEl.autoplay = true;
+          audioEl.volume = currentVolume;
+          audioEl.muted = currentVolume === 0;
+          document.body.appendChild(audioEl);
+          audioEl.play().catch(function() {});
+        }
+
         if (data.mediaContentType) {
           if (!data.url) { onDone(); return; }
           if (data.mediaContentType.indexOf('image') === 0) {
@@ -543,7 +592,8 @@
             if (iframeEl) element.appendChild(iframeEl);
             // Duration is handled by the message timeout — no ended event from iframe
           } else {
-            element.appendChild(generateAudioVideo(data.url, data.mediaIsShort, onDone));
+            // Mute video sound when a separate audio track is provided
+            element.appendChild(generateAudioVideo(data.url, data.mediaIsShort, onDone, !!data.audioUrl));
           }
         }
       }
@@ -607,7 +657,7 @@
           displayTimeout = setTimeout(done, message.duration * 1000 + 100);
         }
 
-        if (!data.text && !data.mediaContentType) {
+        if (!data.text && !data.mediaContentType && !data.audioUrl) {
           if (!isDesktop) {
             emptyState.style.display = 'block';
           }

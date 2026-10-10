@@ -8,9 +8,10 @@ import {
   deleteSession,
   getSessionToken,
   isValidSession,
+  requireAuth,
   validateCsrfToken,
 } from '../../services/session';
-import { broadcastToAllGuilds } from '../../services/broadcast';
+import { applyMaintenanceMode } from '../../services/broadcast';
 import { presenceStore } from '../../services/presenceStore';
 import { presenceSse } from '../../services/presenceSse';
 
@@ -124,25 +125,11 @@ async function dashboardPlugin(fastify: FastifyCustomInstance) {
     return reply.redirect('/dashboard', 302);
   });
 
-  fastify.post('/api/maintenance/toggle', async (req, reply) => {
-    const token = getSessionToken(req.headers.cookie);
-    if (!isValidSession(token)) return reply.status(401).send({ error: 'Unauthorized' });
-    const csrfToken = req.headers['x-csrf-token'] as string | undefined;
-    if (!validateCsrfToken(token, csrfToken)) return reply.status(403).send({ error: 'Invalid CSRF token' });
-
+  fastify.post('/api/maintenance/toggle', { preHandler: requireAuth }, async (req, reply) => {
     const stats = await prisma.stats.findUnique({ where: { id: 'singleton' } });
     const silentMode = !(stats?.silentMode ?? false);
 
-    await prisma.stats.upsert({
-      where: { id: 'singleton' },
-      create: { id: 'singleton', silentMode },
-      update: { silentMode },
-    });
-
-    if (!silentMode) {
-      await broadcastToAllGuilds('🟢 En ligne !', 'Le bot est de retour et prêt à recevoir du contenu !', 0x2ecc71);
-    }
-
+    await applyMaintenanceMode(silentMode);
     fastify.io.emit('server:maintenance', { maintenance: silentMode });
 
     return reply.send({ silentMode });

@@ -4,9 +4,9 @@ import {
   Client,
   EmbedBuilder,
   MessageFlags,
-  PermissionFlagsBits,
   SlashCommandBuilder,
 } from 'discord.js';
+import { assertAdminPermission } from '../../services/discord-utils';
 
 export const setupCommand = () => ({
   data: new SlashCommandBuilder()
@@ -23,17 +23,7 @@ export const setupCommand = () => ({
   handler: async (interaction: ChatInputCommandInteraction, discordClient: Client) => {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-    const userId = interaction.user.id;
-    const guildMember = await discordClient.guilds
-      .fetch(interaction.guildId!)
-      .then((guild) => guild.members.fetch(userId));
-
-    if (!guildMember.permissions.has(PermissionFlagsBits.Administrator)) {
-      await interaction.editReply({
-        embeds: [new EmbedBuilder().setTitle(rosetty.t('notAllowed')!).setColor(0xe74c3c)],
-      });
-      return;
-    }
+    if (!(await assertAdminPermission(interaction, discordClient))) return;
 
     const channel = interaction.options.getChannel('channel', true);
 

@@ -1,6 +1,16 @@
 import { EmbedBuilder, TextChannel } from 'discord.js';
 import { BroadcastResult, classifyDiscordError, mintRunId, persistBroadcastRun } from './broadcastClassifier';
 
+export const applyMaintenanceMode = async (silentMode: boolean): Promise<void> => {
+  await prisma.stats.upsert({
+    where: { id: 'singleton' },
+    update: { silentMode },
+    create: { id: 'singleton', silentMode },
+  });
+  if (silentMode) return;
+  await broadcastToAllGuilds('🟢 En ligne !', 'Le bot est de retour et prêt à recevoir du contenu !', 0x2ecc71);
+};
+
 export const broadcastToAllGuilds = async (
   title: string,
   description: string,

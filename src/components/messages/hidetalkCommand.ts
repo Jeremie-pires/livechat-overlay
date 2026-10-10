@@ -1,8 +1,6 @@
 import { ChatInputCommandInteraction, EmbedBuilder, MessageFlags, SlashCommandBuilder } from 'discord.js';
-import { QueueType } from '../../services/prisma/loadPrisma';
-import { measureContentProcessing } from '../../services/telemetry';
 import { deleteGtts, promisedGtts, readGttsAsStream } from '../../services/gtts';
-import { getDurationFromGuildId } from '../../services/utils';
+import { createTalkQueueEntry, resolveTTSAttachment } from './commandHelpers';
 
 const MAX_TTS_LENGTH = 200;
 
@@ -55,41 +53,11 @@ export const hideTalkCommand = () => ({
         flags: MessageFlags.Ephemeral,
       });
 
-      const message = await interactionReply.fetch();
-      const media = message.attachments.first()?.proxyURL;
+      const resolved = await resolveTTSAttachment(interaction, interactionReply);
+      if (!resolved) return;
+      const { media, processingMs, additionalContent } = resolved;
 
-      if (!media) {
-        await interaction.editReply({
-          embeds: [
-            new EmbedBuilder()
-              .setTitle(rosetty.t('error')!)
-              .setDescription(rosetty.t('talkNoAttachment')!)
-              .setColor(0xe74c3c),
-          ],
-        });
-        return;
-      }
-
-      const { processingMs, contentInfo: additionalContent } = await measureContentProcessing(media);
-
-      await prisma.queue.create({
-        data: {
-          content: JSON.stringify({
-            text,
-            media,
-            mediaContentType: 'audio/mpeg',
-            mediaDuration: Math.ceil(additionalContent.mediaDuration ?? 0),
-          }),
-          type: QueueType.VOCAL,
-          discordGuildId: interaction.guildId!,
-          duration: await getDurationFromGuildId(
-            additionalContent.mediaDuration ? Math.ceil(additionalContent.mediaDuration) : undefined,
-            interaction.guildId!,
-          ),
-          discordReceivedAt: new Date(discordReceivedAt),
-          processingMs,
-        },
-      });
+      await createTalkQueueEntry(interaction, { text, media, additionalContent, discordReceivedAt, processingMs });
     } finally {
       await deleteGtts(filePath).catch((err) => logger.warn(err, '[TTS] Failed to delete temp file'));
     }

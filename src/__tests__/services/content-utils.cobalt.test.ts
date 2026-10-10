@@ -5,19 +5,15 @@ vi.mock('node-fetch', () => ({
   default: vi.fn(),
 }));
 
-vi.mock('child_process', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('child_process')>();
-  return {
-    ...actual,
-    spawn: vi.fn().mockImplementation(() => ({
-      stdout: { on: vi.fn() },
-      kill: vi.fn(),
-      on: vi.fn().mockImplementation((event: string, cb: (...args: unknown[]) => void) => {
-        if (event === 'error') setImmediate(() => cb(new Error('ffprobe not available in test')));
-      }),
-    })),
-  };
-});
+vi.mock('child_process', () => ({
+  spawn: vi.fn().mockReturnValue({
+    stdout: { on: vi.fn() },
+    kill: vi.fn(),
+    on: vi.fn().mockImplementation((ev: string, cb: (...a: unknown[]) => void) => {
+      if (ev === 'close') setImmediate(() => cb(1));
+    }),
+  }),
+}));
 
 vi.mock('file-type', () => ({
   fileTypeFromBuffer: vi.fn().mockResolvedValue(null),
@@ -42,7 +38,11 @@ import { getContentInformationsFromUrl, isTikTokUrl, isTwitterUrl } from '../../
 
 const PUBLIC_IP = '93.184.216.34';
 const TIKTOK_CDN = 'https://v19-webapp.tiktok.com/video/tos/abc.mp4';
-const TIKTOK_RESULT = { url: TIKTOK_CDN, headers: { 'User-Agent': 'Mozilla/5.0', Cookie: 'tt_chain_token=x' }, duration: 42 };
+const TIKTOK_RESULT = {
+  url: TIKTOK_CDN,
+  headers: { 'User-Agent': 'Mozilla/5.0', Cookie: 'tt_chain_token=x' },
+  duration: 42,
+};
 
 function makeCobaltResponse(body: object, status = 200) {
   return {
@@ -56,14 +56,9 @@ function makeCobaltResponse(body: object, status = 200) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  const logKeys = ['debug', 'info', 'warn', 'error', 'fatal', 'trace', 'silent'];
   (global as Record<string, unknown>).logger = {
-    debug: vi.fn(),
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-    fatal: vi.fn(),
-    trace: vi.fn(),
-    silent: vi.fn(),
+    ...Object.fromEntries(logKeys.map((k) => [k, vi.fn()])),
     child: vi.fn().mockReturnThis(),
   };
   vi.spyOn(dns.promises, 'lookup').mockResolvedValue([{ address: PUBLIC_IP, family: 4 }] as dns.LookupAddress[]);
@@ -113,14 +108,9 @@ describe('getContentInformationsFromUrl — tracking param stripping', () => {
   it('strips TikTok tracking params before passing to yt-dlp', async () => {
     vi.mocked(extractVideoUrl).mockResolvedValueOnce(TIKTOK_RESULT);
 
-    await getContentInformationsFromUrl(
-      'https://www.tiktok.com/@user/video/123456?is_from_webapp=1&sender_device=pc',
-    );
+    await getContentInformationsFromUrl('https://www.tiktok.com/@user/video/123456?is_from_webapp=1&sender_device=pc');
 
-    expect(vi.mocked(extractVideoUrl)).toHaveBeenCalledWith(
-      'https://www.tiktok.com/@user/video/123456',
-      undefined,
-    );
+    expect(vi.mocked(extractVideoUrl)).toHaveBeenCalledWith('https://www.tiktok.com/@user/video/123456', undefined);
   });
 
   it('strips Twitter tracking params before passing to Cobalt', async () => {

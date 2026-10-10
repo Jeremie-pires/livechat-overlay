@@ -6,7 +6,7 @@ import { runProcess } from './spawn-process';
 import { assertPublicHttpUrl, type AssertedUrl } from './url-guard';
 import { env } from './env';
 import { findOrCreateProxy } from './video-proxy-cache';
-import { extractVideoUrl } from './ytdlp';
+import { extractVideoUrl, extractAudioUrl } from './ytdlp';
 
 const MAX_HTML_CHARS = 256 * 1024;
 const FETCH_TIMEOUT_MS = 5_000;
@@ -101,13 +101,29 @@ export function isTwitterUrl(url: string): boolean {
   try {
     const { hostname, pathname } = new URL(url);
     const isTwitterHost =
-      hostname === 'twitter.com' ||
-      hostname === 'www.twitter.com' ||
-      hostname === 'x.com' ||
-      hostname === 'www.x.com';
+      hostname === 'twitter.com' || hostname === 'www.twitter.com' || hostname === 'x.com' || hostname === 'www.x.com';
     return isTwitterHost && /\/status\/\d+/.test(pathname);
   } catch {
     return false;
+  }
+}
+
+async function fetchWithTimeout(
+  pinnedUrl: string,
+  pinnedInit: Parameters<typeof fetch>[1],
+  timeoutMs: number,
+  timeoutMsg: string,
+): Promise<Awaited<ReturnType<typeof fetch>>> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      fetch(pinnedUrl, pinnedInit),
+      new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error(timeoutMsg)), timeoutMs);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 
@@ -121,7 +137,6 @@ async function resolveHttpRedirect(startUrl: string, startGuard: AssertedUrl): P
   let hops = 0;
 
   while (hops < MAX_HOPS) {
-    let timeoutId: ReturnType<typeof setTimeout> | undefined;
     let location: string | null = null;
 
     try {
@@ -130,16 +145,14 @@ async function resolveHttpRedirect(startUrl: string, startGuard: AssertedUrl): P
         { 'User-Agent': 'Mozilla/5.0 (compatible; LiveChatCCB/1.0)' },
         { redirect: 'manual' },
       );
-      const response = await Promise.race([
-        fetch(pinnedUrl, pinnedInit as Parameters<typeof fetch>[1]),
-        new Promise<never>((_, reject) => {
-          timeoutId = setTimeout(() => reject(new Error('redirect timeout')), FETCH_TIMEOUT_MS);
-        }),
-      ]);
-      clearTimeout(timeoutId);
+      const response = await fetchWithTimeout(
+        pinnedUrl,
+        pinnedInit as Parameters<typeof fetch>[1],
+        FETCH_TIMEOUT_MS,
+        'redirect timeout',
+      );
       location = response.headers.get('location');
     } catch {
-      clearTimeout(timeoutId);
       break;
     }
 
@@ -161,9 +174,12 @@ async function resolveHttpRedirect(startUrl: string, startGuard: AssertedUrl): P
 
 // Sends url to a self-hosted Cobalt instance and returns the resolved stream URL.
 // Returns null if Cobalt is unconfigured, unreachable, or returns an unexpected response.
-async function resolveCobaltUrl(url: string): Promise<string | null> {
+async function resolveCobaltUrl(url: string, options: { audioOnly?: boolean } = {}): Promise<string | null> {
   const apiUrl = env.COBALT_API_URL;
   if (!apiUrl) return null;
+
+  const body: Record<string, string> = { url };
+  if (options.audioOnly) body.downloadMode = 'audio';
 
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
   try {
@@ -171,7 +187,7 @@ async function resolveCobaltUrl(url: string): Promise<string | null> {
       fetch(apiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify(body),
       }),
       new Promise<never>((_, reject) => {
         timeoutId = setTimeout(() => reject(new Error('cobalt timeout')), COBALT_TIMEOUT_MS);
@@ -485,6 +501,62 @@ function sanitizeTwitterUrl(url: string): string {
     return parsed.toString();
   } catch {
     return url;
+  }
+}
+
+export interface AudioInfo {
+  audioUrl: string;
+  audioDuration?: number;
+}
+
+// Validates a user-supplied audio URL and returns proxied CDN URL + duration.
+// Accepts YouTube (extracted via yt-dlp) or direct audio URLs (Content-Type: audio/*).
+// Returns null for TikTok, Twitter, and any non-audio URL.
+export async function getAudioInfoFromUrl(url: string): Promise<AudioInfo | null> {
+  let guard;
+  try {
+    guard = await assertPublicHttpUrl(url);
+  } catch (error) {
+    logger.debug({ err: error }, 'audio: SSRF guard failed');
+    return null;
+  }
+
+  if (isYouTubeUrl(url)) {
+    const extracted = await extractAudioUrl(url, env.YTDLP_COOKIES);
+    if (!extracted) {
+      logger.warn({ url }, 'audio: yt-dlp extraction failed');
+      return null;
+    }
+    logger.info({ url, duration: extracted.duration }, 'audio: yt-dlp extraction succeeded');
+    const proxyUrl = buildProxyUrl(url, extracted.url, extracted.headers);
+    return { audioUrl: proxyUrl, audioDuration: extracted.duration };
+  }
+
+  if (isTikTokUrl(url) || isTwitterUrl(url)) {
+    logger.debug({ url }, 'audio: rejected domain (tiktok/twitter not supported for audio)');
+    return null;
+  }
+
+  // Direct audio URL: verify Content-Type via HEAD request
+  try {
+    const [pinnedUrl, pinnedInit] = buildPinnedFetchArgs(guard, {}, { method: 'HEAD', redirect: 'error' });
+    const response = await fetchWithTimeout(
+      pinnedUrl,
+      pinnedInit as Parameters<typeof fetch>[1],
+      FETCH_TIMEOUT_MS,
+      'audio HEAD timeout',
+    );
+    const contentType = response.headers.get('Content-Type') ?? '';
+    if (!contentType.startsWith('audio/')) {
+      logger.debug({ url, contentType }, 'audio: not an audio content-type');
+      return null;
+    }
+    const [pinnedFfprobeUrl] = buildPinnedFetchArgs(guard, {}, {});
+    const duration = await probeDuration(pinnedFfprobeUrl);
+    return { audioUrl: url, audioDuration: duration };
+  } catch (error) {
+    logger.debug({ err: error }, 'audio: HEAD check failed');
+    return null;
   }
 }
 
