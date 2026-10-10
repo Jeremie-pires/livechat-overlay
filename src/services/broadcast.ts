@@ -4,12 +4,11 @@ import { BroadcastResult, classifyDiscordError, mintRunId, persistBroadcastRun }
 export const applyMaintenanceMode = async (silentMode: boolean): Promise<void> => {
   await prisma.stats.upsert({
     where: { id: 'singleton' },
-    create: { id: 'singleton', silentMode },
     update: { silentMode },
+    create: { id: 'singleton', silentMode },
   });
-  if (!silentMode) {
-    await broadcastToAllGuilds('🟢 En ligne !', 'Le bot est de retour et prêt à recevoir du contenu !', 0x2ecc71);
-  }
+  if (silentMode) return;
+  await broadcastToAllGuilds('🟢 En ligne !', 'Le bot est de retour et prêt à recevoir du contenu !', 0x2ecc71);
 };
 
 export const broadcastToAllGuilds = async (
