@@ -1,38 +1,8 @@
-import { ChatInputCommandInteraction, SlashCommandBuilder } from 'discord.js';
-import { executeMessageHandler } from './commandHelpers';
+import { ChatInputCommandInteraction } from 'discord.js';
+import { buildMessageCommandData, executeMessageHandler } from './commandHelpers';
 
 export const hideSendCommand = () => ({
-  data: new SlashCommandBuilder()
-    .setName(rosetty.t('hideSendCommand')!)
-    .setDescription(rosetty.t('hideSendCommandDescription')!)
-    .addStringOption((option) =>
-      option
-        .setName(rosetty.t('hideSendCommandOptionURL')!)
-        .setDescription(rosetty.t('hideSendCommandOptionURLDescription')!),
-    )
-    .addAttachmentOption((option) =>
-      option
-        .setName(rosetty.t('hideSendCommandOptionMedia')!)
-        .setDescription(rosetty.t('hideSendCommandOptionMediaDescription')!),
-    )
-    .addStringOption((option) =>
-      option
-        .setName(rosetty.t('hideSendCommandOptionText')!)
-        .setDescription(rosetty.t('hideSendCommandOptionTextDescription')!)
-        .setRequired(false),
-    )
-    .addStringOption((option) =>
-      option
-        .setName(rosetty.t('hideSendCommandOptionDuration')!)
-        .setDescription(rosetty.t('hideSendCommandOptionDurationDescription')!)
-        .setRequired(false),
-    )
-    .addStringOption((option) =>
-      option
-        .setName(rosetty.t('hideSendCommandOptionAudio')!)
-        .setDescription(rosetty.t('hideSendCommandOptionAudioDescription')!)
-        .setRequired(false),
-    ),
+  data: buildMessageCommandData('hideSendCommand'),
   handler: async (interaction: ChatInputCommandInteraction) => {
     await executeMessageHandler(interaction, {
       optionKeys: {

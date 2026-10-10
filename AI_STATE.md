@@ -1,11 +1,16 @@
 # AI_STATE.md — LiveChat CCB
 
 ## Status
-Branch `develop` — PR #74 (`develop → main`) — CI green, Sonar CPD fixes applied (sessions 22 + 23, awaiting final analysis).
+Branch `develop` — PR #74 (`develop → main`) — CI green, Sonar CPD fixes applied (sessions 22 + 23 + 24, awaiting final analysis).
 
 ---
 
 ## 1. Accomplished
+
+### Session 24 (Sonar CPD fixes — sendCommand/hidesendCommand + i18n)
+- **Fix E**: `commandHelpers.ts` — added `buildMessageCommandData(prefix)` factory; `sendCommand.ts` and `hidesendCommand.ts` now call it (eliminated 144-token SlashCommandBuilder options clone)
+- **Fix F**: `sonar-project.properties` — added `src/services/i18n/en.ts` and `fr.ts` to `sonar.cpd.exclusions` (i18n files are structurally identical by design)
+- All 386 tests pass, no new TS errors
 
 ### Session 23 (Sonar CPD fixes — remaining 4 clones eliminated)
 - **Fix D**: `broadcast.ts` — added `applyMaintenanceMode(silentMode)` helper; `dashboardRoutes.ts` now calls it instead of inline upsert+broadcast block (eliminated clone [29])
@@ -27,6 +32,9 @@ Branch `develop` — PR #74 (`develop → main`) — CI green, Sonar CPD fixes a
 
 | Fichier | Rôle |
 |---|---|
+| `src/components/messages/commandHelpers.ts` | `buildMessageCommandData(prefix)` factory + `executeMessageHandler` + helpers |
+| `src/components/messages/sendCommand.ts` | thin wrapper → `buildMessageCommandData('sendCommand')` |
+| `src/components/messages/hidesendCommand.ts` | thin wrapper → `buildMessageCommandData('hideSendCommand')` |
 | `src/services/discord-utils.ts` | `assertAdminPermission` + `createSetGuildTimeCommand` factory |
 | `src/components/discord/setDefaultTimeCommand.ts` | thin wrapper → `createSetGuildTimeCommand` |
 | `src/components/discord/setMaxTimeCommand.ts` | thin wrapper → `createSetGuildTimeCommand` |
@@ -44,8 +52,8 @@ Branch `develop` — PR #74 (`develop → main`) — CI green, Sonar CPD fixes a
 
 ### [WAITING — Sonar re-analysis]
 - Push triggers new CI + SonarCloud analysis on PR #74
-- Expected: duplication on New Code drops to ≤ 3% (threshold)
-- If still > 3%: run jscpd --min-tokens 50 on src diff files and find remaining clones
+- Expected: duplication on New Code drops to ≤ 3% (sendCommand + i18n clones now fixed)
+- If still > 3%: navigate SonarCloud measures → duplicated files to find remaining source
 
 ### [MANUAL — user action required]
 - Security Rating C (Dockerfile pip hotspot) — navigate to SonarCloud → hotspot → acknowledge as "Safe"

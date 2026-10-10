@@ -1,4 +1,4 @@
-import { ChatInputCommandInteraction, EmbedBuilder, InteractionResponse, Message } from 'discord.js';
+import { ChatInputCommandInteraction, EmbedBuilder, InteractionResponse, Message, SlashCommandBuilder } from 'discord.js';
 import { measureContentProcessing, ContentInfo } from '../../services/telemetry';
 import { AudioInfo, getAudioInfoFromUrl } from '../../services/content-utils';
 import { I18nKey } from '../../services/i18n/loader';
@@ -173,6 +173,24 @@ export async function executeMessageHandler(
     ],
   });
 }
+
+export const buildMessageCommandData = (prefix: 'sendCommand' | 'hideSendCommand') => {
+  const k = (s: string): string => rosetty.t(`${prefix}${s}` as I18nKey)!;
+  return new SlashCommandBuilder()
+    .setName(k(''))
+    .setDescription(k('Description'))
+    .addStringOption((opt) => opt.setName(k('OptionURL')).setDescription(k('OptionURLDescription')))
+    .addAttachmentOption((opt) => opt.setName(k('OptionMedia')).setDescription(k('OptionMediaDescription')))
+    .addStringOption((opt) =>
+      opt.setName(k('OptionText')).setDescription(k('OptionTextDescription')).setRequired(false),
+    )
+    .addStringOption((opt) =>
+      opt.setName(k('OptionDuration')).setDescription(k('OptionDurationDescription')).setRequired(false),
+    )
+    .addStringOption((opt) =>
+      opt.setName(k('OptionAudio')).setDescription(k('OptionAudioDescription')).setRequired(false),
+    );
+};
 
 interface TalkQueueConfig {
   text: unknown;
