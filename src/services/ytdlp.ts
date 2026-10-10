@@ -69,100 +69,61 @@ export async function extractAudioUrl(url: string, cookiesFile?: string): Promis
   return promise;
 }
 
-async function _runYtdlpAudio(url: string, cookiesFile?: string): Promise<YtdlpResult | null> {
+function parseYtdlpOutput(stdout: string): YtdlpResult | null {
+  try {
+    const info = JSON.parse(stdout) as {
+      url?: string;
+      http_headers?: Record<string, string>;
+      duration?: number;
+    };
+    const cdnUrl = info.url;
+    if (!cdnUrl?.startsWith('http')) return null;
+    const duration =
+      typeof info.duration === 'number' && Number.isFinite(info.duration) && info.duration > 0
+        ? info.duration
+        : undefined;
+    return { url: cdnUrl, headers: info.http_headers ?? {}, duration };
+  } catch {
+    return null;
+  }
+}
+
+async function runYtdlpProcess(url: string, format: string, cookiesFile?: string): Promise<YtdlpResult | null> {
   await acquireSemaphore();
   let tempCookies: string | undefined;
   try {
-    if (cookiesFile) {
-      tempCookies = await makeTempCookies(cookiesFile);
-    }
+    if (cookiesFile) tempCookies = await makeTempCookies(cookiesFile);
     const args = [
-      '--no-playlist',
-      '--format',
-      'bestaudio[ext=m4a]/bestaudio',
-      '--js-runtimes',
-      'node',
-      '-J',
+      '--no-playlist', '--format', format, '--js-runtimes', 'node', '-J',
       ...(tempCookies ? ['--cookies', tempCookies] : []),
       url,
     ];
-    return await runProcess<YtdlpResult>(env.YTDLP_PATH, args, YTDLP_TIMEOUT_MS, (stdout) => {
-      try {
-        const info = JSON.parse(stdout) as {
-          url?: string;
-          http_headers?: Record<string, string>;
-          duration?: number;
-        };
-        const cdnUrl = info.url;
-        if (!cdnUrl?.startsWith('http')) return null;
-        const duration =
-          typeof info.duration === 'number' && Number.isFinite(info.duration) && info.duration > 0
-            ? info.duration
-            : undefined;
-        return { url: cdnUrl, headers: info.http_headers ?? {}, duration };
-      } catch {
-        return null;
-      }
-    });
+    return await runProcess<YtdlpResult>(env.YTDLP_PATH, args, YTDLP_TIMEOUT_MS, parseYtdlpOutput);
   } finally {
     releaseSemaphore();
     if (tempCookies) rm(tempCookies, { force: true }).catch(() => undefined);
   }
 }
 
+async function _runYtdlpAudio(url: string, cookiesFile?: string): Promise<YtdlpResult | null> {
+  return runYtdlpProcess(url, 'bestaudio[ext=m4a]/bestaudio', cookiesFile);
+}
+
 async function _runYtdlp(url: string, cookiesFile?: string): Promise<YtdlpResult | null> {
-  await acquireSemaphore();
-  let tempCookies: string | undefined;
+  const result = await runYtdlpProcess(url, 'best[ext=mp4][vcodec^=h264]/best[ext=mp4]/best', cookiesFile);
+
+  if (!result || !cookiesFile) return result;
+
+  // Inject CDN cookies so the proxy can forward them (e.g. tt_chain_token for TikTok)
   try {
-    if (cookiesFile) {
-      tempCookies = await makeTempCookies(cookiesFile);
+    const cdnDomain = new URL(result.url).hostname;
+    const cookieHeader = await parseCookiesForDomain(cookiesFile, cdnDomain);
+    if (cookieHeader) {
+      return { url: result.url, headers: { ...result.headers, Cookie: cookieHeader }, duration: result.duration };
     }
-    const args = [
-      '--no-playlist',
-      '--format',
-      'best[ext=mp4][vcodec^=h264]/best[ext=mp4]/best',
-      '--js-runtimes',
-      'node',
-      '-J',
-      ...(tempCookies ? ['--cookies', tempCookies] : []),
-      url,
-    ];
-
-    const result = await runProcess<YtdlpResult>(env.YTDLP_PATH, args, YTDLP_TIMEOUT_MS, (stdout) => {
-      try {
-        const info = JSON.parse(stdout) as {
-          url?: string;
-          http_headers?: Record<string, string>;
-          duration?: number;
-        };
-        const cdnUrl = info.url;
-        if (!cdnUrl?.startsWith('http')) return null;
-        const duration =
-          typeof info.duration === 'number' && Number.isFinite(info.duration) && info.duration > 0
-            ? info.duration
-            : undefined;
-        return { url: cdnUrl, headers: info.http_headers ?? {}, duration };
-      } catch {
-        return null;
-      }
-    });
-
-    if (!result || !cookiesFile) return result;
-
-    // Inject CDN cookies so the proxy can forward them (e.g. tt_chain_token for TikTok)
-    try {
-      const cdnDomain = new URL(result.url).hostname;
-      const cookieHeader = await parseCookiesForDomain(cookiesFile, cdnDomain);
-      if (cookieHeader) {
-        return { url: result.url, headers: { ...result.headers, Cookie: cookieHeader }, duration: result.duration };
-      }
-    } catch {
-      // Malformed CDN URL — return result without Cookie header
-    }
-
-    return result;
-  } finally {
-    releaseSemaphore();
-    if (tempCookies) rm(tempCookies, { force: true }).catch(() => undefined);
+  } catch {
+    // Malformed CDN URL — return result without Cookie header
   }
+
+  return result;
 }
