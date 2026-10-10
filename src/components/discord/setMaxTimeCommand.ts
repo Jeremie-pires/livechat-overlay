@@ -1,66 +1,17 @@
-import {
-  Client,
-  ChatInputCommandInteraction,
-  EmbedBuilder,
-  MessageFlags,
-  PermissionFlagsBits,
-  SlashCommandBuilder,
-} from 'discord.js';
+import { createSetGuildTimeCommand } from '../../services/discord-utils';
 
-export const setMaxTimeCommand = () => ({
-  data: new SlashCommandBuilder()
-    .setName(rosetty.t('setMaxTimeCommand')!)
-    .setDescription(rosetty.t('setMaxTimeCommandDescription')!)
-    .addIntegerOption((option) =>
-      option
-        .setName(rosetty.t('setMaxTimeCommandOptionText')!)
-        .setDescription(rosetty.t('setMaxTimeCommandOptionTextDescription')!)
-        .setRequired(true)
-        .setMinValue(1)
-        .setMaxValue(3600),
-    ),
-  handler: async (interaction: ChatInputCommandInteraction, discordClient: Client) => {
-    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-
-    const number = interaction.options.get(rosetty.t('setMaxTimeCommandOptionText')!)?.value as number;
-
-    if (number < 1 || number > 3600) {
-      await interaction.editReply({
-        embeds: [
-          new EmbedBuilder()
-            .setTitle(rosetty.t('error')!)
-            .setDescription(rosetty.t('invalidDuration')!)
-            .setColor(0xe74c3c),
-        ],
+export const setMaxTimeCommand = () =>
+  createSetGuildTimeCommand({
+    commandNameKey: 'setMaxTimeCommand',
+    commandDescriptionKey: 'setMaxTimeCommandDescription',
+    optionNameKey: 'setMaxTimeCommandOptionText',
+    optionDescriptionKey: 'setMaxTimeCommandOptionTextDescription',
+    persist: async (guildId, value) => {
+      await prisma.guild.upsert({
+        where: { id: guildId },
+        create: { id: guildId, maxMediaTime: value },
+        update: { maxMediaTime: value },
       });
-      return;
-    }
-
-    const userId = interaction.user.id;
-    const guildMember = await discordClient.guilds
-      .fetch(interaction.guildId!)
-      .then((guild) => guild.members.fetch(userId!));
-
-    if (!guildMember.permissions.has(PermissionFlagsBits.Administrator)) {
-      await interaction.editReply({
-        embeds: [new EmbedBuilder().setTitle(rosetty.t('notAllowed')!).setColor(0xe74c3c)],
-      });
-      return;
-    }
-
-    await prisma.guild.upsert({
-      where: { id: interaction.guildId! },
-      create: { id: interaction.guildId!, maxMediaTime: number },
-      update: { maxMediaTime: number },
-    });
-
-    await interaction.editReply({
-      embeds: [
-        new EmbedBuilder()
-          .setTitle(rosetty.t('success')!)
-          .setDescription(rosetty.t('setMaxTimeCommandAnswer')!)
-          .setColor(0x2ecc71),
-      ],
-    });
-  },
-});
+    },
+    successKey: 'setMaxTimeCommandAnswer',
+  });

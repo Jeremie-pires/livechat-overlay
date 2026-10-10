@@ -49,10 +49,7 @@ export interface YtdlpResult {
 // and audio extraction of the same source URL without sharing the same promise.
 const inFlight = new Map<string, Promise<YtdlpResult | null>>();
 
-function deduplicatedExtract(
-  key: string,
-  factory: () => Promise<YtdlpResult | null>,
-): Promise<YtdlpResult | null> {
+function deduplicatedExtract(key: string, factory: () => Promise<YtdlpResult | null>): Promise<YtdlpResult | null> {
   const existing = inFlight.get(key);
   if (existing) return existing;
   const promise = factory().finally(() => inFlight.delete(key));

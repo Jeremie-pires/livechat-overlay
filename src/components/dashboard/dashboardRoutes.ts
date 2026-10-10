@@ -11,7 +11,7 @@ import {
   requireAuth,
   validateCsrfToken,
 } from '../../services/session';
-import { broadcastToAllGuilds } from '../../services/broadcast';
+import { applyMaintenanceMode } from '../../services/broadcast';
 import { presenceStore } from '../../services/presenceStore';
 import { presenceSse } from '../../services/presenceSse';
 
@@ -129,16 +129,7 @@ async function dashboardPlugin(fastify: FastifyCustomInstance) {
     const stats = await prisma.stats.findUnique({ where: { id: 'singleton' } });
     const silentMode = !(stats?.silentMode ?? false);
 
-    await prisma.stats.upsert({
-      where: { id: 'singleton' },
-      create: { id: 'singleton', silentMode },
-      update: { silentMode },
-    });
-
-    if (!silentMode) {
-      await broadcastToAllGuilds('🟢 En ligne !', 'Le bot est de retour et prêt à recevoir du contenu !', 0x2ecc71);
-    }
-
+    await applyMaintenanceMode(silentMode);
     fastify.io.emit('server:maintenance', { maintenance: silentMode });
 
     return reply.send({ silentMode });

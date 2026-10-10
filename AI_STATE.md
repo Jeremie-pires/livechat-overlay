@@ -1,28 +1,25 @@
 # AI_STATE.md — LiveChat CCB
 
 ## Status
-Branch `develop` — PR #74 (`develop → main`) — CI fixed, Sonar CPD fixes applied (awaiting new analysis).
+Branch `develop` — PR #74 (`develop → main`) — CI green, Sonar CPD fixes applied (sessions 22 + 23, awaiting final analysis).
 
 ---
 
 ## 1. Accomplished
 
-### Session 22 (CI fix + Sonar CPD fixes)
-- **CI fix**: `adminDbRoutes.test.ts` — added `checkRouteAuth` and `requireAuth` to the session mock (DELETE route tests were crashing with 500 because `checkRouteAuth` was undefined in the mock → all 8 tests now pass)
-- **Fix A**: `content-utils.ts` — extracted `fetchWithTimeout(pinnedUrl, pinnedInit, timeoutMs, timeoutMsg)` helper; replaced both `Promise.race([fetch, setTimeout])` blocks (redirect loop lines 130-134 and `getAudioInfoFromUrl` lines 527-534) with it
-- **Fix B**: `session.ts` — exported `requireAuth` Fastify preHandler; `adminDbRoutes.ts` DELETE and `dashboardRoutes.ts` POST now use `{ preHandler: requireAuth }` instead of inline `checkRouteAuth + if (!auth.ok)` pattern
+### Session 23 (Sonar CPD fixes — remaining 4 clones eliminated)
+- **Fix D**: `broadcast.ts` — added `applyMaintenanceMode(silentMode)` helper; `dashboardRoutes.ts` now calls it instead of inline upsert+broadcast block (eliminated clone [29])
+- **Fix C**: `discord-utils.ts` — added `assertAdminPermission(interaction, discordClient)` + `createSetGuildTimeCommand(opts)` factory; `setDefaultTimeCommand.ts` and `setMaxTimeCommand.ts` rewritten as thin wrappers; `setupCommand.ts` uses `assertAdminPermission` (eliminated clones [32][33][34])
+- All 386 tests pass, no new TS errors in new files
 
-### Session 21 (Sonar diagnostics — root cause identified)
-- Ran jscpd at 50 tokens → found exactly TWO ≥50-token clones involving PR-changed new code (now fixed in session 22)
+### Session 22 (CI fix + Sonar CPD fixes A+B)
+- **CI fix**: `adminDbRoutes.test.ts` — added `checkRouteAuth` and `requireAuth` to the session mock (DELETE route tests crashing 500 → all pass)
+- **Fix A**: `content-utils.ts` — extracted `fetchWithTimeout` helper (eliminated 51-token Promise.race clone)
+- **Fix B**: `session.ts` — exported `requireAuth` Fastify preHandler; `adminDbRoutes.ts` + `dashboardRoutes.ts` use `{ preHandler: requireAuth }` (eliminated 57-token inline auth clone)
 
-### Session 20 (develop — Sonar duplication 4.7% → stuck)
-- `ytdlp.ts`: extracted `deduplicatedExtract(key, factory)`
-- `session.ts`: added `error: string` to `AuthCheckResult`
-
-### Sessions 17–19 (Sonar fixes: 7.6% → 5.5% → 5.1% → 4.9% → 4.7%)
-- `content-utils.audio.test.ts`: refactored; CPD exclusions added
-- `commandHelpers.ts`: `createTalkQueueEntry`, `resolveTTSAttachment` extracted
-- `renderer.js`: `syncBaseSettingsToElements()` extracted
+### Sessions 17–21 (Sonar: 7.6% → 4.7% → identified root causes)
+- Various CPD fixes: `ytdlp.ts` deduplication, `commandHelpers.ts` extraction, `renderer.js` extraction
+- jscpd at 50 tokens → found/identified remaining clones
 
 ---
 
@@ -30,22 +27,25 @@ Branch `develop` — PR #74 (`develop → main`) — CI fixed, Sonar CPD fixes a
 
 | Fichier | Rôle |
 |---|---|
-| `src/components/client/client.html` | `generateAudioVideo` — native `<video>` si `muteVideo=true`, Vidstack sinon |
-| `src/services/content-utils.ts` | `fetchWithTimeout` helper + `getAudioInfoFromUrl` — SSRF + YouTube yt-dlp + direct audio HEAD |
-| `src/services/ytdlp.ts` | `extractVideoUrl` + `extractAudioUrl` via `deduplicatedExtract`. `--js-runtimes node`. |
-| `src/components/messages/commandHelpers.ts` | Helpers extraits: `executeMessageHandler`, `resolveTTSAttachment`, `createTalkQueueEntry`, `replyError` |
-| `src/services/session.ts` | `checkRouteAuth` + `requireAuth` preHandler Fastify |
+| `src/services/discord-utils.ts` | `assertAdminPermission` + `createSetGuildTimeCommand` factory |
+| `src/components/discord/setDefaultTimeCommand.ts` | thin wrapper → `createSetGuildTimeCommand` |
+| `src/components/discord/setMaxTimeCommand.ts` | thin wrapper → `createSetGuildTimeCommand` |
+| `src/components/discord/setupCommand.ts` | uses `assertAdminPermission` from discord-utils |
+| `src/services/broadcast.ts` | `broadcastToAllGuilds` + `applyMaintenanceMode(silentMode)` |
+| `src/components/dashboard/dashboardRoutes.ts` | POST toggle calls `applyMaintenanceMode` |
+| `src/services/session.ts` | `checkRouteAuth` + `requireAuth` preHandler |
 | `src/components/api/adminDbRoutes.ts` | DELETE uses `{ preHandler: requireAuth }` |
-| `src/components/dashboard/dashboardRoutes.ts` | POST `/api/maintenance/toggle` uses `{ preHandler: requireAuth }` |
-| `Dockerfile` | `node:22-alpine`, `yt-dlp yt-dlp-ejs` via pip `--only-binary :all:` |
+| `src/services/content-utils.ts` | `fetchWithTimeout` helper + `getAudioInfoFromUrl` |
+| `src/services/ytdlp.ts` | `extractVideoUrl` + `extractAudioUrl` via `deduplicatedExtract` |
 
 ---
 
 ## 3. Next Steps
 
 ### [WAITING — Sonar re-analysis]
-- Push triggered new CI run; await SonarCloud analysis on PR #74
-- If duplication still > 3%: run jscpd at 50 tokens on all src files and identify remaining clones
+- Push triggers new CI + SonarCloud analysis on PR #74
+- Expected: duplication on New Code drops to ≤ 3% (threshold)
+- If still > 3%: run jscpd --min-tokens 50 on src diff files and find remaining clones
 
 ### [MANUAL — user action required]
 - Security Rating C (Dockerfile pip hotspot) — navigate to SonarCloud → hotspot → acknowledge as "Safe"
