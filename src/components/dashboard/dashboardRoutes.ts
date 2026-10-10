@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import fetch from 'node-fetch';
 import {
+  checkRouteAuth,
   createCsrfToken,
   createSession,
   deleteSession,
@@ -125,10 +126,8 @@ async function dashboardPlugin(fastify: FastifyCustomInstance) {
   });
 
   fastify.post('/api/maintenance/toggle', async (req, reply) => {
-    const token = getSessionToken(req.headers.cookie);
-    if (!isValidSession(token)) return reply.status(401).send({ error: 'Unauthorized' });
-    const csrfToken = req.headers['x-csrf-token'] as string | undefined;
-    if (!validateCsrfToken(token, csrfToken)) return reply.status(403).send({ error: 'Invalid CSRF token' });
+    const auth = checkRouteAuth(req.headers.cookie, req.headers['x-csrf-token']);
+    if (!auth.ok) return reply.status(auth.status).send({ error: auth.status === 401 ? 'Unauthorized' : 'Invalid CSRF token' });
 
     const stats = await prisma.stats.findUnique({ where: { id: 'singleton' } });
     const silentMode = !(stats?.silentMode ?? false);

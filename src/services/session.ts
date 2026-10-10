@@ -61,3 +61,15 @@ export const validateCsrfToken = (sessionToken: string | undefined, csrfToken: s
   if (a.length !== b.length) return false;
   return crypto.timingSafeEqual(a, b);
 };
+
+type AuthCheckResult = { ok: true; token: string } | { ok: false; status: 401 | 403 };
+
+export const checkRouteAuth = (
+  cookie: string | undefined,
+  csrfHeader: string | string[] | undefined,
+): AuthCheckResult => {
+  const token = getSessionToken(cookie);
+  if (!isValidSession(token)) return { ok: false, status: 401 };
+  if (!validateCsrfToken(token, csrfHeader as string | undefined)) return { ok: false, status: 403 };
+  return { ok: true, token: token as string };
+};

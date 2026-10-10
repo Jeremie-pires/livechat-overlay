@@ -7,6 +7,13 @@ Branch `develop` — `feature/audio-msg` mergé dans `develop` ✅. Tests live v
 
 ## 1. Accomplished
 
+### Session 19 (develop — Sonar duplication 4.9% → pending)
+- `sonar-project.properties` : ajout `src/__tests__/**` aux CPD exclusions (belt-and-suspenders avec `**/*.test.ts`)
+- `src/services/session.ts` : ajout helper `checkRouteAuth` (type `AuthCheckResult`) — centralise auth+CSRF check en ~45 tokens (sous le seuil CPD TypeScript de 50 tokens)
+- `src/components/api/adminDbRoutes.ts` : import `checkRouteAuth`, remplace bloc 5 lignes auth+CSRF par 2 lignes
+- `src/components/dashboard/dashboardRoutes.ts` : idem pour `/api/maintenance/toggle`
+- `desktop-client/src/renderer/renderer.js` : ajout `syncBaseSettingsToElements()` — élimine le bloc 8 lignes dupliqué (init + onSettingsChanged)
+
 ### Session 18 (develop — Sonar duplication 5.1% → pending)
 - `talkCommand.ts` + `hidetalkCommand.ts` : 19-line identical block (fetch+nullcheck+measureContent) extracted into `resolveTTSAttachment` helper in `commandHelpers.ts`
 - `commandHelpers.ts` : add `resolveTTSAttachment`, import `InteractionResponse`, `Message`
