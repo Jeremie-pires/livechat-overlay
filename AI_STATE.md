@@ -7,6 +7,13 @@ Branch `develop` — `feature/audio-msg` mergé dans `develop` ✅. Tests live v
 
 ## 1. Accomplished
 
+### Session 18 (develop — Sonar duplication 5.1% → pending)
+- `talkCommand.ts` + `hidetalkCommand.ts` : 19-line identical block (fetch+nullcheck+measureContent) extracted into `resolveTTSAttachment` helper in `commandHelpers.ts`
+- `commandHelpers.ts` : add `resolveTTSAttachment`, import `InteractionResponse`, `Message`
+- `sonar-project.properties` : added `**/*.test.ts` to CPD exclusions (previous commit)
+- `content-utils.ts` : collapsed isTwitterUrl hostname check to one line (fmt)
+- `ytdlp.ts` + `fr.ts` : minor formatting fixes (uncommitted from previous session)
+
 ### Session 17 (develop — Sonar duplication 7.6% → 5.5% → in progress)
 - `content-utils.audio.test.ts` : merge `spawnNoOutput` → `spawnExitCode(code = 0)`, `Object.fromEntries` pour logger mock (évite bloc 10 lignes dupliqué avec cobalt/content-utils tests), `logMock.X` direct à la place des type casts répétés
 - 224 → 175 lignes, 3 sources de duplication éliminées

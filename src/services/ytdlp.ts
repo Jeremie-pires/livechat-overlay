@@ -94,7 +94,12 @@ async function runYtdlpProcess(url: string, format: string, cookiesFile?: string
   try {
     if (cookiesFile) tempCookies = await makeTempCookies(cookiesFile);
     const args = [
-      '--no-playlist', '--format', format, '--js-runtimes', 'node', '-J',
+      '--no-playlist',
+      '--format',
+      format,
+      '--js-runtimes',
+      'node',
+      '-J',
       ...(tempCookies ? ['--cookies', tempCookies] : []),
       url,
     ];

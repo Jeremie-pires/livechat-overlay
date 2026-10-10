@@ -113,7 +113,8 @@ export const frLang: typeof enLang = {
 
   invalidDuration: 'La durée doit être comprise entre 1 et 3600 secondes.',
   invalidUrl: 'Le lien fourni est invalide.',
-  invalidAudioUrl: 'Le lien audio est invalide. Seuls les liens YouTube ou les URLs audio directes (mp3, wav, etc.) sont acceptés.',
+  invalidAudioUrl:
+    'Le lien audio est invalide. Seuls les liens YouTube ou les URLs audio directes (mp3, wav, etc.) sont acceptés.',
   noContentProvided: 'Tu dois fournir au moins un lien, un média ou un texte.',
   ttsTextTooLong: 'Le texte est trop long (200 caractères maximum).',
   talkNoAttachment: 'Aucune pièce jointe audio trouvée dans la réponse.',

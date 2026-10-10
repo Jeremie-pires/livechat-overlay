@@ -101,10 +101,7 @@ export function isTwitterUrl(url: string): boolean {
   try {
     const { hostname, pathname } = new URL(url);
     const isTwitterHost =
-      hostname === 'twitter.com' ||
-      hostname === 'www.twitter.com' ||
-      hostname === 'x.com' ||
-      hostname === 'www.x.com';
+      hostname === 'twitter.com' || hostname === 'www.twitter.com' || hostname === 'x.com' || hostname === 'www.x.com';
     return isTwitterHost && /\/status\/\d+/.test(pathname);
   } catch {
     return false;

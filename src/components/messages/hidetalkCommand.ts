@@ -1,7 +1,6 @@
 import { ChatInputCommandInteraction, EmbedBuilder, MessageFlags, SlashCommandBuilder } from 'discord.js';
-import { measureContentProcessing } from '../../services/telemetry';
 import { deleteGtts, promisedGtts, readGttsAsStream } from '../../services/gtts';
-import { createTalkQueueEntry } from './commandHelpers';
+import { createTalkQueueEntry, resolveTTSAttachment } from './commandHelpers';
 
 const MAX_TTS_LENGTH = 200;
 
@@ -54,22 +53,9 @@ export const hideTalkCommand = () => ({
         flags: MessageFlags.Ephemeral,
       });
 
-      const message = await interactionReply.fetch();
-      const media = message.attachments.first()?.proxyURL;
-
-      if (!media) {
-        await interaction.editReply({
-          embeds: [
-            new EmbedBuilder()
-              .setTitle(rosetty.t('error')!)
-              .setDescription(rosetty.t('talkNoAttachment')!)
-              .setColor(0xe74c3c),
-          ],
-        });
-        return;
-      }
-
-      const { processingMs, contentInfo: additionalContent } = await measureContentProcessing(media);
+      const resolved = await resolveTTSAttachment(interaction, interactionReply);
+      if (!resolved) return;
+      const { media, processingMs, additionalContent } = resolved;
 
       await createTalkQueueEntry(interaction, { text, media, additionalContent, discordReceivedAt, processingMs });
     } finally {

@@ -1,4 +1,4 @@
-import { ChatInputCommandInteraction, EmbedBuilder } from 'discord.js';
+import { ChatInputCommandInteraction, EmbedBuilder, InteractionResponse, Message } from 'discord.js';
 import { measureContentProcessing, ContentInfo } from '../../services/telemetry';
 import { AudioInfo, getAudioInfoFromUrl } from '../../services/content-utils';
 import { I18nKey } from '../../services/i18n/loader';
@@ -181,6 +181,20 @@ interface TalkQueueConfig {
   discordReceivedAt: number;
   processingMs: number;
   withAuthor?: boolean;
+}
+
+export async function resolveTTSAttachment(
+  interaction: ChatInputCommandInteraction,
+  reply: Message | InteractionResponse,
+): Promise<{ media: string; processingMs: number; additionalContent: ContentInfo } | null> {
+  const message = await reply.fetch();
+  const media = message.attachments.first()?.proxyURL;
+  if (!media) {
+    await replyError(interaction, 'talkNoAttachment');
+    return null;
+  }
+  const { processingMs, contentInfo: additionalContent } = await measureContentProcessing(media);
+  return { media, processingMs, additionalContent };
 }
 
 export async function createTalkQueueEntry(
