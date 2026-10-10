@@ -17,10 +17,7 @@ export function isValidUrl(value: string): boolean {
 export async function replyError(interaction: ChatInputCommandInteraction, descriptionKey: I18nKey): Promise<void> {
   await interaction.editReply({
     embeds: [
-      new EmbedBuilder()
-        .setTitle(rosetty.t('error')!)
-        .setDescription(rosetty.t(descriptionKey)!)
-        .setColor(0xe74c3c),
+      new EmbedBuilder().setTitle(rosetty.t('error')!).setDescription(rosetty.t(descriptionKey)!).setColor(0xe74c3c),
     ],
   });
 }
@@ -89,9 +86,7 @@ export async function executeMessageHandler(
   const text = interaction.options.get(rosetty.t(optionKeys.text)!)?.value as string | undefined;
   const media = interaction.options.get(mediaKey)?.attachment?.proxyURL;
   const audio = interaction.options.get(rosetty.t(optionKeys.audio)!)?.value as string | undefined;
-  const customDurationString = interaction.options.get(rosetty.t(optionKeys.duration)!)?.value as
-    | string
-    | undefined;
+  const customDurationString = interaction.options.get(rosetty.t(optionKeys.duration)!)?.value as string | undefined;
   let mediaContentType = interaction.options.get(mediaKey)?.attachment?.contentType;
   let mediaDuration = interaction.options.get(mediaKey)?.attachment?.duration;
   let mediaIsShort = false;
@@ -150,9 +145,7 @@ export async function executeMessageHandler(
     interaction.guildId!,
   );
 
-  const authorData = withAuthor
-    ? { author: interaction.user.username, authorImage: interaction.user.avatarURL() }
-    : {};
+  const authorData = withAuthor ? { author: interaction.user.username, authorImage: interaction.user.avatarURL() } : {};
 
   await prisma.queue.create({
     data: {
@@ -176,10 +169,43 @@ export async function executeMessageHandler(
 
   await interaction.editReply({
     embeds: [
-      new EmbedBuilder()
-        .setTitle(rosetty.t('success')!)
-        .setDescription(rosetty.t(successKey)!)
-        .setColor(0x2ecc71),
+      new EmbedBuilder().setTitle(rosetty.t('success')!).setDescription(rosetty.t(successKey)!).setColor(0x2ecc71),
     ],
+  });
+}
+
+interface TalkQueueConfig {
+  text: unknown;
+  media: string;
+  additionalContent: ContentInfo;
+  discordReceivedAt: number;
+  processingMs: number;
+  withAuthor?: boolean;
+}
+
+export async function createTalkQueueEntry(
+  interaction: ChatInputCommandInteraction,
+  { text, media, additionalContent, discordReceivedAt, processingMs, withAuthor }: TalkQueueConfig,
+): Promise<void> {
+  const authorData = withAuthor ? { author: interaction.user.username, authorImage: interaction.user.avatarURL() } : {};
+
+  await prisma.queue.create({
+    data: {
+      content: JSON.stringify({
+        text,
+        media,
+        mediaContentType: 'audio/mpeg',
+        mediaDuration: Math.ceil((additionalContent.mediaDuration ?? 0) as number),
+      }),
+      type: QueueType.VOCAL,
+      discordGuildId: interaction.guildId!,
+      duration: await getDurationFromGuildId(
+        additionalContent.mediaDuration ? Math.ceil(additionalContent.mediaDuration as number) : undefined,
+        interaction.guildId!,
+      ),
+      ...authorData,
+      discordReceivedAt: new Date(discordReceivedAt),
+      processingMs,
+    },
   });
 }
