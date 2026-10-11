@@ -422,6 +422,20 @@
         return null;
       }
 
+      function extractYouTubeId(url) {
+        try {
+          var parsed = new URL(url);
+          if (parsed.hostname === 'youtu.be') return parsed.pathname.slice(1).split('/')[0];
+          if (parsed.hostname.includes('youtube.com')) {
+            var v = parsed.searchParams.get('v');
+            if (v) return v;
+            var m = /\/(?:shorts|embed|live)\/([^/?&]+)/.exec(parsed.pathname);
+            if (m) return m[1];
+          }
+        } catch {}
+        return null;
+      }
+
       function generateIframe(originalUrl, contentType) {
         var embedUrl = extractEmbedUrl(originalUrl, contentType);
         if (!embedUrl) return null;
@@ -591,6 +605,21 @@
             var iframeEl = generateIframe(data.url, data.mediaContentType);
             if (iframeEl) element.appendChild(iframeEl);
             // Duration is handled by the message timeout — no ended event from iframe
+          } else if (data.mediaContentType === 'video/youtube' && data.audioUrl) {
+            // YouTube + separate audio track: plain <video> can't play YouTube URLs,
+            // and Vidstack must be bypassed (restores muted=false from localStorage).
+            // Use a muted YouTube iframe instead — duration timeout handles onDone.
+            var ytId = extractYouTubeId(data.url);
+            if (ytId) {
+              var ytWrapper = document.createElement('div');
+              ytWrapper.id = 'message-iframe-wrapper';
+              var ytIframe = document.createElement('iframe');
+              ytIframe.id = 'message-iframe';
+              ytIframe.allow = 'autoplay; encrypted-media';
+              ytIframe.src = 'https://www.youtube.com/embed/' + ytId + '?autoplay=1&mute=1';
+              ytWrapper.appendChild(ytIframe);
+              element.appendChild(ytWrapper);
+            }
           } else {
             // Mute video sound when a separate audio track is provided
             element.appendChild(generateAudioVideo(data.url, data.mediaIsShort, onDone, !!data.audioUrl));
