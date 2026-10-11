@@ -34,7 +34,15 @@ export function runProcess<T>(
 
     proc.on('close', (code) => {
       clearTimeout(timer);
-      settle(code !== 0 ? null : onOutput(stdout));
+      if (code === 0) {
+        settle(onOutput(stdout));
+      } else {
+        // Non-zero exit: still try to parse stdout — yt-dlp exits 1 when it
+        // cannot write back the cookie jar (read-only mount) even after a
+        // successful extraction. If onOutput returns a valid result we keep it.
+        const result = stdout.length > 0 ? onOutput(stdout) : null;
+        settle(result);
+      }
     });
 
     proc.on('error', () => {

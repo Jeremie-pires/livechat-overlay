@@ -63,6 +63,15 @@ const elements = {
 
 const noMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+function syncBaseSettingsToElements(settings) {
+  elements.backendUrl.value        = settings.backendUrl;
+  elements.guildId.value           = settings.guildId;
+  elements.clientToken.value       = settings.clientToken;
+  elements.autoConnect.checked     = settings.autoConnect;
+  elements.launchAtStartup.checked = settings.launchAtStartup;
+  elements.startMinimized.checked  = settings.startMinimized;
+}
+
 // ── Server state (bot online / maintenance) ────────────────────────────────────
 
 function computeNavDotStatus() {
@@ -321,12 +330,7 @@ async function refreshUi() {
 
   if (elements.appVersion) elements.appVersion.textContent = `v${version}`;
 
-  elements.backendUrl.value      = settings.backendUrl;
-  elements.guildId.value         = settings.guildId;
-  elements.clientToken.value     = settings.clientToken;
-  elements.autoConnect.checked   = settings.autoConnect;
-  elements.launchAtStartup.checked = settings.launchAtStartup;
-  elements.startMinimized.checked  = settings.startMinimized;
+  syncBaseSettingsToElements(settings);
   if (elements.localServerPort) elements.localServerPort.value = String(settings.localServerPort ?? 3001);
 
   elements.screenId.value      = String(settings.screenId || displays.find(d => d.primary)?.id || displays[0]?.id || 0);
@@ -742,12 +746,7 @@ window.livechat.onMaintenance(({ maintenance }) => {
 
 window.livechat.onSettingsChanged(settings => {
   state.settings = settings;
-  elements.backendUrl.value        = settings.backendUrl;
-  elements.guildId.value           = settings.guildId;
-  elements.clientToken.value       = settings.clientToken;
-  elements.autoConnect.checked     = settings.autoConnect;
-  elements.launchAtStartup.checked = settings.launchAtStartup;
-  elements.startMinimized.checked  = settings.startMinimized;
+  syncBaseSettingsToElements(settings);
   elements.screenId.value          = String(settings.screenId);
   elements.volume.value            = String(settings.volume);
   elements.overlaySize.value       = String(settings.overlaySize);

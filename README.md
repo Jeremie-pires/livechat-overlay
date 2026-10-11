@@ -68,7 +68,7 @@ L'objectif est d'en faire un projet communautaire qui évolue, je prends en comp
 | `/dispo` | Vérifie si le bot répond |
 | `/client` | Donne l'URL, l'ID de la guild et ton token client (éphémère) |
 | `/setup` | Setup le channel dans lequel le bot va écouter |
-| `/msg` | Envoie un contenu sur le livechat (lien, image, texte) |
+| `/msg` | Envoie un contenu sur le livechat (lien, image, texte) — voir options détaillées ci-dessous |
 | `/cmsg` | Même chose, mais discret (pas de confirmation visible) |
 | `/dire` | Fait lire un texte par une voix de synthèse |
 | `/cdire` | Même chose, mais discret |
@@ -77,6 +77,41 @@ L'objectif est d'en faire un projet communautaire qui évolue, je prends en comp
 | `/config-max` | Défini le temps maximum d'un média |
 | `/help` | Liste toutes les commandes |
 | `/info` | Donne des infos sur le bot et son créateur |
+
+### Options de `/msg` (et `/cmsg`)
+
+| Option | Obligatoire | Description |
+|---|---|---|
+| `lien` | — | URL d'un contenu à afficher (vidéo, image, page web) |
+| `média` | — | Pièce jointe Discord (image ou vidéo uploadée directement) |
+| `texte` | — | Texte à afficher à l'écran |
+| `temps` | — | Durée d'affichage en secondes, ou `full` pour la durée réelle de la vidéo |
+| `audio` | — | Lien audio à jouer en overlay par-dessus le contenu visuel |
+
+Au moins un de `lien`, `média`, `texte` ou `audio` est requis.
+
+#### Option `audio` — filtre audio
+
+Le paramètre `audio` permet de jouer un son en overlay par-dessus le contenu affiché. La vidéo ou l'image reste visible, mais seul l'audio fourni est audible (la piste son de la vidéo est coupée).
+
+**Sources acceptées :**
+- **YouTube** — lien direct vers une vidéo YouTube (ex : `https://www.youtube.com/watch?v=...`). L'audio est extrait via yt-dlp.
+- **Lien audio direct** — URL pointant vers un fichier audio (`.mp3`, `.wav`, `.ogg`, `.flac`, etc.).
+
+**Exemples d'utilisation :**
+
+```
+# Afficher une vidéo en sourdine avec un son YouTube par-dessus
+/msg lien: https://exemple.com/video.mp4  audio: https://www.youtube.com/watch?v=xxxxx
+
+# Afficher une image avec un fond sonore MP3
+/msg lien: https://exemple.com/image.jpg  audio: https://cdn.exemple.com/son.mp3
+
+# Jouer uniquement un audio (sans contenu visuel)
+/msg audio: https://www.youtube.com/watch?v=xxxxx
+```
+
+> La durée d'affichage est automatiquement calée sur la durée de l'audio si aucun `temps` n'est précisé et que le contenu visuel n'a pas de durée propre.
 
 ---
 

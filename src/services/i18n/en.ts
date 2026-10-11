@@ -35,6 +35,8 @@ export const enLang = {
   sendCommandOptionMediaDescription: 'Media to display',
   sendCommandOptionDuration: 'duration',
   sendCommandOptionDurationDescription: 'Display duration in seconds or "full" for videos',
+  sendCommandOptionAudio: 'audio',
+  sendCommandOptionAudioDescription: 'Audio URL to play alongside the content (YouTube or direct audio link only)',
   sendCommandAnswer: 'Content received ! Will be played soon !',
 
   hideSendCommand: 'hsend',
@@ -47,6 +49,8 @@ export const enLang = {
   hideSendCommandOptionMediaDescription: 'Media to display',
   hideSendCommandOptionDuration: 'duration',
   hideSendCommandOptionDurationDescription: 'Display duration in seconds or "full" for videos',
+  hideSendCommandOptionAudio: 'audio',
+  hideSendCommandOptionAudioDescription: 'Audio URL to play alongside the content (YouTube or direct audio link only)',
   hideSendCommandAnswer: 'Content received ! Will be played soon !',
 
   talkCommand: 'talk',
@@ -105,6 +109,7 @@ export const enLang = {
 
   invalidDuration: 'Duration must be between 1 and 3600 seconds.',
   invalidUrl: 'The provided URL is invalid.',
+  invalidAudioUrl: 'The audio URL is invalid. Only YouTube links or direct audio URLs (mp3, wav, etc.) are accepted.',
   noContentProvided: 'You must provide at least a URL, a media, or a text.',
   ttsTextTooLong: 'The text is too long (200 characters max).',
   talkNoAttachment: 'No audio attachment was found in the reply.',

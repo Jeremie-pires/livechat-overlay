@@ -1,44 +1,56 @@
 # AI_STATE.md — LiveChat CCB
 
 ## Status
-Branch `develop` — session 6 complete. Rate-limit fix + H-AUD-06 sanitization + 6 code-review findings resolved. Ready for PR `develop` → `main` + prod deploy.
+Branch `develop` — PR #74 (`develop → main`) — CI green, Sonar Quality Gate **Passed**. Dev container build complete but NOT running (port conflict).
 
 ---
 
 ## 1. Accomplished
 
-### Session 6 (code-review fixes)
-- **`allowList` fix** — `server.ts`: `skip` (invalid in @fastify/rate-limit v11, silently ignored) → `allowList`. Socket.io and `/health*` now actually exempt. `isRateLimitExempt` extracted to `src/services/utils.ts`; test imports real predicate (no longer self-referential).
-- **Worker sanitize refactor** — `messagesWorker.ts`: spread+delete → destructuring `{ media, ...sanitizedContent }`; promotion guard changed to `== null` (not falsy); `emittedContent = JSON.stringify(sanitizedContent)` cached once — used for both emit and `payloadBytes`; `getMediaType` and `resolveMediaDurationMs` now receive `sanitizedContent` (stats no longer miscategorised).
-- **Client mock fix** — `client.html:389`: `__triggerTestFormat` mock changed `media: mediaUrl` → `url: mediaUrl` (regression: test buttons were broken post H-AUD-06 change).
-- **Client guard** — `client.html:displayContent`: `if (!data.url) { onDone(); return; }` before media type dispatch — prevents `generateImg(undefined)` / `generateAudioVideo(undefined)` and potential queue stall.
-- **HAProxy config** — `docs/infra/haproxy.cfg.example`: reverted both backends to probe `GET /health` (liveness). `/health/ready` returns 503 on Discord flap — would mark backend DOWN despite HTTP server being healthy. README note updated.
-- **Tests** — `messagesWorker.sanitize.test.ts`: added `url: ""` case confirming `== null` guard (empty string does NOT trigger promotion). All 377 tests pass.
+### Session 25 (SonarCloud + Dev container)
+- **SonarCloud hotspot accepted**: Navigated to PR #74 issues, accepted Dockerfile yt-dlp unpinned pip hotspot as intentional → Security Rating unblocked → Quality Gate now **Passed**
+- **Dev branch corrected**: Dev folder (`/home/debian/livechat/dev-livechat-overlay/`) was on `feature/audio-msg`; checked out `develop` + pulled (30 files, 824 ins, 906 del)
+- **Dev image built**: `docker compose down && docker compose up --build -d` completed — image `dev-livechat-overlay-livechatccb` built successfully
+- **Blocked**: Dev cobalt (`dev-livechat-overlay-cobalt-1`) can't bind port 9000 — prod cobalt (`livechat-overlay-cobalt-1`) already holds it → dev livechatccb also failed to start
 
-### Session 5 (TikTok H.264 fix — already on main)
-- Format selector `best[ext=mp4][vcodec^=h264]/best[ext=mp4]/best` — forces H.264 over H.265.
+### Sessions 22–24 (Sonar CPD fixes)
+- All clones eliminated, Quality Gate passed, see previous sessions for detail
 
 ---
 
-## 2. Current Architecture (key files)
+## 2. Current State
 
-| File | Role |
+| Item | State |
 |---|---|
-| `src/server.ts` | Fastify v5 + Socket.IO; `allowList: isRateLimitExempt` |
-| `src/services/utils.ts` | `isRateLimitExempt(req)` exported; used by server + test |
-| `src/components/messages/messagesWorker.ts` | Destructuring sanitize; `emittedContent` cached; stats use `sanitizedContent` |
-| `src/components/client/client.html` | `displayContent` guards `!data.url`; test mock uses `url:` |
-| `src/services/content-utils.ts` | TikTok/Twitter URL sanitization + Cobalt + yt-dlp proxy |
-| `src/services/ytdlp.ts` | H.264 format selector; semaphore 5; cookie injection |
-| `docs/infra/haproxy.cfg.example` | Probes `GET /health` (liveness only) |
+| PR #74 | Quality Gate Passed — ready to merge |
+| Prod containers | `livechat-overlay-livechatccb-1` (healthy, port 3000) + `livechat-overlay-cobalt-1` (port 9000) |
+| Dev containers | Image built, **NOT running** — port 9000 conflict |
+| Dev folder | `/home/debian/livechat/dev-livechat-overlay/` on `develop` branch |
+| Dev .env | `PORT=3001`, `COBALT_API_URL=http://cobalt:9000` (internal Docker DNS) |
+| Dev compose | Cobalt mapped `9000:9000` → conflicts with prod |
 
 ---
 
 ## 3. Next Steps
 
-1. **[NEXT]** Commit session 6 changes
-2. **[NEXT]** PR `develop` → `main` + prod deploy
-3. **[NEXT]** Vérif prod : TikTok + Twitter + boutons test overlay
-4. **[LATER]** Fix prod 429 sur `/health` — déjà résolu côté code (`allowList`), vérifier que la config HAProxy prod est bien sur `GET /health`
-5. **[LATER]** H-AUD-06 write-side : les 4 commandes (`send`, `hidesend`, `talk`, `hidetalk`) stockent encore `media` en DB. Envisager migration ou write-time sanitization pour couper la surface à la source.
-6. **[LATER]** `displayMediaFull` — feature en attente, non prioritaire
+### [IMMEDIATE — fix port conflict]
+In `/home/debian/livechat/dev-livechat-overlay/docker-compose.yml`:
+- Change cobalt `ports: - '9000:9000'` → `'9001:9000'`
+- Then: `docker compose up -d`
+
+### [AFTER DEV STARTS]
+1. `docker logs dev-livechat-overlay-livechatccb-1 --tail 30` — verify "Livechat dev" bot online
+2. Run `/setup channel #bot-test` on dev bot if needed
+3. Test all 5 commands via Discord `#🧪・bot-test` on **Livechat dev** bot:
+   - `/msg lien` — YouTube URL
+   - `/msg texte` — text content
+   - `/msg audio` — YouTube audio URL
+   - `/msg lien` — TikTok URL
+   - `/msg lien` — Twitter/X URL
+4. Check `docker logs` after each test for errors
+
+### [AFTER TESTS PASS]
+- Merge PR #74 (`develop → main`)
+
+### [LATER]
+- H-AUD-06: 4 commands store `media` in DB instead of `audio`

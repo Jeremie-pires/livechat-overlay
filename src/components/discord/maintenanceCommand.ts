@@ -1,5 +1,5 @@
 import { ChatInputCommandInteraction, EmbedBuilder, MessageFlags, SlashCommandBuilder } from 'discord.js';
-import { broadcastToAllGuilds } from '../../services/broadcast';
+import { applyMaintenanceMode } from '../../services/broadcast';
 
 export const maintenanceCommand = () => ({
   data: new SlashCommandBuilder()
@@ -27,15 +27,7 @@ export const maintenanceCommand = () => ({
 
     const silentMode = interaction.options.getString('mode', true) === 'on';
 
-    await prisma.stats.upsert({
-      where: { id: 'singleton' },
-      create: { id: 'singleton', silentMode },
-      update: { silentMode },
-    });
-
-    if (!silentMode) {
-      await broadcastToAllGuilds('🟢 En ligne !', 'Le bot est de retour et prêt à recevoir du contenu !', 0x2ecc71);
-    }
+    await applyMaintenanceMode(silentMode);
 
     await interaction.reply({
       embeds: [
