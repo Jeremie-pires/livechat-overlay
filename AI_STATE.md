@@ -1,65 +1,56 @@
 # AI_STATE.md — LiveChat CCB
 
 ## Status
-Branch `develop` — PR #74 (`develop → main`) — CI green, Sonar CPD fixes applied (sessions 22 + 23 + 24, awaiting final analysis).
+Branch `develop` — PR #74 (`develop → main`) — CI green, Sonar Quality Gate **Passed**. Dev container build complete but NOT running (port conflict).
 
 ---
 
 ## 1. Accomplished
 
-### Session 24 (Sonar CPD fixes — sendCommand/hidesendCommand + i18n)
-- **Fix E**: `commandHelpers.ts` — added `buildMessageCommandData(prefix)` factory; `sendCommand.ts` and `hidesendCommand.ts` now call it (eliminated 144-token SlashCommandBuilder options clone)
-- **Fix F**: `sonar-project.properties` — added `src/services/i18n/en.ts` and `fr.ts` to `sonar.cpd.exclusions` (i18n files are structurally identical by design)
-- All 386 tests pass, no new TS errors
+### Session 25 (SonarCloud + Dev container)
+- **SonarCloud hotspot accepted**: Navigated to PR #74 issues, accepted Dockerfile yt-dlp unpinned pip hotspot as intentional → Security Rating unblocked → Quality Gate now **Passed**
+- **Dev branch corrected**: Dev folder (`/home/debian/livechat/dev-livechat-overlay/`) was on `feature/audio-msg`; checked out `develop` + pulled (30 files, 824 ins, 906 del)
+- **Dev image built**: `docker compose down && docker compose up --build -d` completed — image `dev-livechat-overlay-livechatccb` built successfully
+- **Blocked**: Dev cobalt (`dev-livechat-overlay-cobalt-1`) can't bind port 9000 — prod cobalt (`livechat-overlay-cobalt-1`) already holds it → dev livechatccb also failed to start
 
-### Session 23 (Sonar CPD fixes — remaining 4 clones eliminated)
-- **Fix D**: `broadcast.ts` — added `applyMaintenanceMode(silentMode)` helper; `dashboardRoutes.ts` now calls it instead of inline upsert+broadcast block (eliminated clone [29])
-- **Fix C**: `discord-utils.ts` — added `assertAdminPermission(interaction, discordClient)` + `createSetGuildTimeCommand(opts)` factory; `setDefaultTimeCommand.ts` and `setMaxTimeCommand.ts` rewritten as thin wrappers; `setupCommand.ts` uses `assertAdminPermission` (eliminated clones [32][33][34])
-- All 386 tests pass, no new TS errors in new files
-
-### Session 22 (CI fix + Sonar CPD fixes A+B)
-- **CI fix**: `adminDbRoutes.test.ts` — added `checkRouteAuth` and `requireAuth` to the session mock (DELETE route tests crashing 500 → all pass)
-- **Fix A**: `content-utils.ts` — extracted `fetchWithTimeout` helper (eliminated 51-token Promise.race clone)
-- **Fix B**: `session.ts` — exported `requireAuth` Fastify preHandler; `adminDbRoutes.ts` + `dashboardRoutes.ts` use `{ preHandler: requireAuth }` (eliminated 57-token inline auth clone)
-
-### Sessions 17–21 (Sonar: 7.6% → 4.7% → identified root causes)
-- Various CPD fixes: `ytdlp.ts` deduplication, `commandHelpers.ts` extraction, `renderer.js` extraction
-- jscpd at 50 tokens → found/identified remaining clones
+### Sessions 22–24 (Sonar CPD fixes)
+- All clones eliminated, Quality Gate passed, see previous sessions for detail
 
 ---
 
-## 2. Architecture actuelle
+## 2. Current State
 
-| Fichier | Rôle |
+| Item | State |
 |---|---|
-| `src/components/messages/commandHelpers.ts` | `buildMessageCommandData(prefix)` factory + `executeMessageHandler` + helpers |
-| `src/components/messages/sendCommand.ts` | thin wrapper → `buildMessageCommandData('sendCommand')` |
-| `src/components/messages/hidesendCommand.ts` | thin wrapper → `buildMessageCommandData('hideSendCommand')` |
-| `src/services/discord-utils.ts` | `assertAdminPermission` + `createSetGuildTimeCommand` factory |
-| `src/components/discord/setDefaultTimeCommand.ts` | thin wrapper → `createSetGuildTimeCommand` |
-| `src/components/discord/setMaxTimeCommand.ts` | thin wrapper → `createSetGuildTimeCommand` |
-| `src/components/discord/setupCommand.ts` | uses `assertAdminPermission` from discord-utils |
-| `src/services/broadcast.ts` | `broadcastToAllGuilds` + `applyMaintenanceMode(silentMode)` |
-| `src/components/dashboard/dashboardRoutes.ts` | POST toggle calls `applyMaintenanceMode` |
-| `src/services/session.ts` | `checkRouteAuth` + `requireAuth` preHandler |
-| `src/components/api/adminDbRoutes.ts` | DELETE uses `{ preHandler: requireAuth }` |
-| `src/services/content-utils.ts` | `fetchWithTimeout` helper + `getAudioInfoFromUrl` |
-| `src/services/ytdlp.ts` | `extractVideoUrl` + `extractAudioUrl` via `deduplicatedExtract` |
+| PR #74 | Quality Gate Passed — ready to merge |
+| Prod containers | `livechat-overlay-livechatccb-1` (healthy, port 3000) + `livechat-overlay-cobalt-1` (port 9000) |
+| Dev containers | Image built, **NOT running** — port 9000 conflict |
+| Dev folder | `/home/debian/livechat/dev-livechat-overlay/` on `develop` branch |
+| Dev .env | `PORT=3001`, `COBALT_API_URL=http://cobalt:9000` (internal Docker DNS) |
+| Dev compose | Cobalt mapped `9000:9000` → conflicts with prod |
 
 ---
 
 ## 3. Next Steps
 
-### [WAITING — Sonar re-analysis]
-- Push triggers new CI + SonarCloud analysis on PR #74
-- Expected: duplication on New Code drops to ≤ 3% (sendCommand + i18n clones now fixed)
-- If still > 3%: navigate SonarCloud measures → duplicated files to find remaining source
+### [IMMEDIATE — fix port conflict]
+In `/home/debian/livechat/dev-livechat-overlay/docker-compose.yml`:
+- Change cobalt `ports: - '9000:9000'` → `'9001:9000'`
+- Then: `docker compose up -d`
 
-### [MANUAL — user action required]
-- Security Rating C (Dockerfile pip hotspot) — navigate to SonarCloud → hotspot → acknowledge as "Safe"
+### [AFTER DEV STARTS]
+1. `docker logs dev-livechat-overlay-livechatccb-1 --tail 30` — verify "Livechat dev" bot online
+2. Run `/setup channel #bot-test` on dev bot if needed
+3. Test all 5 commands via Discord `#🧪・bot-test` on **Livechat dev** bot:
+   - `/msg lien` — YouTube URL
+   - `/msg texte` — text content
+   - `/msg audio` — YouTube audio URL
+   - `/msg lien` — TikTok URL
+   - `/msg lien` — Twitter/X URL
+4. Check `docker logs` after each test for errors
 
-### [AFTER SONAR PASSES]
-- Merge `develop → main` (PR #74)
+### [AFTER TESTS PASS]
+- Merge PR #74 (`develop → main`)
 
 ### [LATER]
 - H-AUD-06: 4 commands store `media` in DB instead of `audio`
