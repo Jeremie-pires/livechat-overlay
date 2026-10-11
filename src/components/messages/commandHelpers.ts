@@ -1,4 +1,10 @@
-import { ChatInputCommandInteraction, EmbedBuilder, InteractionResponse, Message, SlashCommandBuilder } from 'discord.js';
+import {
+  ChatInputCommandInteraction,
+  EmbedBuilder,
+  InteractionResponse,
+  Message,
+  SlashCommandBuilder,
+} from 'discord.js';
 import { measureContentProcessing, ContentInfo } from '../../services/telemetry';
 import { AudioInfo, getAudioInfoFromUrl } from '../../services/content-utils';
 import { I18nKey } from '../../services/i18n/loader';
@@ -193,7 +199,7 @@ export const buildMessageCommandData = (prefix: 'sendCommand' | 'hideSendCommand
 };
 
 interface TalkQueueConfig {
-  text: unknown;
+  text: string | undefined;
   media: string;
   additionalContent: ContentInfo;
   discordReceivedAt: number;

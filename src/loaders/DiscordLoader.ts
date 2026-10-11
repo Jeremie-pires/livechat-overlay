@@ -30,8 +30,6 @@ import { announceCommand } from '../components/discord/announceCommand';
 import { announceGuildCommand } from '../components/discord/announceGuildCommand';
 import { maintenanceCommand } from '../components/discord/maintenanceCommand';
 
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export const loadDiscord = async (fastify: FastifyCustomInstance) => {
   const rest = new REST({ version: '10' }).setToken(env.DISCORD_TOKEN);
   global.discordRest = rest;

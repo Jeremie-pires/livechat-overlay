@@ -24,6 +24,6 @@ setInterval(() => {
   const totalDiff = curr.total - prev.total;
   cpuPercent = totalDiff > 0 ? Math.round((1 - idleDiff / totalDiff) * 1000) / 10 : 0;
   prev = curr;
-}, 2000);
+}, 2000).unref();
 
 export const getCpuPercent = () => cpuPercent;

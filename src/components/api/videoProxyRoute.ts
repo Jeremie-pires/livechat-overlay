@@ -1,5 +1,6 @@
 import fetch from 'node-fetch';
 import { resolveVideoProxy } from '../../services/video-proxy-cache';
+import { assertPublicHttpUrl } from '../../services/url-guard';
 
 function videoProxyPlugin(fastify: FastifyCustomInstance): void {
   fastify.get<{ Querystring: { t?: string } }>('/video', async (req, reply) => {
@@ -8,6 +9,13 @@ function videoProxyPlugin(fastify: FastifyCustomInstance): void {
 
     const entry = resolveVideoProxy(token);
     if (!entry) return reply.status(404).send({ error: 'expired or unknown token' });
+
+    try {
+      await assertPublicHttpUrl(entry.url);
+    } catch (err) {
+      logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'video-proxy: CDN URL blocked');
+      return reply.status(502).send({ error: 'CDN URL not allowed' });
+    }
 
     const rangeHeader = req.headers['range'];
 
@@ -27,7 +35,11 @@ function videoProxyPlugin(fastify: FastifyCustomInstance): void {
 
     if (upstreamRes.status >= 400) {
       let cdnDomain: string | undefined;
-      try { cdnDomain = new URL(entry.url).hostname; } catch { /* ignore */ }
+      try {
+        cdnDomain = new URL(entry.url).hostname;
+      } catch {
+        /* ignore */
+      }
       logger.warn({ status: upstreamRes.status, cdnDomain, url: entry.url }, 'video-proxy: CDN returned error status');
       return reply.status(502).send({ error: `upstream error: ${upstreamRes.status}` });
     }

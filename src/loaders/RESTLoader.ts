@@ -1,4 +1,3 @@
-import { startCase } from 'lodash';
 import { ClientRoutes } from '../components/client/clientRoutes';
 import { StatsRoutes } from '../components/api/statsRoutes';
 import { AdminDbRoutes } from '../components/api/adminDbRoutes';
@@ -23,7 +22,10 @@ export const loadRoutes = (fastify: FastifyCustomInstance) => {
     const [[prefix, fastifyRoutes]] = Object.entries(route);
     //@ts-ignore
     fastify.register(fastifyRoutes(fastify.io), { prefix });
-    const routeName = startCase(prefix.substring(1).replaceAll('/', ' '));
+    const routeName = prefix
+      .substring(1)
+      .replaceAll('/', ' ')
+      .replace(/\b\w/g, (c) => c.toUpperCase());
     logger.info(`[REST] ${routeName} Routes loaded (${prefix})`);
   }
 };

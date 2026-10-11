@@ -25,9 +25,9 @@ export const talkCommand = () => ({
     await interaction.deferReply();
 
     const voice = interaction.options.get(rosetty.t('talkCommandOptionVoice')!)?.value as string;
-    const text = interaction.options.get(rosetty.t('talkCommandOptionText')!)?.value;
+    const text = interaction.options.get(rosetty.t('talkCommandOptionText')!)?.value as string | undefined;
 
-    if (!voice.trim() || voice.length > MAX_TTS_LENGTH) {
+    if (!voice.trim()) {
       await interaction.editReply({
         embeds: [
           new EmbedBuilder()
@@ -39,7 +39,7 @@ export const talkCommand = () => ({
       return;
     }
 
-    const filePath = await promisedGtts(voice, rosetty.getCurrentLang());
+    const filePath = await promisedGtts(voice, rosetty.getCurrentLang() as string);
     try {
       const fileStream = readGttsAsStream(filePath);
 

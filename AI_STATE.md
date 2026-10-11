@@ -7,20 +7,31 @@ Branch `develop` — PR #74 (`develop → main`) — CI green, Sonar Quality Gat
 
 ## 1. Accomplished
 
+### Session 29 (Full 5-axis code review + mass fix)
+- **CODE_REVIEW.md** : audit complet 39 fichiers, trouvé 5 Required + sécurité + consider
+- **C-1** `hidetalkCommand.ts` : `deferReply({ ephemeral: true })` avant TTS — interaction Discord n'expire plus
+- **C-2** `dashboardRoutes.ts` : validation `access_token` et `user.id` OAuth avant cast
+- **S-2** `videoProxyRoute.ts` : `assertPublicHttpUrl()` sur l'URL CDN avant fetch (SSRF guard)
+- **S-3** `cookies-parser.ts` : sanitisation des valeurs cookies (strip `\r\n;`)
+- **A-1** `hashToken` : extrait dans `session.ts`, dédupliqué depuis `socketLoader.ts` et `dashboardRoutes.ts`
+- **A-2** `gtts.ts` : fichiers TTS dans `os.tmpdir()` au lieu de `__dirname` (compatible Docker read-only)
+- **A-2b** `gtts.ts` : cleanup fichier temp sur erreur de save
+- **A-3** `module.d.ts` : `commandsLoaded: string[]` ajouté aux globals TypeScript ; `FastifyLoggerInstance` → `FastifyBaseLogger`
+- **A-4** `RESTLoader.ts` : suppression import `lodash` pour startCase (inline)
+- **A-5** `env.ts` : suppression `PREPRODUCTION` (jamais atteignable), `isPreProductionEnv()`, `isDeployedEnv()` (dead code)
+- **A-6** `cpuSampler.ts` : `setInterval(...).unref()`
+- **A-7** `presenceStore.ts`/`presenceSse.ts` : export + import du type `PublicPresenceEntry` partagé
+- **A-9** `DiscordLoader.ts` : suppression commentaire `eslint-disable` résiduel
+- **A-10** `commandHelpers.ts` : `TalkQueueConfig.text: string | undefined` (était `unknown`)
+- **C-4** `video-proxy-cache.ts` : éviction périodique `setInterval(...).unref()`
+- **C-6** `talkCommand.ts`/`hidetalkCommand.ts` : suppression check longueur mort (Discord gère via `setMaxLength`)
+
 ### Session 28 (TikTok silent failure + VidstackPlayer error handler)
-- **VidstackPlayer error handler** (`client.html`): `player.addEventListener('error', ...)` → calls `onDone()` immediately instead of blocking the queue for the full duration silently
-- **CDN domain logging** (`ytdlp.ts`): logs `cdnDomain` + cookie injection result at debug level
-- **Proxy warning enriched** (`videoProxyRoute.ts`): logs `cdnDomain` alongside status on CDN error
-- **Root cause suspected**: CDN domain `*.tiktokcdn-us.com` / `*.tiktokcdn.com` doesn't match `.tiktok.com` cookies → proxy fetches CDN without cookies → CDN 403 → proxy 502 → VidstackPlayer silent fail. Awaiting log confirmation.
+- VidstackPlayer error handler ; CDN domain logging ; proxy warning enriched
+- Root cause suspected : CDN domain `*.tiktokcdn-us.com` ≠ `.tiktok.com` cookies. Awaiting log confirmation.
 
 ### Session 27 (429 + 503 overlay fixes)
-- Rate limit 100 → 300 req/min; `/client/` exempted from rate limiting
-- `bot:offline` Socket.IO event emitted before SIGTERM shutdown (`handleShutdown` moved inside `loadDiscord` closure)
-- `#overlay-stage` starts `opacity: 0`; `showOverlay()`/`hideOverlay()` wired to `server:status`, `bot:offline`, `disconnect`
-- Lint fix: French apostrophe strings in `handleShutdown` switched to double quotes
-
-### Session 26 (lien+audio)
-- Fixed YouTube + separate audio combo: muted iframe + `cc_load_policy=0`
+- Rate limit 100 → 300 req/min ; `/client/` exempted ; `bot:offline` + overlay hide/show
 
 ---
 
@@ -31,9 +42,8 @@ Branch `develop` — PR #74 (`develop → main`) — CI green, Sonar Quality Gat
 | PR #74 | Quality Gate Passed — awaiting dev test sign-off |
 | Prod containers | `livechatccb` (port 3000) + `cobalt` (port 9000) |
 | Dev containers | Need `git pull && docker compose up --build -d` |
-| Dev cobalt port | Change `9000:9000` → `9001:9000` in dev compose if not done |
-| TikTok CDN | VidstackPlayer error handler added — root cause (CDN domain cookie mismatch) unconfirmed, needs log |
-| Overlay hide/show | Fixed — hides on `bot:offline`/`disconnect`, shows on `server:status.botOnline` |
+| TikTok CDN | VidstackPlayer error handler added — root cause unconfirmed, needs log |
+| Code quality | 17 fichiers corrigés suite audit — lint + tsc source propres |
 
 ---
 
@@ -41,13 +51,12 @@ Branch `develop` — PR #74 (`develop → main`) — CI green, Sonar Quality Gat
 
 ### [IMMEDIATE]
 1. VPS: `git pull && docker compose up --build -d`
-2. Send a TikTok command → check logs for:
-   - `ytdlp: no cookies matched for CDN domain` → note the `cdnDomain` value
-   - `video-proxy: CDN returned error status` → note `cdnDomain` + `status`
-3. If CDN domain is `*.tiktokcdn.com` or `*.tiktokcdn-us.com` → fix `parseCookiesForDomain` matching or inject `.tiktok.com` cookies for TikTok CDN requests regardless of domain
+2. Send a TikTok command → check logs for `cdnDomain` to confirm cookie mismatch root cause
+3. If `cdnDomain` = `*.tiktokcdn.com` / `*.tiktokcdn-us.com` → fix `parseCookiesForDomain` matching
 
 ### [AFTER TESTS PASS]
 - Merge PR #74 (`develop → main`)
 
 ### [LATER]
 - H-AUD-06: 4 commands store `media` in DB instead of `audio` (type field mismatch)
+- S-1 CSP nonce : remplacer `unsafe-inline` dans le dashboard (post-merge, requiert modif HTML)

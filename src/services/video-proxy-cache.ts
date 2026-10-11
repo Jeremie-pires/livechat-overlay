@@ -14,6 +14,12 @@ interface ProxyEntry {
 const cache = new Map<string, ProxyEntry>();
 const sourceCache = new Map<string, { token: string; exp: number }>();
 
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, v] of cache) if (now > v.exp) cache.delete(k);
+  for (const [k, v] of sourceCache) if (now > v.exp) sourceCache.delete(k);
+}, TTL_MS).unref();
+
 export function storeVideoProxy(url: string, headers?: Record<string, string>): string {
   const token = randomUUID();
   cache.set(token, { url, headers, exp: Date.now() + TTL_MS });
