@@ -179,7 +179,7 @@ export const runServer = async () => {
   });
 
   await fastify.register(FastifyRateLimit, {
-    max: 100,
+    max: 300,
     timeWindow: '1 minute',
     keyGenerator: (req) => req.ip,
     allowList: isRateLimitExempt,

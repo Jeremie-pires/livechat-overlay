@@ -46,6 +46,8 @@
         justify-content: center;
         padding: 24px;
         box-sizing: border-box;
+        opacity: 0;
+        transition: opacity 0.4s ease;
       }
 
       #overlay-shell {
@@ -297,6 +299,15 @@
         if (!isDesktop) emptyState.style.display = 'block';
       }
 
+      function hideOverlay() {
+        clearDisplay();
+        if (overlayStage) overlayStage.style.opacity = '0';
+      }
+
+      function showOverlay() {
+        if (overlayStage) overlayStage.style.opacity = '1';
+      }
+
       function playNext() {
         if (messageQueue.length === 0) {
           clearDisplay();
@@ -518,6 +529,12 @@
               // When video ends, advance the queue
               player.addEventListener('ended', () => {
                 console.debug('Video ended');
+                if (onDone) onDone();
+              });
+
+              // On load error (CDN 4xx/5xx, network failure, etc.) skip immediately
+              player.addEventListener('error', (event) => {
+                console.warn('[VidstackPlayer] Load error — skipping:', event);
                 if (onDone) onDone();
               });
 
@@ -774,8 +791,17 @@
 
         var lastKnownMaintenance = false;
 
+        socket.on('bot:offline', function () {
+          hideOverlay();
+        });
+
         socket.on('server:status', function (data) {
           if (typeof data.maintenance === 'boolean') lastKnownMaintenance = data.maintenance;
+          if (data.botOnline) {
+            showOverlay();
+          } else {
+            hideOverlay();
+          }
           if (window.livechatOverlay && typeof window.livechatOverlay.reportServerStatus === 'function') {
             window.livechatOverlay.reportServerStatus(data);
           }
@@ -789,6 +815,7 @@
         });
 
         socket.on('disconnect', function () {
+          hideOverlay();
           if (window.livechatOverlay && typeof window.livechatOverlay.reportServerStatus === 'function') {
             window.livechatOverlay.reportServerStatus({ botOnline: false, maintenance: lastKnownMaintenance });
           }

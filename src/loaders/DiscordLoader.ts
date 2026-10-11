@@ -30,22 +30,6 @@ import { announceCommand } from '../components/discord/announceCommand';
 import { announceGuildCommand } from '../components/discord/announceGuildCommand';
 import { maintenanceCommand } from '../components/discord/maintenanceCommand';
 
-const handleShutdown = async () => {
-  logger.info('[DISCORD] Shutdown signal received — sending announcement...');
-  await Promise.race([
-    Promise.all([
-      logBotEvent('STOP', 'Arrêt propre via SIGTERM/SIGINT'),
-      notifyOwner('STOP', 'Le bot s’éteint proprement (SIGTERM/SIGINT).'),
-      broadcastToAllGuilds(
-        '🔴 Maintenance en cours',
-        'Le bot va s’éteindre quelques minutes pour maintenance. Il sera bientôt de retour !',
-        0xe74c3c,
-      ),
-    ]),
-    new Promise((resolve) => setTimeout(resolve, 5000)),
-  ]);
-  process.exit(0);
-};
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export const loadDiscord = async (fastify: FastifyCustomInstance) => {
@@ -93,6 +77,24 @@ export const loadDiscord = async (fastify: FastifyCustomInstance) => {
         : Promise.resolve(),
     ]);
   });
+
+  const handleShutdown = async () => {
+    logger.info('[DISCORD] Shutdown signal received — sending announcement...');
+    fastify.io.emit('bot:offline');
+    await Promise.race([
+      Promise.all([
+        logBotEvent('STOP', 'Arrêt propre via SIGTERM/SIGINT'),
+        notifyOwner('STOP', "Le bot s'éteint proprement (SIGTERM/SIGINT)."),
+        broadcastToAllGuilds(
+          '🔴 Maintenance en cours',
+          "Le bot va s'éteindre quelques minutes pour maintenance. Il sera bientôt de retour !",
+          0xe74c3c,
+        ),
+      ]),
+      new Promise((resolve) => setTimeout(resolve, 5000)),
+    ]);
+    process.exit(0);
+  };
 
   process.once('SIGTERM', handleShutdown);
   process.once('SIGINT', handleShutdown);
