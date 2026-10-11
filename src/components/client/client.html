@@ -46,6 +46,8 @@
         justify-content: center;
         padding: 24px;
         box-sizing: border-box;
+        opacity: 0;
+        transition: opacity 0.4s ease;
       }
 
       #overlay-shell {
@@ -295,6 +297,15 @@
         if (mt) mt.style.display = 'none';
         if (au) { au.pause(); au.remove(); }
         if (!isDesktop) emptyState.style.display = 'block';
+      }
+
+      function hideOverlay() {
+        clearDisplay();
+        if (overlayStage) overlayStage.style.opacity = '0';
+      }
+
+      function showOverlay() {
+        if (overlayStage) overlayStage.style.opacity = '1';
       }
 
       function playNext() {
@@ -774,8 +785,17 @@
 
         var lastKnownMaintenance = false;
 
+        socket.on('bot:offline', function () {
+          hideOverlay();
+        });
+
         socket.on('server:status', function (data) {
           if (typeof data.maintenance === 'boolean') lastKnownMaintenance = data.maintenance;
+          if (data.botOnline) {
+            showOverlay();
+          } else {
+            hideOverlay();
+          }
           if (window.livechatOverlay && typeof window.livechatOverlay.reportServerStatus === 'function') {
             window.livechatOverlay.reportServerStatus(data);
           }
@@ -789,6 +809,7 @@
         });
 
         socket.on('disconnect', function () {
+          hideOverlay();
           if (window.livechatOverlay && typeof window.livechatOverlay.reportServerStatus === 'function') {
             window.livechatOverlay.reportServerStatus({ botOnline: false, maintenance: lastKnownMaintenance });
           }
