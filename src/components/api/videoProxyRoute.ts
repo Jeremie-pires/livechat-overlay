@@ -26,7 +26,9 @@ function videoProxyPlugin(fastify: FastifyCustomInstance): void {
     }
 
     if (upstreamRes.status >= 400) {
-      logger.warn({ status: upstreamRes.status, url: entry.url }, 'video-proxy: CDN returned error status');
+      let cdnDomain: string | undefined;
+      try { cdnDomain = new URL(entry.url).hostname; } catch { /* ignore */ }
+      logger.warn({ status: upstreamRes.status, cdnDomain, url: entry.url }, 'video-proxy: CDN returned error status');
       return reply.status(502).send({ error: `upstream error: ${upstreamRes.status}` });
     }
 

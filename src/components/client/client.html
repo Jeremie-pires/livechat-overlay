@@ -532,6 +532,12 @@
                 if (onDone) onDone();
               });
 
+              // On load error (CDN 4xx/5xx, network failure, etc.) skip immediately
+              player.addEventListener('error', (event) => {
+                console.warn('[VidstackPlayer] Load error — skipping:', event);
+                if (onDone) onDone();
+              });
+
               player.addEventListener(
                 'can-play',
                 async () => {

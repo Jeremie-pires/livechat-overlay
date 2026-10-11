@@ -120,8 +120,10 @@ async function _runYtdlp(url: string, cookiesFile?: string): Promise<YtdlpResult
     const cdnDomain = new URL(result.url).hostname;
     const cookieHeader = await parseCookiesForDomain(cookiesFile, cdnDomain);
     if (cookieHeader) {
+      logger.debug({ cdnDomain, cookieCount: cookieHeader.split(';').length }, 'ytdlp: injecting CDN cookies');
       return { url: result.url, headers: { ...result.headers, Cookie: cookieHeader }, duration: result.duration };
     }
+    logger.debug({ cdnDomain }, 'ytdlp: no cookies matched for CDN domain — forwarding yt-dlp headers only');
   } catch {
     // Malformed CDN URL — return result without Cookie header
   }
