@@ -84,10 +84,10 @@ export const loadDiscord = async (fastify: FastifyCustomInstance) => {
     await Promise.race([
       Promise.all([
         logBotEvent('STOP', 'Arrêt propre via SIGTERM/SIGINT'),
-        notifyOwner('STOP', 'Le bot s'éteint proprement (SIGTERM/SIGINT).'),
+        notifyOwner('STOP', "Le bot s'éteint proprement (SIGTERM/SIGINT)."),
         broadcastToAllGuilds(
           '🔴 Maintenance en cours',
-          'Le bot va s'éteindre quelques minutes pour maintenance. Il sera bientôt de retour !',
+          "Le bot va s'éteindre quelques minutes pour maintenance. Il sera bientôt de retour !",
           0xe74c3c,
         ),
       ]),
