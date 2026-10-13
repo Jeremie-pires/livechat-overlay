@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from 'crypto';
+import { randomBytes } from 'crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import fetch from 'node-fetch';
@@ -7,6 +7,7 @@ import {
   createSession,
   deleteSession,
   getSessionToken,
+  hashToken,
   isValidSession,
   requireAuth,
   validateCsrfToken,
@@ -14,8 +15,6 @@ import {
 import { applyMaintenanceMode } from '../../services/broadcast';
 import { presenceStore } from '../../services/presenceStore';
 import { presenceSse } from '../../services/presenceSse';
-
-const hashToken = (t: string) => createHash('sha256').update(t).digest('hex');
 
 const DISCORD_API = 'https://discord.com/api/v10';
 
@@ -103,7 +102,11 @@ async function dashboardPlugin(fastify: FastifyCustomInstance) {
       return reply.status(401).send('Authentication failed');
     }
 
-    const tokenData = (await tokenRes.json()) as { access_token: string };
+    const tokenData = (await tokenRes.json()) as Record<string, unknown>;
+    if (typeof tokenData.access_token !== 'string') {
+      logger.error('[DASHBOARD] OAuth token response missing access_token');
+      return reply.status(401).send('Authentication failed');
+    }
 
     const userRes = await fetch(`${DISCORD_API}/users/@me`, {
       headers: { Authorization: `Bearer ${tokenData.access_token}` },
@@ -113,7 +116,11 @@ async function dashboardPlugin(fastify: FastifyCustomInstance) {
       return reply.status(401).send('Failed to get user info');
     }
 
-    const user = (await userRes.json()) as { id: string };
+    const user = (await userRes.json()) as Record<string, unknown>;
+    if (typeof user.id !== 'string') {
+      logger.error('[DASHBOARD] Discord user response missing id');
+      return reply.status(401).send('Authentication failed');
+    }
 
     if (!env.DISCORD_OWNER_ID || user.id !== env.DISCORD_OWNER_ID) {
       logger.warn(`[DASHBOARD] Unauthorized access attempt by Discord user ${user.id}`);

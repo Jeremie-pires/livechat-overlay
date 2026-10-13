@@ -1,6 +1,5 @@
 import { ServerResponse } from 'http';
-
-type PublicPresenceEntry = { displayName: string; connectedAt: number; avatarUrl: string | null };
+import type { PublicPresenceEntry } from './presenceStore';
 
 const clients = new Set<ServerResponse>();
 

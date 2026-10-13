@@ -20,7 +20,10 @@ export async function parseCookiesForDomain(cookiesFile: string, targetDomain: s
     const parts = line.split('\t');
     if (parts.length < 7) continue;
     const [cookieDomain, , , , , name, ...rest] = parts;
-    const value = rest.join('\t').trimEnd();
+    const value = rest
+      .join('\t')
+      .trimEnd()
+      .replace(/[\r\n;]/g, '');
     const bare = cookieDomain.startsWith('.') ? cookieDomain.slice(1) : cookieDomain;
     if (targetDomain === cookieDomain || targetDomain === bare || targetDomain.endsWith('.' + bare)) {
       pairs.push(`${name}=${value}`);

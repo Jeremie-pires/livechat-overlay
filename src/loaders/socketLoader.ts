@@ -1,9 +1,7 @@
-import { createHash } from 'crypto';
 import { env } from '../services/env';
+import { hashToken } from '../services/session';
 import { presenceStore } from '../services/presenceStore';
 import { presenceSse } from '../services/presenceSse';
-
-const hashToken = (t: string) => createHash('sha256').update(t).digest('hex');
 
 const ROOM_PREFIX = `${env.APP_ENV}:messages-`;
 const DISCONNECT_DEBOUNCE_MS = 3000;

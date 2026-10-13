@@ -1,4 +1,4 @@
-import crypto from 'crypto';
+import crypto, { createHash } from 'crypto';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -17,6 +17,8 @@ export const evictExpiredSessions = (): void => {
 };
 
 setInterval(evictExpiredSessions, EVICTION_INTERVAL_MS).unref();
+
+export const hashToken = (t: string) => createHash('sha256').update(t).digest('hex');
 
 export const createSession = (): string => {
   const token = crypto.randomBytes(32).toString('hex');

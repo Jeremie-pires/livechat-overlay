@@ -1,9 +1,19 @@
-import { ChatInputCommandInteraction, EmbedBuilder, InteractionResponse, Message, SlashCommandBuilder } from 'discord.js';
+import {
+  ChatInputCommandInteraction,
+  EmbedBuilder,
+  InteractionResponse,
+  Message,
+  SlashCommandBuilder,
+} from 'discord.js';
 import { measureContentProcessing, ContentInfo } from '../../services/telemetry';
 import { AudioInfo, getAudioInfoFromUrl } from '../../services/content-utils';
 import { I18nKey } from '../../services/i18n/loader';
 import { getDurationFromGuildId, parseDuration } from '../../services/utils';
 import { QueueType } from '../../services/prisma/loadPrisma';
+import { deleteGtts, promisedGtts, readGttsAsStream } from '../../services/gtts';
+
+const buildAuthorData = (interaction: ChatInputCommandInteraction, withAuthor?: boolean) =>
+  withAuthor ? { author: interaction.user.username, authorImage: interaction.user.avatarURL() } : {};
 
 export function isValidUrl(value: string): boolean {
   try {
@@ -145,7 +155,7 @@ export async function executeMessageHandler(
     interaction.guildId!,
   );
 
-  const authorData = withAuthor ? { author: interaction.user.username, authorImage: interaction.user.avatarURL() } : {};
+  const authorData = buildAuthorData(interaction, withAuthor);
 
   await prisma.queue.create({
     data: {
@@ -192,8 +202,35 @@ export const buildMessageCommandData = (prefix: 'sendCommand' | 'hideSendCommand
     );
 };
 
+const MAX_TTS_LENGTH = 200;
+
+type TalkCommandPrefix = 'talkCommand' | 'hideTalkCommand';
+
+const talkKey = (prefix: TalkCommandPrefix, suffix: string): string => rosetty.t(`${prefix}${suffix}` as I18nKey)!;
+
+export const buildTalkCommandData = (prefix: TalkCommandPrefix) =>
+  new SlashCommandBuilder()
+    .setName(talkKey(prefix, ''))
+    .setDescription(talkKey(prefix, 'Description'))
+    .addStringOption((opt) =>
+      opt
+        .setName(talkKey(prefix, 'OptionVoice'))
+        .setDescription(talkKey(prefix, 'OptionVoiceDescription'))
+        .setRequired(true)
+        .setMaxLength(MAX_TTS_LENGTH),
+    )
+    .addStringOption((opt) =>
+      opt.setName(talkKey(prefix, 'OptionText')).setDescription(talkKey(prefix, 'OptionTextDescription')),
+    );
+
+interface TalkHandlerConfig {
+  prefix: TalkCommandPrefix;
+  ephemeral?: boolean;
+  withAuthor?: boolean;
+}
+
 interface TalkQueueConfig {
-  text: unknown;
+  text: string | undefined;
   media: string;
   additionalContent: ContentInfo;
   discordReceivedAt: number;
@@ -201,7 +238,40 @@ interface TalkQueueConfig {
   withAuthor?: boolean;
 }
 
-export async function resolveTTSAttachment(
+export async function executeTalkHandler(
+  interaction: ChatInputCommandInteraction,
+  { prefix, ephemeral, withAuthor }: TalkHandlerConfig,
+): Promise<void> {
+  const discordReceivedAt = interaction.createdTimestamp;
+  await interaction.deferReply(ephemeral ? { ephemeral: true } : undefined);
+
+  const voice = interaction.options.get(talkKey(prefix, 'OptionVoice'))?.value as string;
+  const text = interaction.options.get(talkKey(prefix, 'OptionText'))?.value as string | undefined;
+
+  if (!voice.trim()) {
+    await replyError(interaction, 'ttsTextTooLong');
+    return;
+  }
+
+  const filePath = await promisedGtts(voice, rosetty.getCurrentLang() as string);
+  try {
+    const interactionReply = await interaction.editReply({
+      embeds: [
+        new EmbedBuilder().setTitle(rosetty.t('success')!).setDescription(talkKey(prefix, 'Answer')).setColor(0x2ecc71),
+      ],
+      files: [readGttsAsStream(filePath)],
+    });
+
+    const resolved = await resolveTTSAttachment(interaction, interactionReply);
+    if (!resolved) return;
+
+    await createTalkQueueEntry(interaction, { ...resolved, text, discordReceivedAt, withAuthor });
+  } finally {
+    await deleteGtts(filePath).catch((err) => logger.warn(err, '[TTS] Failed to delete temp file'));
+  }
+}
+
+async function resolveTTSAttachment(
   interaction: ChatInputCommandInteraction,
   reply: Message | InteractionResponse,
 ): Promise<{ media: string; processingMs: number; additionalContent: ContentInfo } | null> {
@@ -215,12 +285,10 @@ export async function resolveTTSAttachment(
   return { media, processingMs, additionalContent };
 }
 
-export async function createTalkQueueEntry(
+async function createTalkQueueEntry(
   interaction: ChatInputCommandInteraction,
   { text, media, additionalContent, discordReceivedAt, processingMs, withAuthor }: TalkQueueConfig,
 ): Promise<void> {
-  const authorData = withAuthor ? { author: interaction.user.username, authorImage: interaction.user.avatarURL() } : {};
-
   await prisma.queue.create({
     data: {
       content: JSON.stringify({
@@ -235,7 +303,7 @@ export async function createTalkQueueEntry(
         additionalContent.mediaDuration ? Math.ceil(additionalContent.mediaDuration as number) : undefined,
         interaction.guildId!,
       ),
-      ...authorData,
+      ...buildAuthorData(interaction, withAuthor),
       discordReceivedAt: new Date(discordReceivedAt),
       processingMs,
     },

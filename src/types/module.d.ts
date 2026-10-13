@@ -6,7 +6,6 @@ import {
   RawReplyDefaultExpression,
   RawRequestDefaultExpression,
   RawServerDefault,
-  FastifyLoggerInstance,
 } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 
@@ -16,12 +15,13 @@ import { env as ENV } from '../services/env';
 import { RosettyI18n } from '../services/i18n/loader';
 declare global {
   namespace globalThis {
-    var logger: FastifyLoggerInstance;
+    var logger: FastifyBaseLogger;
     var env: typeof ENV;
     var discordRest: REST;
     var discordClient: Client;
     var rosetty: RosettyI18n;
     var prisma: PrismaClient;
+    var commandsLoaded: string[];
   }
 
   type FastifyICustom = FastifyInstance<

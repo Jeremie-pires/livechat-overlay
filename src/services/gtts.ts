@@ -1,4 +1,5 @@
 import { join } from 'path';
+import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
 
 import { unlink } from 'fs/promises';
@@ -9,10 +10,11 @@ export const promisedGtts = (voice: string, lang: string) =>
   new Promise<string>((resolve, reject) => {
     const gtts = new gTTS(voice, lang);
 
-    const filePath = join(__dirname, `${randomUUID()}.mp3`);
+    const filePath = join(tmpdir(), `tts-${randomUUID()}.mp3`);
 
     gtts.save(filePath, function (err) {
       if (err) {
+        unlink(filePath).catch(() => undefined);
         reject(err);
         return;
       }

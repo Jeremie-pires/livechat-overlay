@@ -1,65 +1,9 @@
-import { ChatInputCommandInteraction, EmbedBuilder, MessageFlags, SlashCommandBuilder } from 'discord.js';
-import { deleteGtts, promisedGtts, readGttsAsStream } from '../../services/gtts';
-import { createTalkQueueEntry, resolveTTSAttachment } from './commandHelpers';
-
-const MAX_TTS_LENGTH = 200;
+import { ChatInputCommandInteraction } from 'discord.js';
+import { buildTalkCommandData, executeTalkHandler } from './commandHelpers';
 
 export const hideTalkCommand = () => ({
-  data: new SlashCommandBuilder()
-    .setName(rosetty.t('hideTalkCommand')!)
-    .setDescription(rosetty.t('hideTalkCommandDescription')!)
-    .addStringOption((option) =>
-      option
-        .setName(rosetty.t('hideTalkCommandOptionVoice')!)
-        .setDescription(rosetty.t('hideTalkCommandOptionVoiceDescription')!)
-        .setRequired(true)
-        .setMaxLength(MAX_TTS_LENGTH),
-    )
-    .addStringOption((option) =>
-      option
-        .setName(rosetty.t('hideTalkCommandOptionText')!)
-        .setDescription(rosetty.t('hideTalkCommandOptionTextDescription')!),
-    ),
+  data: buildTalkCommandData('hideTalkCommand'),
   handler: async (interaction: ChatInputCommandInteraction) => {
-    const discordReceivedAt = interaction.createdTimestamp;
-    const voice = interaction.options.get(rosetty.t('hideTalkCommandOptionVoice')!)?.value as string;
-    const text = interaction.options.get(rosetty.t('hideTalkCommandOptionText')!)?.value;
-
-    if (!voice.trim() || voice.length > MAX_TTS_LENGTH) {
-      await interaction.reply({
-        embeds: [
-          new EmbedBuilder()
-            .setTitle(rosetty.t('error')!)
-            .setDescription(rosetty.t('ttsTextTooLong')!)
-            .setColor(0xe74c3c),
-        ],
-        flags: MessageFlags.Ephemeral,
-      });
-      return;
-    }
-
-    const filePath = await promisedGtts(voice, rosetty.getCurrentLang());
-    try {
-      const fileStream = readGttsAsStream(filePath);
-
-      const interactionReply = await interaction.reply({
-        embeds: [
-          new EmbedBuilder()
-            .setTitle(rosetty.t('success')!)
-            .setDescription(rosetty.t('hideTalkCommandAnswer')!)
-            .setColor(0x2ecc71),
-        ],
-        files: [fileStream],
-        flags: MessageFlags.Ephemeral,
-      });
-
-      const resolved = await resolveTTSAttachment(interaction, interactionReply);
-      if (!resolved) return;
-      const { media, processingMs, additionalContent } = resolved;
-
-      await createTalkQueueEntry(interaction, { text, media, additionalContent, discordReceivedAt, processingMs });
-    } finally {
-      await deleteGtts(filePath).catch((err) => logger.warn(err, '[TTS] Failed to delete temp file'));
-    }
+    await executeTalkHandler(interaction, { prefix: 'hideTalkCommand', ephemeral: true });
   },
 });

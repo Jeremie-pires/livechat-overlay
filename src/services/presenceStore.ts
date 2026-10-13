@@ -1,5 +1,5 @@
 type CorePresenceFields = { displayName: string; connectedAt: number; avatarUrl: string | null };
-type PublicPresenceEntry = CorePresenceFields & { id: string };
+export type PublicPresenceEntry = CorePresenceFields & { id: string };
 type InternalPresenceEntry = CorePresenceFields & { discordUserId: string };
 
 const store = new Map<string, Map<string, InternalPresenceEntry>>();
