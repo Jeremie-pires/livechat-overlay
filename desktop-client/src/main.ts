@@ -14,7 +14,7 @@ import {
   type AppSettings,
   type PresenceEntry,
 } from './utils';
-import { startLocalServer, stopLocalServer, getLocalObsUrl } from './local-server';
+import { startLocalServer, stopLocalServer, getLocalObsUrl, setLocalServerVolume } from './local-server';
 
 type OverlayStatusType = 'idle' | 'loading' | 'connected' | 'error';
 
@@ -377,6 +377,10 @@ function registerIpc() {
     if (overlayWindow) {
       if (settings.volume >= 0) {
         await applyMediaVolume();
+        if (isLocalServerRunning) {
+          setLocalServerVolume(settings.volume);
+          controlWindow?.webContents.send('local-server:url-changed', getLocalObsUrl());
+        }
       }
       const js = `if (typeof window.__updateLayoutSettings === 'function') { window.__updateLayoutSettings(${settings.overlaySize}, '${settings.overlayPosition}'); }`;
       overlayWindow.webContents.executeJavaScript(js).catch(() => undefined);
@@ -451,6 +455,10 @@ function registerIpc() {
     settings.volume = clampVolume(nextVolume);
     await saveSettingsToDisk();
     await applyMediaVolume();
+    if (isLocalServerRunning) {
+      setLocalServerVolume(settings.volume);
+      controlWindow?.webContents.send('local-server:url-changed', getLocalObsUrl());
+    }
     controlWindow?.webContents.send('overlay:settings-changed', settings);
     return settings.volume;
   });

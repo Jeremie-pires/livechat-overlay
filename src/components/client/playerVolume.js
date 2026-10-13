@@ -5,9 +5,9 @@ export function clampVolume(vol) {
   return Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : 1;
 }
 
-// Vidstack re-applies `props.volume` (default 1) to the provider on can-play,
-// overriding any `player.volume` set earlier — so the app volume must be a create prop.
-export function buildPlayerOptions({ src, layout, volume, isDesktop }) {
+// Always start muted so autoplay cannot produce a volume burst before can-play fires.
+// The can-play handler sets volume then unmutes; Electron and browser both allow muted autoplay.
+export function buildPlayerOptions({ src, layout, volume }) {
   return {
     target: '#message-player',
     src,
@@ -16,9 +16,17 @@ export function buildPlayerOptions({ src, layout, volume, isDesktop }) {
     playsInline: true,
     load: 'eager',
     autoplay: true,
-    muted: !isDesktop,
+    muted: true,
     volume: clampVolume(volume),
   };
+}
+
+// Reads ?volume=XX (0–100 integer) from a URL search string and returns a 0–1 float.
+// Falls back to 1 when the param is absent or invalid.
+export function volumeFromUrlParams(search) {
+  const raw = new URLSearchParams(search).get('volume');
+  if (raw === null) return 1;
+  return clampVolume(Number(raw) / 100);
 }
 
 export function applyPlayerVolume(player, volume) {

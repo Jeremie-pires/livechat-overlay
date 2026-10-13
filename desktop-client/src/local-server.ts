@@ -9,6 +9,7 @@ let remoteSocket: ClientSocket | null = null;
 let activePort = 3001;
 let activeEnv = 'production';
 let activeGuildId = '';
+let activeVolume = 100;
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise((resolve) => {
@@ -44,7 +45,14 @@ async function proxyAsset(req: IncomingMessage, res: ServerResponse, remoteBase:
 
 export function getLocalObsUrl(): string {
   if (!activeGuildId) return '';
-  return `http://localhost:${activePort}/client?guildId=${encodeURIComponent(activeGuildId)}`;
+  return `http://localhost:${activePort}/client?guildId=${encodeURIComponent(activeGuildId)}&volume=${activeVolume}`;
+}
+
+export function setLocalServerVolume(volume: number): void {
+  activeVolume = Math.round(Math.max(0, Math.min(100, volume)));
+  if (localIo) {
+    localIo.emit('set-volume', activeVolume / 100);
+  }
 }
 
 export async function startLocalServer(settings: AppSettings): Promise<void> {
@@ -52,6 +60,7 @@ export async function startLocalServer(settings: AppSettings): Promise<void> {
 
   const remoteBase = assertHttpUrl(settings.backendUrl).href.replace(/\/$/, '');
   activeGuildId = settings.guildId;
+  activeVolume = Math.round(Math.max(0, Math.min(100, settings.volume)));
   activeEnv = 'production';
 
   let port = settings.localServerPort ?? 3001;

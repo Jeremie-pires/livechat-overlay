@@ -1,11 +1,18 @@
 # AI_STATE.md — LiveChat CCB
 
 ## Status
-Branch `develop`. PR #75 (`develop → main`) merged. SonarCloud Quality Gate **failed**: 8.8% duplication on New Code (limit ≤ 3%). Duplication fix pushed → PR #77 gate **green** (new dup 0.0%). Session 31: video volume fix pushed to `develop`, awaiting manual test in desktop app.
+Branch `develop`. Session 32: volume burst fix + OBS volume support implemented. 416/416 tests pass. Awaiting manual test in desktop app + Sonar gate check before merge to `main`.
 
 ---
 
 ## 1. Accomplished
+
+### Session 32 (desktop video volume burst + OBS volume support)
+- **Root cause identified**: `buildPlayerOptions` used `muted: !isDesktop = false` for Electron overlay. With `autoplay: true`, Vidstack started playback unmuted at volume 1 (100%) before the `can-play` handler applied `currentVolume`. Users heard a full-volume burst. OBS/browser was unaffected (already `muted: true`).
+- **Fix**: `muted: true` always in `buildPlayerOptions` (removed `isDesktop` param); `can-play` handler order changed to: applyPlayerVolume → unmute → play. Defensive volume+unmute applied immediately after `VidstackPlayer.create()` for fast-loading content edge case.
+- **`computeFinalDuration` fix**: audioDuration now takes priority over mediaDuration when audioInfo is present (custom → audioDuration → mediaDuration).
+- **OBS volume**: `volumeFromUrlParams` reads `?volume=XX` URL param; `currentVolume` initialized from it; `set-volume` socket event wired. `local-server.ts`: `activeVolume` variable, OBS URL includes `&volume=XX`, `setLocalServerVolume()` exported. `main.ts`: calls `setLocalServerVolume` + sends updated OBS URL on slider/settings change.
+- **Tests**: new `commandHelpers.test.ts` (8 cases), `volumeFromUrlParams` in `playerVolume.test.ts` (7 cases), updated muted test. 416/416 pass.
 
 ### Session 31 (video volume ignored app setting)
 - Bug: videos (mp4/TikTok via Cobalt/YouTube via Vidstack) started at 100% ignoring app volume; slider during playback worked.
@@ -47,8 +54,9 @@ Branch `develop`. PR #75 (`develop → main`) merged. SonarCloud Quality Gate **
 ## 3. Next Steps
 
 ### [IMMEDIATE]
-1. User: manual test of volume fix in desktop app (volume 20% → mp4, YouTube, TikTok start at 20%).
-2. Check Sonar gate on the PR containing session 31 via MCP → green before merge to `main`.
+1. User: manual test — set volume 20%, send mp4 / YouTube / TikTok → confirm no full-volume burst, audio starts at 20%.
+2. Run Sonar gate check on PR → green before merge to `main`.
+3. Code review pass (Task 8 in `tasks/todo.md`).
 
 ### [AFTER]
 - VPS: `git pull && docker compose up --build -d`; send TikTok command, check `cdnDomain` log; if `*.tiktokcdn*.com` → fix `parseCookiesForDomain`.

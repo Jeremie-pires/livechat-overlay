@@ -61,9 +61,9 @@ export function computeFinalDuration(
   audioInfo: AudioInfo | null,
 ): number | undefined {
   if (customFinalDuration !== undefined) return customFinalDuration;
+  if (audioInfo?.audioDuration) return Math.ceil(audioInfo.audioDuration);
   const isVideo = mediaContentType?.startsWith('video/') || mediaContentType?.startsWith('audio/');
   if (isVideo && mediaDuration) return Math.ceil(mediaDuration);
-  if (audioInfo?.audioDuration) return Math.ceil(audioInfo.audioDuration);
   return undefined;
 }
 
