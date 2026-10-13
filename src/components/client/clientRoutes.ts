@@ -6,6 +6,13 @@ const IMG_DIR = resolve(__dirname, 'img');
 const ALLOWED_IMG_EXT = /\.(svg|png|jpe?g|webp)$/i;
 const SAFE_FILENAME = /^[\w.-]+$/;
 
+const STATIC_ASSETS: Record<string, string> = {
+  'vidstack.js': 'application/javascript',
+  'playerVolume.js': 'application/javascript',
+  'vidstack.theme.css': 'text/css',
+  'vidstack.video.css': 'text/css',
+};
+
 export function resolveWithinDir(baseDir: string, filename: string): string | null {
   if (!SAFE_FILENAME.test(filename)) return null;
   if (!ALLOWED_IMG_EXT.test(filename)) return null;
@@ -23,26 +30,12 @@ export const ClientRoutes = () =>
       return stream;
     });
 
-    fastify.get('/vidstack.js', async function (req, reply) {
-      const stream = fs.createReadStream(resolve(__dirname, 'vidstack.js'));
-
-      reply.type('application/javascript');
-      return stream;
-    });
-
-    fastify.get('/vidstack.theme.css', async function (req, reply) {
-      const stream = fs.createReadStream(resolve(__dirname, 'vidstack.theme.css'));
-
-      reply.type('text/css');
-      return stream;
-    });
-
-    fastify.get('/vidstack.video.css', async function (req, reply) {
-      const stream = fs.createReadStream(resolve(__dirname, 'vidstack.video.css'));
-
-      reply.type('text/css');
-      return stream;
-    });
+    for (const [filename, contentType] of Object.entries(STATIC_ASSETS)) {
+      fastify.get(`/${filename}`, async function (req, reply) {
+        reply.type(contentType);
+        return fs.createReadStream(resolve(__dirname, filename));
+      });
+    }
 
     fastify.get('/img/:filename', async function (req, reply) {
       const { filename } = req.params as { filename: string };

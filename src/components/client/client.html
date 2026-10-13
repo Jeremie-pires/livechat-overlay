@@ -239,6 +239,7 @@
 
     <script type="module">
       import { VidstackPlayer, VidstackPlayerLayout } from './vidstack.js';
+      import { clampVolume, buildPlayerOptions, applyPlayerVolume } from './playerVolume.js';
 
       const overlayStage = document.getElementById('overlay-stage');
       const overlayShell = document.getElementById('overlay-shell');
@@ -263,14 +264,13 @@
       var currentVolume = 1;
 
       globalThis.__setVolume = function(vol) {
-        currentVolume = Math.max(0, Math.min(1, vol));
+        currentVolume = clampVolume(vol);
         // Only update plain <audio> elements (overlay); Vidstack <video> is controlled via player.volume below
         document.querySelectorAll('audio').forEach(function(el) {
           el.volume = currentVolume;
           el.muted = currentVolume === 0;
         });
-        var player = document.querySelector('media-player');
-        if (player) { try { player.volume = currentVolume; } catch {} }
+        applyPlayerVolume(document.querySelector('media-player'), currentVolume);
       };
 
       // Queue system
@@ -467,10 +467,10 @@
 
         setTimeout(() => {
           if (muteVideo) {
-            // When an audio overlay is active, bypass VidstackPlayer entirely.
-            // Vidstack restores muted/volume from localStorage and silently overrides
-            // muted:true at init. A native <video muted> attribute is browser-enforced
-            // and cannot be cleared by library internals.
+            // When an audio overlay is active, bypass VidstackPlayer entirely:
+            // Vidstack re-applies its own muted/volume state on can-play. A native
+            // <video muted> attribute is browser-enforced and cannot be cleared by
+            // library internals.
             var video = document.createElement('video');
             video.setAttribute('muted', '');
             video.muted = true;
@@ -495,22 +495,11 @@
           } else {
             (async () => {
               await VidstackPlayer.create({
-                target: '#message-player',
-                src: src,
-                layout: new VidstackPlayerLayout({}),
+                ...buildPlayerOptions({ src, layout: new VidstackPlayerLayout({}), volume: currentVolume, isDesktop }),
                 logLevel: 'debug',
-                crossOrigin: true,
-                playsInline: true,
-                load: 'eager',
-                autoplay: true,
-                muted: !isDesktop,
               });
 
               const player = document.querySelector('media-player');
-
-              try { player.volume = currentVolume; } catch {}
-              var vid = player.querySelector('video');
-              if (vid) { vid.volume = currentVolume; vid.muted = currentVolume === 0; }
 
               // Adjust player aspect-ratio to the video's real dimensions
               player.addEventListener('loaded-metadata', () => {
@@ -543,13 +532,9 @@
                 async () => {
                   try {
                     await player.play();
-                    if (!isDesktop) {
-                      player.muted = false;
-                      // Re-apply volume after unmute
-                      try { player.volume = currentVolume; } catch {}
-                      var v = player.querySelector('video');
-                      if (v) v.volume = currentVolume;
-                    }
+                    if (!isDesktop) player.muted = currentVolume === 0;
+                    // Re-apply the app volume: the slider may have moved while loading
+                    applyPlayerVolume(player, currentVolume);
                   } catch (e) {
                     console.warn('Autoplay blocked:', e);
                   }
@@ -624,7 +609,7 @@
             // Duration is handled by the message timeout — no ended event from iframe
           } else if (data.mediaContentType === 'video/youtube' && data.audioUrl) {
             // YouTube + separate audio track: plain <video> can't play YouTube URLs,
-            // and Vidstack must be bypassed (restores muted=false from localStorage).
+            // and Vidstack must be bypassed (it re-applies its own muted state on can-play).
             // Use a muted YouTube iframe instead — duration timeout handles onDone.
             var ytId = extractYouTubeId(data.url);
             if (ytId) {
