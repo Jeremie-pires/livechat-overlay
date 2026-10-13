@@ -72,6 +72,23 @@ Discord command → `messagesWorker` dequeues → Socket.IO emit → browser cli
 
 ---
 
+## 🧰 Skills priority — `agent-skills` (addyosmani)
+
+Plugin `agent-skills@addy-agent-skills` is installed globally. In this project, **always prefer its skills/agents over equivalent built-in or other plugin skills**:
+
+- Start of non-trivial task → `agent-skills:using-agent-skills` to pick the right workflow.
+- Spec / plan / build → `agent-skills:spec`, `agent-skills:plan`, `agent-skills:build` (incremental slices).
+- Bugs → `agent-skills:debugging-and-error-recovery`; tests → `agent-skills:test`.
+- Code review → `agent-skills:review` (over `/code-review`); simplification → `agent-skills:code-simplify` (over `/simplify`).
+- Security (OAuth, sessions, user input from Discord) → `agent-skills:security-and-hardening`.
+- Client/dashboard UI → `agent-skills:frontend-ui-engineering`; perf → `agent-skills:performance-optimization`.
+- Git / releases → `agent-skills:git-workflow-and-versioning` (still follow the commit ritual and release rules below).
+- Pre-release go/no-go → `agent-skills:ship`.
+
+Project rules in this file (AI_STATE ritual, release flow, zero secrets) take precedence over skill instructions when they conflict.
+
+---
+
 ## 🚀 Desktop client release
 
 - **Trigger**: When user says "send a new version" (or similar) — **ask first** what text to show users in the update modal (release notes) before doing anything.
@@ -115,3 +132,15 @@ git push origin v1.2.11-rc.1
 - **No dead code**: Remove unused imports, uncalled variables, obsolete functions, debug logs immediately.
 - **Modern syntax**: Use latest language/framework features detected in project.
 - **SonarLint/SonarQube compliance**: Low cognitive complexity, explicit error handling, strict typing.
+
+## 📡 SonarCloud Quality Gate — must stay green
+
+The SonarCloud project is private and its report is not reachable from git/CLI (no `gh`, no `SONAR_TOKEN`). So the gate is enforced **locally before every push**, mirroring Sonar's "New Code" conditions (duplication ≤ 3%, no new issues):
+
+1. **Duplication** — run jscpd on `src` (same exclusions as `sonar-project.properties`):
+   ```bash
+   npx -y jscpd@4 src --min-tokens 40 --reporters console --ignore "**/i18n/en.ts,**/i18n/fr.ts,**/__tests__/**,**/*.test.ts"
+   ```
+   Any clone touching a file changed vs `origin/main` (`git diff --stat origin/main...HEAD`) must be refactored before pushing — factor into a shared helper (pattern: `buildMessageCommandData` / `executeTalkHandler` in `commandHelpers.ts`). Never add `sonar.cpd.exclusions` to hide real duplication.
+2. **Lint + types + tests** — `pnpm lint`, `tsc --noEmit` (no new errors vs baseline), `pnpm test`.
+3. **After push** — ask the user for the SonarCloud PR check result. If the gate fails, fix it before anything else; never merge a PR with a red gate.

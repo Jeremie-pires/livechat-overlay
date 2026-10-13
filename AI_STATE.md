@@ -1,37 +1,26 @@
 # AI_STATE.md — LiveChat CCB
 
 ## Status
-Branch `develop` — PR #74 (`develop → main`) — CI green, Sonar Quality Gate **Passed**. Dev tests in progress.
+Branch `develop`. PR #75 (`develop → main`) merged. SonarCloud Quality Gate **failed**: 8.8% duplication on New Code (limit ≤ 3%). Fix committed locally on `develop`, **not yet pushed** (PR #77 open on Sonar side).
 
 ---
 
 ## 1. Accomplished
 
-### Session 29 (Full 5-axis code review + mass fix)
-- **CODE_REVIEW.md** : audit complet 39 fichiers, trouvé 5 Required + sécurité + consider
-- **C-1** `hidetalkCommand.ts` : `deferReply({ ephemeral: true })` avant TTS — interaction Discord n'expire plus
-- **C-2** `dashboardRoutes.ts` : validation `access_token` et `user.id` OAuth avant cast
-- **S-2** `videoProxyRoute.ts` : `assertPublicHttpUrl()` sur l'URL CDN avant fetch (SSRF guard)
-- **S-3** `cookies-parser.ts` : sanitisation des valeurs cookies (strip `\r\n;`)
-- **A-1** `hashToken` : extrait dans `session.ts`, dédupliqué depuis `socketLoader.ts` et `dashboardRoutes.ts`
-- **A-2** `gtts.ts` : fichiers TTS dans `os.tmpdir()` au lieu de `__dirname` (compatible Docker read-only)
-- **A-2b** `gtts.ts` : cleanup fichier temp sur erreur de save
-- **A-3** `module.d.ts` : `commandsLoaded: string[]` ajouté aux globals TypeScript ; `FastifyLoggerInstance` → `FastifyBaseLogger`
-- **A-4** `RESTLoader.ts` : suppression import `lodash` pour startCase (inline)
-- **A-5** `env.ts` : suppression `PREPRODUCTION` (jamais atteignable), `isPreProductionEnv()`, `isDeployedEnv()` (dead code)
-- **A-6** `cpuSampler.ts` : `setInterval(...).unref()`
-- **A-7** `presenceStore.ts`/`presenceSse.ts` : export + import du type `PublicPresenceEntry` partagé
-- **A-9** `DiscordLoader.ts` : suppression commentaire `eslint-disable` résiduel
-- **A-10** `commandHelpers.ts` : `TalkQueueConfig.text: string | undefined` (était `unknown`)
-- **C-4** `video-proxy-cache.ts` : éviction périodique `setInterval(...).unref()`
-- **C-6** `talkCommand.ts`/`hidetalkCommand.ts` : suppression check longueur mort (Discord gère via `setMaxLength`)
+### Session 30 (Sonar duplication fix + Sonar tooling)
+- Root cause (via local `jscpd`): `talkCommand.ts` ≈ `hidetalkCommand.ts` (~32 duplicated lines).
+- `commandHelpers.ts`: added `buildTalkCommandData(prefix)` + `executeTalkHandler(interaction, { prefix, ephemeral, withAuthor })` (same pattern as `buildMessageCommandData` / `executeMessageHandler`). `resolveTTSAttachment` / `createTalkQueueEntry` now module-private. Extracted `buildAuthorData()` (was duplicated in message + talk queue creation).
+- `talkCommand.ts` / `hidetalkCommand.ts`: reduced to 9-line wrappers.
+- Local checks: jscpd 1.11% → 0.59% (remaining clones in files untouched by PR); vitest 386/386; eslint clean on changed files; tsc error count unchanged vs baseline (43, all pre-existing / partial local install).
+- `CLAUDE.md`: new section "SonarCloud Quality Gate — must stay green" (pre-push jscpd + lint/tsc/tests, ask user for Sonar result after push, never merge red gate). Also contains uncommitted "Skills priority — agent-skills" section.
+- SonarQube MCP server registered (local scope, `~/.claude.json`, not in repo): `docker run -i --rm --init --pull=always -e SONARQUBE_TOKEN -e SONARQUBE_ORG=jeremie-pires sonarsource/sonarqube-mcp`. Token read from user env var only. Now **connected**: project key `Jeremie-pires_livechat-overlay`, PR #77 gate = ERROR (new dup 8.8%, all other conditions OK).
+- Found: SonarCloud uses **Automatic Analysis** (no scanner in CI) → reads `.sonarcloud.properties`, ignores `sonar-project.properties`. Our CPD exclusions were never applied (e.g. `presenceStore.ts` flagged as clone of its test). Added `.sonarcloud.properties` with the same `sonar.cpd.exclusions`.
 
-### Session 28 (TikTok silent failure + VidstackPlayer error handler)
-- VidstackPlayer error handler ; CDN domain logging ; proxy warning enriched
-- Root cause suspected : CDN domain `*.tiktokcdn-us.com` ≠ `.tiktok.com` cookies. Awaiting log confirmation.
+### Session 29 (5-axis code review + mass fix)
+- 17 files fixed: OAuth validation, SSRF guard on video proxy, cookie sanitisation, `hashToken` dedup, TTS temp files in `os.tmpdir()`, timers `.unref()`, dead env code removed, typed globals.
 
-### Session 27 (429 + 503 overlay fixes)
-- Rate limit 100 → 300 req/min ; `/client/` exempted ; `bot:offline` + overlay hide/show
+### Session 28
+- VidstackPlayer error handler; CDN domain logging for TikTok proxy failures.
 
 ---
 
@@ -39,24 +28,25 @@ Branch `develop` — PR #74 (`develop → main`) — CI green, Sonar Quality Gat
 
 | Item | State |
 |---|---|
-| PR #74 | Quality Gate Passed — awaiting dev test sign-off |
-| Prod containers | `livechatccb` (port 3000) + `cobalt` (port 9000) |
-| Dev containers | Need `git pull && docker compose up --build -d` |
-| TikTok CDN | VidstackPlayer error handler added — root cause unconfirmed, needs log |
-| Code quality | 17 fichiers corrigés suite audit — lint + tsc source propres |
+| main | PR #75 merged — Sonar gate red (duplication) |
+| Working tree | Clean — session 30 committed, awaiting push |
+| Sonar access | SonarQube MCP connected (`SONARQUBE_TOKEN` user env var) |
+| Local env | `node_modules` installed via `npx pnpm@9` (`zlib-sync` native build failed — non-blocking for tests). No global `pnpm`. Files are CRLF locally; lint with `endOfLine: auto` |
+| Prod containers | `livechatccb` (3000) + `cobalt` (9000) |
+| TikTok CDN | Root cause unconfirmed, needs `cdnDomain` log |
 
 ---
 
 ## 3. Next Steps
 
 ### [IMMEDIATE]
-1. VPS: `git pull && docker compose up --build -d`
-2. Send a TikTok command → check logs for `cdnDomain` to confirm cookie mismatch root cause
-3. If `cdnDomain` = `*.tiktokcdn.com` / `*.tiktokcdn-us.com` → fix `parseCookiesForDomain` matching
+1. Push `develop` → re-check gate on PR via MCP (`get_project_quality_gate_status`, pullRequest key) → must be green before merge.
 
-### [AFTER TESTS PASS]
-- Merge PR #74 (`develop → main`)
+### [AFTER]
+- VPS: `git pull && docker compose up --build -d`; send TikTok command, check `cdnDomain` log; if `*.tiktokcdn*.com` → fix `parseCookiesForDomain`.
 
 ### [LATER]
-- H-AUD-06: 4 commands store `media` in DB instead of `audio` (type field mismatch)
-- S-1 CSP nonce : remplacer `unsafe-inline` dans le dashboard (post-merge, requiert modif HTML)
+- `presenceStore.test.ts` reimplements the store instead of importing it — rewrite test against real module.
+- Pre-existing clones (not New Code): `announceCommand`/`announceGuildCommand`/`maintenanceCommand`, `statsRoutes`/`dashboardRoutes` session check, `client.html` 373/765.
+- H-AUD-06: 4 commands store `media` in DB instead of `audio`.
+- S-1: CSP nonce to replace `unsafe-inline` in dashboard.
