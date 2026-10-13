@@ -1,6 +1,7 @@
 import { resolve, sep } from 'node:path';
 import { describe, it, expect } from 'vitest';
-import { resolveWithinDir } from '../../components/client/clientRoutes';
+import Fastify from 'fastify';
+import { ClientRoutes, resolveWithinDir } from '../../components/client/clientRoutes';
 
 const BASE = resolve('/fake', 'img');
 
@@ -98,5 +99,23 @@ describe('resolveWithinDir — extension allow-list', () => {
 
   it('accepts .SVG (case-insensitive)', () => {
     expect(resolveWithinDir(BASE, 'icon.SVG')).not.toBeNull();
+  });
+});
+
+describe('ClientRoutes — static assets', () => {
+  it.each([
+    ['/vidstack.js', 'application/javascript'],
+    ['/playerVolume.js', 'application/javascript'],
+    ['/vidstack.theme.css', 'text/css'],
+    ['/vidstack.video.css', 'text/css'],
+  ])('serves %s as %s', async (url, contentType) => {
+    const app = Fastify({ logger: false });
+    await app.register(ClientRoutes() as never);
+    const res = await app.inject({ method: 'GET', url });
+    await app.close();
+
+    expect(res.statusCode).toBe(200);
+    expect(res.headers['content-type']).toContain(contentType);
+    expect(res.body.length).toBeGreaterThan(0);
   });
 });
