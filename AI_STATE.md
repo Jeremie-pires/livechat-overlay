@@ -1,94 +1,53 @@
 # AI_STATE.md — LiveChat CCB
+_Updated: 2026-10-29_
 
-## Status
-PR #79 merged to `main`. `develop` synced with `main`. 456/456 tests pass. CI fully green (quality-and-tests + docker + Trivy). Next: push `develop` to remote, wait for develop CI, deploy to VPS dev with `docker compose -f docker-compose.dev.yml`.
+## Done
 
----
+### Session 33 — Security + quality audit (PR #79, merged to main)
 
-## 1. Accomplished
+- **Critical bugs**: `requireAuth` converted to async; `parseDuration('full', null/undefined)` returns `'error'`; `AbortSignal.timeout(10_000)` + Content-Length > 50 MB guard in `content-utils.ts`; channel-check wrapped in try/catch in `DiscordLoader.ts`.
+- **Socket token auth**: `ClientSession` schema changed to `discordUserId String @unique` (one active token per user globally); `socket.join` moved after token validation; no token or wrong guild → rejected with warn log.
+- **Server hardening**: Docker ports bound to `127.0.0.1`; SSRF blocklist extended (CGNAT, NAT64, `fec0::/10`); `maxMediaTime` enforced unconditionally at dequeue.
+- **Electron hardening**: CORS restricted to `null`/`http://localhost:*`; `esc()` XSS guard on changelog; `will-navigate` blocks non-localhost URLs; `setPermissionRequestHandler` denies camera/mic/notifications.
+- **Code quality**: `start` script fixed; 7 dead deps removed; `CLAUDE.md` updated; dead workflow/config files deleted; 40 new tests added (456/456 pass).
+- **CI fixes**: `eslint-plugin-import` bumped to `2.31.0`; pnpm lockfile regenerated (v8); `MockLogger` unused type removed; zod CVE-2023-54404 added to `.trivyignore`; `pnpm run generate` step added to `release.yml`.
+- **VPS dev deployed**: `git pull` → `docker compose -f docker-compose.dev.yml up --build -d` → schema migration via `docker compose run --rm livechatccb-dev /app/node_modules/.bin/prisma db push --accept-data-loss` → bot online as "Livechat dev#5585".
 
-### Session 33 (security + quality audit — full refactor)
+### Session 34 — Overlay connection bug (develop)
 
-#### Phase 1 — Critical bugs
-- `session.ts`: `requireAuth` converted to async (Fastify v5 preHandler must return Promise).
-- `utils.ts`: `parseDuration('full', null/undefined)` → `'error'` instead of `0`.
-- `content-utils.ts`: `AbortSignal.timeout(10_000)` on fetch + Content-Length > 50 MB guard before `arrayBuffer()`.
-- `DiscordLoader.ts`: channel-check block wrapped inside existing try/catch.
+- **Root cause**: overlay window's socket never connects → `showOverlay()` never called → opacity 0 → nothing displays. Socket.io client was loaded from `cdn.socket.io` CDN which may be blocked in Electron context (Cloudflare UA-based bot filtering).
+- **Fix 1** (`client.html`): replaced CDN script tag with `/socket.io/socket.io.js` served by the same-origin server. Eliminates external CDN dependency.
+- **Fix 2** (`desktop-client/src/main.ts`): strips `Electron/X.X.X` from overlay window UA before loading URL, preventing Cloudflare from flagging socket.io polling requests as bot traffic.
+- **Fix 3** (`desktop-client/src/local-server.ts`): added forwarding of `server:status`, `bot:offline`, `server:maintenance` events from remote to local clients (was missing — OBS browser source would also have been broken). Added `lastServerStatus` cache so late-connecting clients get the current status immediately.
 
-#### Phase 2 — Socket token auth
-- `prisma/schema.prisma`: `@@unique([discordUserId, guildId])` → `discordUserId String @unique` (one active token per user globally).
-- `src/components/discord/clientCommand.ts`: `deleteMany({ where: { discordUserId } })` — invalidates all prior sessions across guilds.
-- `src/loaders/socketLoader.ts`: `socket.join(roomId)` moved AFTER token validation; no token or wrong guild → rejected with warn log.
-- `prisma/clear-sessions.sql` (NEW): `DELETE FROM ClientSession;` — run on VPS before `pnpm migration:up` to avoid unique constraint conflict.
+## Current state
 
-#### Phase 3 — Server/infra hardening
-- `docker-compose.yml`: ports bound to `127.0.0.1` (3000, 9000) — no external exposure.
-- `src/services/url-guard.ts`: added CGNAT `100.64.0.0/10`, `fec0::/10`, NAT64 `64:ff9b::/96` to SSRF blocklist.
-- `src/components/messages/messagesWorker.ts`: `maxMediaTime` enforced at dequeue (replaced `busyGuild` query with unconditional `guildRow` query + manual busy check).
+`develop` has the overlay bug fix pending push/CI. VPS dev confirmed: bot online ("Livechat dev#5585"), `server:status { botOnline: true }` correctly emitted, ClientSession exists for Jerezouz. Server-side is fully healthy. Fix requires: (1) server container redeploy for `client.html`, (2) new Electron build for UA strip + local-server fixes.
 
-#### Phase 4 — Electron hardening
-- `desktop-client/src/local-server.ts`: CORS restricted to `null` and `http://localhost:*` origins only.
-- `desktop-client/src/renderer/renderer.js`: `esc()` function for HTML escaping applied to `r.tag_name` and `r.body` in changelog (XSS closed).
-- `desktop-client/src/main.ts`: `will-navigate` guard blocks any URL not starting with `http://localhost:`; `setPermissionRequestHandler` denies camera/mic/notifications.
-- `.github/workflows/desktop-release.yml`: `pnpm/action-setup@v4` + `pnpm install --frozen-lockfile`.
+## Next steps
 
-#### Phase 5 — Code quality
-- `package.json`: `start` script fixed (`dist/index.js`); 7 dead deps removed (`concat-map`, `get-video-duration`, `youtubei.js`, `unify-errors`, `zod-validation-error`, `regenerator-runtime`, `node-gyp`).
-- `CLAUDE.md`: updated to Fastify v5, all 7 Prisma models listed.
-- Deleted: `.github/workflows/main.disabledyml`, `sonar-project.properties`.
-- `src/__tests__/components/messages/parseDuration.test.ts`: updated for `'error'` on `full+undefined/null`.
+1. Push `develop` → CI builds new Docker image → VPS pull + restart dev container.
+2. User rebuilds Electron desktop-client (or waits for next release).
+3. User reconnects overlay — verify dot green + test format buttons work + `/msg` displays.
+4. If UA was the issue: dot green immediately after container restart (server fix alone sufficient).
+5. Complete manual validation (token auth, SSRF block, TTS, stop, maxMediaTime clamping).
 
-#### Skipped (non-trivial, next phase)
-- Task 17: `noImplicitAny: true` in tsconfig.
-- Task 18: 6 `@ts-ignore` removals (need type augmentation for `discordClient.commands`).
-- Task 21: `requireSession` preHandler extraction (5 duplications).
-- Task 22: embed color constants (~30 hardcoded hex values).
+## Open issues
 
-### Session 32 (desktop volume burst fix + OBS volume)
-- `playerVolume.js`: `muted: true` always; removed `isDesktop` param.
-- `client.html` `can-play`: order now `applyPlayerVolume → unmute → play`.
-- `commandHelpers.ts` `computeFinalDuration`: priority now `custom → audioDuration → mediaDuration`.
-- OBS volume: `volumeFromUrlParams` reads `?volume=XX`; `local-server.ts` `activeVolume`; `main.ts` calls `setLocalServerVolume`.
-- +15 tests. 416/416 pass.
-
----
-
-## 2. Current State
-
-| Item | State |
-|---|---|
-| Branch | `develop` = `main` = `b871298` (PR #79 merged) |
-| Tests | 456/456 vitest (40 new tests added for audit behaviors) |
-| CI | Green on `main` — quality-and-tests ✓, docker ✓, Trivy ✓ |
-| Sonar | Pending on develop CI push |
-| Prisma | Schema changed — `ClientSession` unique constraint changed; VPS needs `DELETE FROM ClientSession` before `migration:up` |
-| Prod | Not yet deployed; `prisma/clear-sessions.sql` must run first |
-| TikTok CDN | Unconfirmed, needs `cdnDomain` prod log |
-
----
-
-## 3. Next Steps
-
-### [IMMEDIATE]
-1. Push `develop` to remote → wait for develop CI (quality-and-tests, docker, SonarCloud).
-2. Once develop CI green → VPS dev deployment:
-   ```bash
-   # On VPS in ~/livechat/dev-livechat-overlay (tracks origin/develop)
-   # 1. Run clear-sessions first (schema changed)
-   sqlite3 /path/to/sqlite.db "DELETE FROM ClientSession;"
-   # 2. Pull and rebuild
-   git pull
-   docker compose -f docker-compose.dev.yml up --build -d
-   docker compose -f docker-compose.dev.yml logs -f
-   ```
-3. After VPS dev validation → merge `develop` → `main` (or already done via PR).
-
-### [LATER — Quality phase 5 remainder]
-- Task 17: `noImplicitAny: true` + fix resulting errors.
-- Task 18: Remove 6 `@ts-ignore` (type augmentation for `discordClient.commands`).
-- Task 21: Extract `requireSession` preHandler.
-- Task 22: Embed color constants.
-- Logic bugs phase: `/hidetalk`, FIFO order, `busyUntil` reset, etc.
+- Task 17: `noImplicitAny: true` in tsconfig (skipped, non-trivial).
+- Task 18: Remove 6 `@ts-ignore` (need type augmentation for `discordClient.commands`).
+- Task 21: Extract `requireSession` preHandler (5 duplications).
+- Task 22: Embed color constants (~30 hardcoded hex values).
+- Logic bugs backlog: `/hidetalk`, FIFO order, `busyUntil` reset.
 - `presenceStore.test.ts` rewrite against real module.
-- TikTok CDN: check `cdnDomain` prod log.
-- Electron v33 EOL upgrade (separate ticket).
+- TikTok CDN: check `cdnDomain` prod log to confirm cookie fix works.
+- Electron v33 EOL: upgrade needed (separate ticket).
+- Prod deployment: `ClientSession` table must be cleared before `prisma db push` (unique constraint changed); use `prisma/clear-sessions.sql`.
+
+## Decisions
+
+- 2026-10-28 Socket auth requires DB token lookup on every join — avoids stateful in-memory token map, consistent with Prisma session model.
+- 2026-10-28 `discordUserId String @unique` instead of `@@unique([discordUserId, guildId])` — one active token per user globally simplifies revocation and avoids stale multi-guild sessions.
+- 2026-10-28 zod CVE-2023-54404 suppressed in `.trivyignore` — fix requires zod v4 (breaking API change); accepted risk pending migration.
+- 2026-10-28 Prisma binary invoked directly (`/app/node_modules/.bin/prisma`) not via `node` or shell PATH — the `.bin/prisma` file is a shell wrapper, not a JS entry point.
+- 2026-10-28 VPS SQLite dev DB at `/data/sqlite-dev.db` (not `/data/sqlite.db`) — separate volume for dev container.

@@ -203,33 +203,26 @@ describe('assertPublicHttpUrl — DNS resolution check', () => {
 // ── isPrivateIp — CGNAT 100.64.0.0/10 (audit addition) ────────────────────────
 
 describe('isPrivateIp — CGNAT 100.64.0.0/10', () => {
-  it.each([
-    ['100.64.0.0'],
-    ['100.64.0.1'],
-    ['100.100.100.100'],
-    ['100.127.255.255'],
-  ])('returns true for CGNAT address %s', (ip) => expect(isPrivateIp(ip)).toBe(true));
+  it.each([['100.64.0.0'], ['100.64.0.1'], ['100.100.100.100'], ['100.127.255.255']])(
+    'returns true for CGNAT address %s',
+    (ip) => expect(isPrivateIp(ip)).toBe(true),
+  );
 
-  it.each([
-    ['100.63.255.255'],
-    ['100.128.0.0'],
-    ['101.0.0.1'],
-  ])('returns false for address just outside CGNAT range %s', (ip) => expect(isPrivateIp(ip)).toBe(false));
+  it.each([['100.63.255.255'], ['100.128.0.0'], ['101.0.0.1']])(
+    'returns false for address just outside CGNAT range %s',
+    (ip) => expect(isPrivateIp(ip)).toBe(false),
+  );
 });
 
 // ── isPrivateIp — fec0::/10 deprecated site-local & NAT64 (audit addition) ───
 
 describe('isPrivateIp — new IPv6 ranges (fec0::/10 and NAT64)', () => {
-  it.each([
-    ['fec0::1'],
-    ['fec0:ffff::1'],
-    ['feff::1'],
-    ['fedf::1'],
-  ])('returns true for fec0::/10 site-local %s', (ip) => expect(isPrivateIp(ip)).toBe(true));
+  it.each([['fec0::1'], ['fec0:ffff::1'], ['feff::1'], ['fedf::1']])('returns true for fec0::/10 site-local %s', (ip) =>
+    expect(isPrivateIp(ip)).toBe(true),
+  );
 
-  it.each([['64:ff9b::1'], ['64:ff9b::c0a8:101']])(
-    'returns true for NAT64 64:ff9b::/96 address %s',
-    (ip) => expect(isPrivateIp(ip)).toBe(true),
+  it.each([['64:ff9b::1'], ['64:ff9b::c0a8:101']])('returns true for NAT64 64:ff9b::/96 address %s', (ip) =>
+    expect(isPrivateIp(ip)).toBe(true),
   );
 });
 

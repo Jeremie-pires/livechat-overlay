@@ -62,6 +62,7 @@ export async function startLocalServer(settings: AppSettings): Promise<void> {
   activeGuildId = settings.guildId;
   activeVolume = Math.round(Math.max(0, Math.min(100, settings.volume)));
   activeEnv = 'production';
+  let lastServerStatus: unknown = null;
 
   let port = settings.localServerPort ?? 3001;
   for (let attempt = 0; attempt < 10; attempt++) {
@@ -89,6 +90,7 @@ export async function startLocalServer(settings: AppSettings): Promise<void> {
 
   io.on('connection', (socket) => {
     socket.emit('server:env', activeEnv);
+    if (lastServerStatus !== null) socket.emit('server:status', lastServerStatus);
 
     socket.on('join-room', (payload: string | { id: string; token?: string }) => {
       const roomId = typeof payload === 'string' ? payload : payload?.id;
@@ -127,6 +129,19 @@ export async function startLocalServer(settings: AppSettings): Promise<void> {
       ? { id: roomId, token: settings.clientToken }
       : roomId;
     remote.emit('join-room', joinPayload);
+  });
+
+  remote.on('server:status', (data: unknown) => {
+    lastServerStatus = data;
+    io.emit('server:status', data);
+  });
+
+  remote.on('bot:offline', () => {
+    io.emit('bot:offline');
+  });
+
+  remote.on('server:maintenance', (data: unknown) => {
+    io.emit('server:maintenance', data);
   });
 
   remote.on('new-message', (data: unknown) => {

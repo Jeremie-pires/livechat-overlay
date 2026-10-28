@@ -288,6 +288,10 @@ function createOverlayWindow() {
     },
   });
 
+  overlayWindow.webContents.setUserAgent(
+    overlayWindow.webContents.getUserAgent().replace(/\s*Electron\/[\d.]+/, ''),
+  );
+
   overlayWindow.webContents.on('did-finish-load', async () => {
     if (overlayWindow) {
       await overlayWindow.webContents.insertCSS(`

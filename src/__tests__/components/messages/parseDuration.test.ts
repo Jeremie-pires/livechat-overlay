@@ -6,9 +6,12 @@ describe('parseDuration (shared helper — sendCommand / hidesendCommand)', () =
     ['full', 29.4, 30],
     ['full', null, 'error'],
     ['full', undefined, 'error'],
-  ] as [string, number | null | undefined, number | 'error'][])('"%s" with mediaDuration=%s → %s', (input, media, expected) => {
-    expect(parseDuration(input, media)).toBe(expected);
-  });
+  ] as [string, number | null | undefined, number | 'error'][])(
+    '"%s" with mediaDuration=%s → %s',
+    (input, media, expected) => {
+      expect(parseDuration(input, media)).toBe(expected);
+    },
+  );
 
   it.each([
     ['30', 30],
