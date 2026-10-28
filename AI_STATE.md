@@ -1,7 +1,7 @@
 # AI_STATE.md — LiveChat CCB
 
 ## Status
-Branch `feat/security-quality-audit` (off `develop`). Security + quality audit complete. 416/416 tests pass. Next: push branch, open PR, Sonar gate check, then full test phase.
+PR #79 merged to `main`. `develop` synced with `main`. 456/456 tests pass. CI fully green (quality-and-tests + docker + Trivy). Next: push `develop` to remote, wait for develop CI, deploy to VPS dev with `docker compose -f docker-compose.dev.yml`.
 
 ---
 
@@ -57,9 +57,10 @@ Branch `feat/security-quality-audit` (off `develop`). Security + quality audit c
 
 | Item | State |
 |---|---|
-| Branch | `feat/security-quality-audit`, off `develop`, uncommitted changes staged |
-| Tests | 416/416 vitest |
-| Sonar | Gate pending — must check after PR push |
+| Branch | `develop` = `main` = `b871298` (PR #79 merged) |
+| Tests | 456/456 vitest (40 new tests added for audit behaviors) |
+| CI | Green on `main` — quality-and-tests ✓, docker ✓, Trivy ✓ |
+| Sonar | Pending on develop CI push |
 | Prisma | Schema changed — `ClientSession` unique constraint changed; VPS needs `DELETE FROM ClientSession` before `migration:up` |
 | Prod | Not yet deployed; `prisma/clear-sessions.sql` must run first |
 | TikTok CDN | Unconfirmed, needs `cdnDomain` prod log |
@@ -69,14 +70,18 @@ Branch `feat/security-quality-audit` (off `develop`). Security + quality audit c
 ## 3. Next Steps
 
 ### [IMMEDIATE]
-1. Push `feat/security-quality-audit` → open PR against `main`.
-2. Sonar gate must be green before merge.
-3. VPS deployment order:
+1. Push `develop` to remote → wait for develop CI (quality-and-tests, docker, SonarCloud).
+2. Once develop CI green → VPS dev deployment:
    ```bash
-   docker compose exec livechatccb sqlite3 /data/sqlite.db "DELETE FROM ClientSession;"
-   docker compose up --build -d
+   # On VPS in ~/livechat/dev-livechat-overlay (tracks origin/develop)
+   # 1. Run clear-sessions first (schema changed)
+   sqlite3 /path/to/sqlite.db "DELETE FROM ClientSession;"
+   # 2. Pull and rebuild
+   git pull
+   docker compose -f docker-compose.dev.yml up --build -d
+   docker compose -f docker-compose.dev.yml logs -f
    ```
-4. Full test phase: write tests for all new behaviors (token auth, parseDuration error, content-utils limits, url-guard SSRF additions, messagesWorker maxMediaTime).
+3. After VPS dev validation → merge `develop` → `main` (or already done via PR).
 
 ### [LATER — Quality phase 5 remainder]
 - Task 17: `noImplicitAny: true` + fix resulting errors.
