@@ -1,6 +1,6 @@
 {
   "name": "livechat-ccb-desktop",
-  "version": "1.3.2-rc.3",
+  "version": "1.3.2-rc.4",
   "private": false,
   "description": "Desktop overlay client for LiveChat CCB",
   "repository": {
@@ -12,7 +12,7 @@
   "scripts": {
     "dev": "npm run build && electron .",
     "build": "npm run build:renderer && npm run build:main",
-    "build:main": "tsc -p tsconfig.json",
+    "build:main": "node scripts/build-main.mjs",
     "build:renderer": "node scripts/copy-renderer.mjs",
     "dist": "npm run build && electron-builder --win nsis",
     "pack": "npm run build && electron-builder --dir",
@@ -39,7 +39,9 @@
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "icon": "build/icon.ico",
@@ -68,6 +70,7 @@
     "@types/node": "20.11.17",
     "electron": "^33.0.0",
     "electron-builder": "^24.13.3",
+    "esbuild": "^0.28.2",
     "typescript": "5.3.3"
   }
 }
