@@ -50,3 +50,7 @@ CVE-2026-69192
 # lodash@4.17.21 — fix requires lodash@4.18.0 (direct dep updated to ^4.18.0).
 # This entry is a fallback in case the release hasn't published yet.
 CVE-2026-4800
+
+# zod@3.x — CVE-2023-54404 (DoS via unbounded array validation) — fix requires zod@4.6.6+
+# (major breaking change: new API surface). Blocked on zod v4 migration.
+CVE-2023-54404
