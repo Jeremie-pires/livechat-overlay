@@ -90,8 +90,6 @@ describe('loadSocket — join-room token auth', () => {
     stats: { findUnique: ReturnType<typeof vi.fn> };
     clientSession: { findUnique: ReturnType<typeof vi.fn> };
   };
-  type MockLogger = { debug: ReturnType<typeof vi.fn>; info: ReturnType<typeof vi.fn>; warn: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn> };
-
   let connectionHandler: ((socket: unknown) => void) | null = null;
   let joinRoomHandler: ((payload: unknown) => Promise<void>) | null = null;
   let socketJoin: ReturnType<typeof vi.fn>;
@@ -118,7 +116,10 @@ describe('loadSocket — join-room token auth', () => {
       to: vi.fn().mockReturnValue({ emit: vi.fn() }),
     };
     (global as Record<string, unknown>).logger = {
-      debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn(),
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
     };
 
     const { loadSocket } = await import('../../loaders/socketLoader');
@@ -132,7 +133,10 @@ describe('loadSocket — join-room token auth', () => {
     socketJoin = vi.fn();
     warnSpy = vi.fn();
     (global as Record<string, unknown>).logger = {
-      debug: vi.fn(), info: vi.fn(), warn: warnSpy, error: vi.fn(),
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: warnSpy,
+      error: vi.fn(),
     };
 
     const socket = {
