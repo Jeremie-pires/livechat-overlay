@@ -309,6 +309,14 @@ function createOverlayWindow() {
     updateStatus('error', `Impossible de charger l'overlay (${errorCode}) ${errorDescription}`);
   });
 
+  overlayWindow.webContents.on('will-navigate', (e, url) => {
+    if (!url.startsWith('http://localhost:')) {
+      e.preventDefault();
+    }
+  });
+
+  overlayWindow.webContents.session.setPermissionRequestHandler((_wc, _perm, cb) => cb(false));
+
   overlayWindow.on('closed', () => {
     overlayWindow = null;
   });

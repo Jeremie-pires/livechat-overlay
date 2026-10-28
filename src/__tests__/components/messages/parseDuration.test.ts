@@ -4,9 +4,9 @@ import { parseDuration } from '../../../services/utils';
 describe('parseDuration (shared helper — sendCommand / hidesendCommand)', () => {
   it.each([
     ['full', 29.4, 30],
-    ['full', null, 0],
-    ['full', undefined, 0],
-  ] as [string, number | null | undefined, number][])('"%s" with mediaDuration=%s → %d', (input, media, expected) => {
+    ['full', null, 'error'],
+    ['full', undefined, 'error'],
+  ] as [string, number | null | undefined, number | 'error'][])('"%s" with mediaDuration=%s → %s', (input, media, expected) => {
     expect(parseDuration(input, media)).toBe(expected);
   });
 

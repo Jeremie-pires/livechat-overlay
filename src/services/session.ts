@@ -78,7 +78,9 @@ export const checkRouteAuth = (
   return { ok: true, token: token as string };
 };
 
-export const requireAuth = (req: FastifyRequest, reply: FastifyReply): void => {
+export const requireAuth = async (req: FastifyRequest, reply: FastifyReply): Promise<void> => {
   const auth = checkRouteAuth(req.headers.cookie, req.headers['x-csrf-token']);
-  if (!auth.ok) reply.status(auth.status).send({ error: auth.error });
+  if (!auth.ok) {
+    await reply.status(auth.status).send({ error: auth.error });
+  }
 };

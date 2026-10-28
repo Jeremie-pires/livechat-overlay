@@ -3,7 +3,7 @@ services:
     build: .
     restart: unless-stopped
     ports:
-      - '3000:3000'
+      - '127.0.0.1:3000:3000'
     deploy:
       resources:
         limits:
@@ -51,7 +51,7 @@ services:
     image: ghcr.io/imputnet/cobalt:10
     restart: unless-stopped
     ports:
-      - '9000:9000'
+      - '127.0.0.1:9000:9000'
     environment:
       # Set to the browser-accessible URL so tunnel URLs are reachable by the overlay client
       API_URL: ${COBALT_PUBLIC_URL:-http://localhost:9000}

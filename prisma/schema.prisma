@@ -82,12 +82,10 @@ model BotEvent {
 
 model ClientSession {
   tokenHash     String   @id
-  discordUserId String
+  discordUserId String   @unique
   displayName   String
   guildId       String
   createdAt     DateTime @default(now())
-
-  @@unique([discordUserId, guildId])
 }
 
 model BroadcastLog {

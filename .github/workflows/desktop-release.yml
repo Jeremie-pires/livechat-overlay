@@ -29,9 +29,14 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
       - name: Install dependencies
         working-directory: desktop-client
-        run: npm install
+        run: pnpm install --frozen-lockfile
 
       - name: Detect release type
         id: detect
@@ -52,9 +57,9 @@ jobs:
         shell: bash
         run: |
           if [ "${{ steps.detect.outputs.type }}" = "prerelease" ]; then
-            npm run build && npx electron-builder --win nsis --publish always -c.publish.releaseType=prerelease
+            pnpm run build && npx electron-builder --win nsis --publish always -c.publish.releaseType=prerelease
           else
-            npm run release
+            pnpm run release
           fi
 
       - name: Set release notes from tag annotation

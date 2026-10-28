@@ -72,12 +72,19 @@ export async function startLocalServer(settings: AppSettings): Promise<void> {
 
   const server = createServer(async (req, res) => {
     if ((req.url ?? '').startsWith('/socket.io')) return;
-    res.setHeader('Access-Control-Allow-Origin', '*');
+    const origin = req.headers.origin ?? '';
+    if (!origin || origin === 'null' || /^http:\/\/localhost(:\d+)?$/.test(origin)) {
+      res.setHeader('Access-Control-Allow-Origin', origin || '*');
+    }
     await proxyAsset(req, res, remoteBase);
   });
 
   const io = new SocketIOServer(server, {
-    cors: { origin: '*' },
+    cors: {
+      origin: (origin, cb) => {
+        cb(null, !origin || origin === 'null' || /^http:\/\/localhost(:\d+)?$/.test(origin));
+      },
+    },
   });
 
   io.on('connection', (socket) => {

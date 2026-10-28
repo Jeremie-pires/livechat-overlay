@@ -93,53 +93,59 @@ export const loadSocket = (fastify: FastifyCustomInstance) => {
         return;
       }
 
-      logger.debug(`Join room :  ${socket.id} -> ${roomId}`);
-      socket.join(roomId);
+      if (!token) {
+        logger.warn(`[Socket] join-room rejected — token required (socket: ${socket.id}, guild: ${guildId})`);
+        return;
+      }
 
-      if (token) {
-        try {
-          const session = await prisma.clientSession.findUnique({ where: { tokenHash: hashToken(token) } });
-          if (session && session.guildId === guildId) {
-            let avatarUrl: string | null = null;
-            try {
-              const user =
-                discordClient.users.cache.get(session.discordUserId) ??
-                (await discordClient.users.fetch(session.discordUserId));
-              avatarUrl = user.avatarURL({ size: 64 }) ?? null;
-            } catch {
-              // avatar unavailable — fall back to null
-            }
-
-            const key = `${guildId}:${session.discordUserId}`;
-            const pending = disconnectTimers.get(key);
-
-            if (pending) {
-              // Reconnect within debounce window — cancel departure, no delta events emitted
-              clearTimeout(pending.timer);
-              disconnectTimers.delete(key);
-              presenceStore.removeSocket(pending.socketId);
-              presenceStore.add(guildId, socket.id, session.discordUserId, session.displayName, avatarUrl);
-              socket.emit('presence:update', presenceStore.get(guildId));
-            } else {
-              presenceStore.add(guildId, socket.id, session.discordUserId, session.displayName, avatarUrl);
-              const users = presenceStore.get(guildId);
-              const thisUser = users.find((u) => u.id === session.discordUserId);
-              const connectedAt = thisUser?.connectedAt ?? Date.now();
-              // Send full snapshot to joining socket only
-              socket.emit('presence:update', users);
-              // Broadcast delta to all other room members
-              socket.to(roomId).emit('userJoined', {
-                id: session.discordUserId,
-                displayName: session.displayName,
-                avatarUrl,
-                connectedAt,
-              });
-            }
-            presenceSse.push(presenceStore.getAll());
-          }
-        } catch (err) {
-          logger.error(err, '[Socket] Failed to resolve client session for presence');
+      try {
+        const session = await prisma.clientSession.findUnique({ where: { tokenHash: hashToken(token) } });
+        if (!session || session.guildId !== guildId) {
+          logger.warn(`[Socket] join-room rejected — invalid token for guild "${guildId}" (socket: ${socket.id})`);
+          return;
         }
+
+        logger.debug(`Join room :  ${socket.id} -> ${roomId}`);
+        socket.join(roomId);
+
+        let avatarUrl: string | null = null;
+        try {
+          const user =
+            discordClient.users.cache.get(session.discordUserId) ??
+            (await discordClient.users.fetch(session.discordUserId));
+          avatarUrl = user.avatarURL({ size: 64 }) ?? null;
+        } catch {
+          // avatar unavailable — fall back to null
+        }
+
+        const key = `${guildId}:${session.discordUserId}`;
+        const pending = disconnectTimers.get(key);
+
+        if (pending) {
+          // Reconnect within debounce window — cancel departure, no delta events emitted
+          clearTimeout(pending.timer);
+          disconnectTimers.delete(key);
+          presenceStore.removeSocket(pending.socketId);
+          presenceStore.add(guildId, socket.id, session.discordUserId, session.displayName, avatarUrl);
+          socket.emit('presence:update', presenceStore.get(guildId));
+        } else {
+          presenceStore.add(guildId, socket.id, session.discordUserId, session.displayName, avatarUrl);
+          const users = presenceStore.get(guildId);
+          const thisUser = users.find((u) => u.id === session.discordUserId);
+          const connectedAt = thisUser?.connectedAt ?? Date.now();
+          // Send full snapshot to joining socket only
+          socket.emit('presence:update', users);
+          // Broadcast delta to all other room members
+          socket.to(roomId).emit('userJoined', {
+            id: session.discordUserId,
+            displayName: session.displayName,
+            avatarUrl,
+            connectedAt,
+          });
+        }
+        presenceSse.push(presenceStore.getAll());
+      } catch (err) {
+        logger.error(err, '[Socket] Failed to validate client session for join-room');
       }
     });
 

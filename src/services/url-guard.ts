@@ -24,6 +24,7 @@ function isPrivateIpv4(addr: string): boolean {
     (a === 172 && b >= 16 && b <= 31) ||
     (a === 192 && b === 168) ||
     (a === 169 && b === 254) ||
+    (a === 100 && b >= 64 && b <= 127) ||
     parts.every((p) => p === 0) ||
     parts.every((p) => p === 255)
   );
@@ -49,8 +50,12 @@ function isPrivateIpv6(addr: string): boolean {
   }
   // fe80::/10 — link-local (fe80 to febf)
   if (/^fe[89ab]/i.test(n)) return true;
+  // fec0::/10 — deprecated site-local (fec0 to feff)
+  if (/^fe[c-f]/i.test(n)) return true;
   // fc00::/7 — unique-local (fc00 to fdff)
   if (/^f[cd]/i.test(n)) return true;
+  // 64:ff9b::/96 — NAT64
+  if (n.startsWith('64:ff9b:')) return true;
   return false;
 }
 
