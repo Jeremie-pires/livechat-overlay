@@ -388,3 +388,59 @@ describe('getContentInformationsFromUrl — YouTube classification', () => {
     expect(vi.mocked(fetch)).not.toHaveBeenCalled();
   });
 });
+
+// ── Content-Length > 50 MB guard (audit addition) ─────────────────────────────
+
+describe('getContentInformationsFromUrl — Content-Length > 50 MB guard', () => {
+  function makeHeaderResponse(headers: Record<string, string | null>) {
+    return {
+      headers: {
+        get: vi.fn().mockImplementation((h: string) => headers[h] ?? null),
+      },
+      arrayBuffer: vi.fn().mockResolvedValue(new ArrayBuffer(0)),
+    };
+  }
+
+  it('skips arrayBuffer() when Content-Length > 50 MB and leaves contentType undefined', async () => {
+    const response = makeHeaderResponse({ 'Content-Type': null, 'Content-Length': '55000000' });
+    vi.mocked(fetch).mockResolvedValue(response as never);
+    const result = await getContentInformationsFromUrl(EXT_LESS_URL);
+    expect(response.arrayBuffer).not.toHaveBeenCalled();
+    expect(result.contentType).toBeUndefined();
+    expect(
+      vi.mocked((global as Record<string, { debug: ReturnType<typeof vi.fn> }>).logger.debug),
+    ).toHaveBeenCalledWith(
+      expect.objectContaining({ url: EXT_LESS_URL }),
+      'content-type probe skipped — Content-Length > 50 MB',
+    );
+  });
+
+  it('calls arrayBuffer() when Content-Length is exactly 50 MB (boundary — allowed)', async () => {
+    const response = makeHeaderResponse({ 'Content-Type': null, 'Content-Length': '52428800' });
+    vi.mocked(fetch).mockResolvedValue(response as never);
+    await getContentInformationsFromUrl(EXT_LESS_URL);
+    expect(response.arrayBuffer).toHaveBeenCalled();
+  });
+
+  it('calls arrayBuffer() when Content-Length header is absent', async () => {
+    const response = makeHeaderResponse({ 'Content-Type': null });
+    vi.mocked(fetch).mockResolvedValue(response as never);
+    await getContentInformationsFromUrl(EXT_LESS_URL);
+    expect(response.arrayBuffer).toHaveBeenCalled();
+  });
+
+  it('calls arrayBuffer() when Content-Length is non-numeric (NaN)', async () => {
+    const response = makeHeaderResponse({ 'Content-Type': null, 'Content-Length': 'not-a-number' });
+    vi.mocked(fetch).mockResolvedValue(response as never);
+    await getContentInformationsFromUrl(EXT_LESS_URL);
+    expect(response.arrayBuffer).toHaveBeenCalled();
+  });
+
+  it('does not reach arrayBuffer when Content-Type is already set', async () => {
+    const response = makeHeaderResponse({ 'Content-Type': 'video/mp4', 'Content-Length': '55000000' });
+    vi.mocked(fetch).mockResolvedValue(response as never);
+    const result = await getContentInformationsFromUrl(EXT_LESS_URL);
+    expect(result.contentType).toBe('video/mp4');
+    expect(response.arrayBuffer).not.toHaveBeenCalled();
+  });
+});

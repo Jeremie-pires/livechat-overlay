@@ -1,10 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import Fastify from 'fastify';
 import {
   createSession,
   getSessionToken,
   isValidSession,
   createCsrfToken,
   evictExpiredSessions,
+  requireAuth,
 } from '../../services/session';
 
 describe('createSession', () => {
@@ -118,5 +120,73 @@ describe('evictExpiredSessions (I-07)', () => {
     expect(isValidSession(t1)).toBe(false);
     expect(isValidSession(t2)).toBe(false);
     expect(isValidSession(t3)).toBe(false);
+  });
+});
+
+// ── requireAuth — async Fastify preHandler (audit fix B-2) ────────────────────
+
+describe('requireAuth — async preHandler', () => {
+  const buildApp = async () => {
+    const app = Fastify({ logger: false });
+    app.get('/protected', { preHandler: requireAuth }, async () => ({ ok: true }));
+    await app.ready();
+    return app;
+  };
+
+  it('returns 401 when no cookie is present', async () => {
+    const app = await buildApp();
+    const res = await app.inject({ method: 'GET', url: '/protected' });
+    await app.close();
+    expect(res.statusCode).toBe(401);
+  });
+
+  it('returns 401 when session cookie token is invalid', async () => {
+    const app = await buildApp();
+    const res = await app.inject({
+      method: 'GET',
+      url: '/protected',
+      headers: { cookie: 'session=notavalidtoken' },
+    });
+    await app.close();
+    expect(res.statusCode).toBe(401);
+  });
+
+  it('returns 403 when session is valid but CSRF token is absent', async () => {
+    const token = createSession();
+    const app = await buildApp();
+    const res = await app.inject({
+      method: 'GET',
+      url: '/protected',
+      headers: { cookie: `session=${token}` },
+    });
+    await app.close();
+    expect(res.statusCode).toBe(403);
+  });
+
+  it('returns 200 when session and CSRF token are both valid', async () => {
+    const token = createSession();
+    const csrf = createCsrfToken(token);
+    const app = await buildApp();
+    const res = await app.inject({
+      method: 'GET',
+      url: '/protected',
+      headers: { cookie: `session=${token}`, 'x-csrf-token': csrf },
+    });
+    await app.close();
+    expect(res.statusCode).toBe(200);
+  });
+
+  it('handler completes without hanging — resolves in under 200 ms', async () => {
+    const token = createSession();
+    const csrf = createCsrfToken(token);
+    const app = await buildApp();
+    const start = Date.now();
+    await app.inject({
+      method: 'GET',
+      url: '/protected',
+      headers: { cookie: `session=${token}`, 'x-csrf-token': csrf },
+    });
+    await app.close();
+    expect(Date.now() - start).toBeLessThan(200);
   });
 });

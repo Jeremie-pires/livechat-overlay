@@ -43,16 +43,12 @@ export const executeMessagesWorker = async (fastify: FastifyCustomInstance) => {
   // Atomic claim: busyGuild check, requeue-if-busy, and dequeue-if-free are all inside one
   // transaction — eliminates the TOCTOU gap between the check and the deleteMany.
   const lastMessage = await prisma.$transaction(async (tx) => {
-    const busyGuild = await tx.guild.findFirst({
-      where: {
-        id: candidate.discordGuildId,
-        busyUntil: {
-          gte: new Date(),
-        },
-      },
+    const guildRow = await tx.guild.findFirst({
+      where: { id: candidate.discordGuildId },
+      select: { busyUntil: true, maxMediaTime: true },
     });
 
-    if (busyGuild) {
+    if (guildRow?.busyUntil && guildRow.busyUntil >= new Date()) {
       await tx.queue.update({
         where: { id: candidate.id },
         data: {
@@ -66,7 +62,10 @@ export const executeMessagesWorker = async (fastify: FastifyCustomInstance) => {
     const { count } = await tx.queue.deleteMany({ where: { id: candidate.id } });
     if (count === 0) return null;
 
-    let busyUntil = addSeconds(new Date(), candidate.duration);
+    const maxTime = guildRow?.maxMediaTime;
+    const clampedDuration = maxTime && maxTime > 0 ? Math.min(candidate.duration, maxTime) : candidate.duration;
+
+    let busyUntil = addSeconds(new Date(), clampedDuration);
     busyUntil = addMilliseconds(busyUntil, REQUEUE_INTERVAL_MS + MESSAGE_SYNC_LEAD_TIME_MS);
 
     await tx.guild.upsert({
@@ -75,7 +74,7 @@ export const executeMessagesWorker = async (fastify: FastifyCustomInstance) => {
       update: { busyUntil },
     });
 
-    return candidate;
+    return { ...candidate, duration: clampedDuration };
   });
 
   if (lastMessage === null) return;

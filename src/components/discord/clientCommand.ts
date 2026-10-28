@@ -20,7 +20,7 @@ export const clientCommand = () => ({
     const tokenHash = hashToken(token);
 
     await prisma.$transaction([
-      prisma.clientSession.deleteMany({ where: { discordUserId, guildId } }),
+      prisma.clientSession.deleteMany({ where: { discordUserId } }),
       prisma.clientSession.create({ data: { tokenHash, discordUserId, displayName, guildId } }),
     ]);
 

@@ -199,3 +199,66 @@ describe('assertPublicHttpUrl — DNS resolution check', () => {
     await expect(assertPublicHttpUrl('http://nxdomain.example.com/')).rejects.toThrow(SsrfBlockedError);
   });
 });
+
+// ── isPrivateIp — CGNAT 100.64.0.0/10 (audit addition) ────────────────────────
+
+describe('isPrivateIp — CGNAT 100.64.0.0/10', () => {
+  it.each([
+    ['100.64.0.0'],
+    ['100.64.0.1'],
+    ['100.100.100.100'],
+    ['100.127.255.255'],
+  ])('returns true for CGNAT address %s', (ip) => expect(isPrivateIp(ip)).toBe(true));
+
+  it.each([
+    ['100.63.255.255'],
+    ['100.128.0.0'],
+    ['101.0.0.1'],
+  ])('returns false for address just outside CGNAT range %s', (ip) => expect(isPrivateIp(ip)).toBe(false));
+});
+
+// ── isPrivateIp — fec0::/10 deprecated site-local & NAT64 (audit addition) ───
+
+describe('isPrivateIp — new IPv6 ranges (fec0::/10 and NAT64)', () => {
+  it.each([
+    ['fec0::1'],
+    ['fec0:ffff::1'],
+    ['feff::1'],
+    ['fedf::1'],
+  ])('returns true for fec0::/10 site-local %s', (ip) => expect(isPrivateIp(ip)).toBe(true));
+
+  it.each([['64:ff9b::1'], ['64:ff9b::c0a8:101']])(
+    'returns true for NAT64 64:ff9b::/96 address %s',
+    (ip) => expect(isPrivateIp(ip)).toBe(true),
+  );
+});
+
+// ── assertPublicHttpUrl — new ranges rejected as literal IPs ──────────────────
+
+describe('assertPublicHttpUrl — CGNAT and new IPv6 literal IPs blocked', () => {
+  it('rejects CGNAT literal 100.64.1.1', async () => {
+    await expect(assertPublicHttpUrl('http://100.64.1.1/')).rejects.toThrow(SsrfBlockedError);
+  });
+
+  it('rejects CGNAT literal 100.127.0.1', async () => {
+    await expect(assertPublicHttpUrl('http://100.127.0.1/')).rejects.toThrow(SsrfBlockedError);
+  });
+
+  it('rejects fec0::1 literal', async () => {
+    await expect(assertPublicHttpUrl('http://[fec0::1]/')).rejects.toThrow(SsrfBlockedError);
+  });
+
+  it('rejects NAT64 64:ff9b::1 literal', async () => {
+    await expect(assertPublicHttpUrl('http://[64:ff9b::1]/')).rejects.toThrow(SsrfBlockedError);
+  });
+
+  it('accepts 100.128.0.1 (outside CGNAT range)', async () => {
+    const result = await assertPublicHttpUrl('http://100.128.0.1/');
+    expect(result.ip).toBe('100.128.0.1');
+  });
+
+  it('rejects hostname resolving to CGNAT IP 100.64.0.1', async () => {
+    vi.spyOn(dns.promises, 'lookup').mockResolvedValue([{ address: '100.64.0.1', family: 4 }] as dns.LookupAddress[]);
+    await expect(assertPublicHttpUrl('https://cgnat.example.com/')).rejects.toThrow(SsrfBlockedError);
+  });
+});

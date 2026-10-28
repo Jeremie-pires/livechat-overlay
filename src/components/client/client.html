@@ -239,7 +239,7 @@
 
     <script type="module">
       import { VidstackPlayer, VidstackPlayerLayout } from './vidstack.js';
-      import { clampVolume, buildPlayerOptions, applyPlayerVolume } from './playerVolume.js';
+      import { clampVolume, buildPlayerOptions, applyPlayerVolume, volumeFromUrlParams } from './playerVolume.js';
 
       const overlayStage = document.getElementById('overlay-stage');
       const overlayShell = document.getElementById('overlay-shell');
@@ -260,8 +260,9 @@
         }
       }
 
-      // Volume control — stores current level so new players inherit it
-      var currentVolume = 1;
+      // Volume control — stores current level so new players inherit it.
+      // Electron overlay sets it via __setVolume; OBS/browser uses the ?volume= URL param.
+      var currentVolume = volumeFromUrlParams(globalThis.location.search);
 
       globalThis.__setVolume = function(vol) {
         currentVolume = clampVolume(vol);
@@ -495,11 +496,19 @@
           } else {
             (async () => {
               await VidstackPlayer.create({
-                ...buildPlayerOptions({ src, layout: new VidstackPlayerLayout({}), volume: currentVolume, isDesktop }),
+                ...buildPlayerOptions({ src, layout: new VidstackPlayerLayout({}), volume: currentVolume }),
                 logLevel: 'debug',
               });
 
               const player = document.querySelector('media-player');
+
+              // Defense-in-depth: for fast-loading/cached content can-play may fire
+              // during create(). The player is then silently autoplaying — apply volume
+              // and unmute immediately so audio does not stay silent.
+              try {
+                applyPlayerVolume(player, currentVolume);
+                player.muted = currentVolume === 0;
+              } catch { /* provider not yet attached — can-play listener handles it */ }
 
               // Adjust player aspect-ratio to the video's real dimensions
               player.addEventListener('loaded-metadata', () => {
@@ -530,11 +539,10 @@
               player.addEventListener(
                 'can-play',
                 async () => {
+                  applyPlayerVolume(player, currentVolume);
+                  player.muted = currentVolume === 0;
                   try {
                     await player.play();
-                    if (!isDesktop) player.muted = currentVolume === 0;
-                    // Re-apply the app volume: the slider may have moved while loading
-                    applyPlayerVolume(player, currentVolume);
                   } catch (e) {
                     console.warn('Autoplay blocked:', e);
                   }
@@ -754,6 +762,10 @@
           finishToken++;
           if (displayTimeout) { clearTimeout(displayTimeout); displayTimeout = null; }
           clearDisplay();
+        });
+
+        socket.on('set-volume', function (vol) {
+          if (typeof globalThis.__setVolume === 'function') globalThis.__setVolume(vol);
         });
 
         socket.on('presence:update', function (data) {

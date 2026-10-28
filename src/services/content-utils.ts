@@ -457,11 +457,19 @@ async function resolveGenericContentInfo(
   try {
     if (!contentType) {
       const [pinnedUrl, pinnedInit] = buildPinnedFetchArgs(effectiveGuard, {}, { redirect: 'error' });
-      const file = await fetch(pinnedUrl, pinnedInit as Parameters<typeof fetch>[1]);
+      const file = await fetch(pinnedUrl, {
+        ...(pinnedInit as object),
+        signal: AbortSignal.timeout(10_000),
+      } as Parameters<typeof fetch>[1]);
       contentType = file.headers.get('Content-Type') ?? undefined;
       if (!contentType) {
-        const res = await fileTypeFromBuffer(await file.arrayBuffer());
-        if (res) contentType = res.mime;
+        const cl = Number(file.headers.get('Content-Length') ?? NaN);
+        if (!Number.isNaN(cl) && cl > 52_428_800) {
+          logger.debug({ url: effectiveUrl }, 'content-type probe skipped — Content-Length > 50 MB');
+        } else {
+          const res = await fileTypeFromBuffer(await file.arrayBuffer());
+          if (res) contentType = res.mime;
+        }
       }
     }
   } catch (error) {

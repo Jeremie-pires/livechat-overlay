@@ -7,9 +7,9 @@
 ## Tech stack
 
 - **Runtime**: Node.js + TypeScript (`tsx` dev, `dist/` prod)
-- **HTTP framework**: Fastify v4 + CORS + Socket.IO (`fastify-socket.io`)
+- **HTTP framework**: Fastify v5 + CORS + Socket.IO (direct, not `fastify-socket.io`)
 - **Discord**: discord.js v14 (slash commands, interaction handlers)
-- **Database**: Prisma v5 + SQLite — models: `Queue`, `Guild`
+- **Database**: Prisma v5 + SQLite — models: `Queue`, `Guild`, `Stats`, `LatencySample`, `BotEvent`, `ClientSession`, `BroadcastLog`
 - **i18n**: custom `rosetty` (FR/EN under `src/services/i18n/`)
 - **TTS**: Google TTS via `gtts`
 - **Video player**: vidstack (client-side, `src/components/client/`)

@@ -364,14 +364,13 @@ async function loadChangelog() {
       return;
     }
 
+    const esc = s => String(s).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
     list.innerHTML = releases.slice(0, 15).map(r => {
       const date = new Date(r.published_at).toLocaleDateString('fr-FR', { year: 'numeric', month: 'short', day: 'numeric' });
-      const body = r.body
-        ? r.body.trim().replaceAll('<', '&lt;').replaceAll('>', '&gt;')
-        : '';
+      const body = r.body ? esc(r.body.trim()) : '';
       return `<li class="changelog-item">
         <div class="changelog-item-header">
-          <span class="changelog-version">${r.tag_name}</span>
+          <span class="changelog-version">${esc(r.tag_name)}</span>
           <span class="changelog-date">${date}</span>
         </div>${body ? `<p class="changelog-body">${body}</p>` : ''}
       </li>`;

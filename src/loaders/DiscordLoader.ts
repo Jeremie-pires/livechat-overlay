@@ -196,43 +196,43 @@ const loadDiscordCommandsHandler = () => {
       return;
     }
 
-    if (!command.bypassChannelCheck) {
-      if (!interaction.guildId) {
-        await interaction.reply({ content: rosetty.t('error')!, flags: MessageFlags.Ephemeral });
-        return;
-      }
-
-      const guild = await prisma.guild.findFirst({ where: { id: interaction.guildId }, select: { channelId: true } });
-
-      if (!guild?.channelId) {
-        await interaction.reply({
-          embeds: [
-            new EmbedBuilder()
-              .setTitle(rosetty.t('error')!)
-              .setDescription(rosetty.t('noChannelConfigured')!)
-              .setColor(0xe74c3c),
-          ],
-          flags: MessageFlags.Ephemeral,
-        });
-        return;
-      }
-
-      if (interaction.channelId !== guild.channelId) {
-        const channelMention = `<#${guild.channelId}>`;
-        await interaction.reply({
-          embeds: [
-            new EmbedBuilder()
-              .setTitle(rosetty.t('error')!)
-              .setDescription(`Use this bot only in ${channelMention}.`)
-              .setColor(0xe74c3c),
-          ],
-          flags: MessageFlags.Ephemeral,
-        });
-        return;
-      }
-    }
-
     try {
+      if (!command.bypassChannelCheck) {
+        if (!interaction.guildId) {
+          await interaction.reply({ content: rosetty.t('error')!, flags: MessageFlags.Ephemeral });
+          return;
+        }
+
+        const guild = await prisma.guild.findFirst({ where: { id: interaction.guildId }, select: { channelId: true } });
+
+        if (!guild?.channelId) {
+          await interaction.reply({
+            embeds: [
+              new EmbedBuilder()
+                .setTitle(rosetty.t('error')!)
+                .setDescription(rosetty.t('noChannelConfigured')!)
+                .setColor(0xe74c3c),
+            ],
+            flags: MessageFlags.Ephemeral,
+          });
+          return;
+        }
+
+        if (interaction.channelId !== guild.channelId) {
+          const channelMention = `<#${guild.channelId}>`;
+          await interaction.reply({
+            embeds: [
+              new EmbedBuilder()
+                .setTitle(rosetty.t('error')!)
+                .setDescription(`Use this bot only in ${channelMention}.`)
+                .setColor(0xe74c3c),
+            ],
+            flags: MessageFlags.Ephemeral,
+          });
+          return;
+        }
+      }
+
       await command.handler(interaction, discordClient);
     } catch (error) {
       await classifyAndReply(error, interaction);

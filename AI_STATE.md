@@ -1,33 +1,55 @@
 # AI_STATE.md — LiveChat CCB
 
 ## Status
-Branch `develop`. PR #75 (`develop → main`) merged. SonarCloud Quality Gate **failed**: 8.8% duplication on New Code (limit ≤ 3%). Duplication fix pushed → PR #77 gate **green** (new dup 0.0%). Session 31: video volume fix pushed to `develop`, awaiting manual test in desktop app.
+Branch `feat/security-quality-audit` (off `develop`). Security + quality audit complete. 416/416 tests pass. Next: push branch, open PR, Sonar gate check, then full test phase.
 
 ---
 
 ## 1. Accomplished
 
-### Session 31 (video volume ignored app setting)
-- Bug: videos (mp4/TikTok via Cobalt/YouTube via Vidstack) started at 100% ignoring app volume; slider during playback worked.
-- Root cause (Vidstack 1.12.13 source): `player.volume` set before can-play is queued, then can-play applies `storage?.getVolume() ?? props.volume` (default 1) → override. Desktop `can-play` handler never re-applied volume (`!isDesktop` only). `storage` default is `null` (no localStorage persistence — old comments were wrong, fixed).
-- Fix: new `src/components/client/playerVolume.js` (`clampVolume`, `buildPlayerOptions` with `volume` create prop, `applyPlayerVolume`) used by `client.html` (`__setVolume`, create, can-play for all clients). `clientRoutes.ts`: static assets via `STATIC_ASSETS` table (+ `/playerVolume.js`).
-- Tests: `playerVolume.test.ts` (Prove-It: fails without fix), route tests in `clientRoutes.test.ts`. 401/401 pass.
-- Iframe fallbacks (TikTok/Twitter) cannot be volume-controlled (cross-origin); TikTok already `muted=1`.
+### Session 33 (security + quality audit — full refactor)
 
-### Session 30 (Sonar duplication fix + Sonar tooling)
-- Root cause (via local `jscpd`): `talkCommand.ts` ≈ `hidetalkCommand.ts` (~32 duplicated lines).
-- `commandHelpers.ts`: added `buildTalkCommandData(prefix)` + `executeTalkHandler(interaction, { prefix, ephemeral, withAuthor })` (same pattern as `buildMessageCommandData` / `executeMessageHandler`). `resolveTTSAttachment` / `createTalkQueueEntry` now module-private. Extracted `buildAuthorData()` (was duplicated in message + talk queue creation).
-- `talkCommand.ts` / `hidetalkCommand.ts`: reduced to 9-line wrappers.
-- Local checks: jscpd 1.11% → 0.59% (remaining clones in files untouched by PR); vitest 386/386; eslint clean on changed files; tsc error count unchanged vs baseline (43, all pre-existing / partial local install).
-- `CLAUDE.md`: new section "SonarCloud Quality Gate — must stay green" (pre-push jscpd + lint/tsc/tests, ask user for Sonar result after push, never merge red gate). Also contains uncommitted "Skills priority — agent-skills" section.
-- SonarQube MCP server registered (local scope, `~/.claude.json`, not in repo): `docker run -i --rm --init --pull=always -e SONARQUBE_TOKEN -e SONARQUBE_ORG=jeremie-pires sonarsource/sonarqube-mcp`. Token read from user env var only. Now **connected**: project key `Jeremie-pires_livechat-overlay`, PR #77 gate = ERROR (new dup 8.8%, all other conditions OK).
-- Found: SonarCloud uses **Automatic Analysis** (no scanner in CI) → reads `.sonarcloud.properties`, ignores `sonar-project.properties`. Our CPD exclusions were never applied (e.g. `presenceStore.ts` flagged as clone of its test). Added `.sonarcloud.properties` with the same `sonar.cpd.exclusions`.
+#### Phase 1 — Critical bugs
+- `session.ts`: `requireAuth` converted to async (Fastify v5 preHandler must return Promise).
+- `utils.ts`: `parseDuration('full', null/undefined)` → `'error'` instead of `0`.
+- `content-utils.ts`: `AbortSignal.timeout(10_000)` on fetch + Content-Length > 50 MB guard before `arrayBuffer()`.
+- `DiscordLoader.ts`: channel-check block wrapped inside existing try/catch.
 
-### Session 29 (5-axis code review + mass fix)
-- 17 files fixed: OAuth validation, SSRF guard on video proxy, cookie sanitisation, `hashToken` dedup, TTS temp files in `os.tmpdir()`, timers `.unref()`, dead env code removed, typed globals.
+#### Phase 2 — Socket token auth
+- `prisma/schema.prisma`: `@@unique([discordUserId, guildId])` → `discordUserId String @unique` (one active token per user globally).
+- `src/components/discord/clientCommand.ts`: `deleteMany({ where: { discordUserId } })` — invalidates all prior sessions across guilds.
+- `src/loaders/socketLoader.ts`: `socket.join(roomId)` moved AFTER token validation; no token or wrong guild → rejected with warn log.
+- `prisma/clear-sessions.sql` (NEW): `DELETE FROM ClientSession;` — run on VPS before `pnpm migration:up` to avoid unique constraint conflict.
 
-### Session 28
-- VidstackPlayer error handler; CDN domain logging for TikTok proxy failures.
+#### Phase 3 — Server/infra hardening
+- `docker-compose.yml`: ports bound to `127.0.0.1` (3000, 9000) — no external exposure.
+- `src/services/url-guard.ts`: added CGNAT `100.64.0.0/10`, `fec0::/10`, NAT64 `64:ff9b::/96` to SSRF blocklist.
+- `src/components/messages/messagesWorker.ts`: `maxMediaTime` enforced at dequeue (replaced `busyGuild` query with unconditional `guildRow` query + manual busy check).
+
+#### Phase 4 — Electron hardening
+- `desktop-client/src/local-server.ts`: CORS restricted to `null` and `http://localhost:*` origins only.
+- `desktop-client/src/renderer/renderer.js`: `esc()` function for HTML escaping applied to `r.tag_name` and `r.body` in changelog (XSS closed).
+- `desktop-client/src/main.ts`: `will-navigate` guard blocks any URL not starting with `http://localhost:`; `setPermissionRequestHandler` denies camera/mic/notifications.
+- `.github/workflows/desktop-release.yml`: `pnpm/action-setup@v4` + `pnpm install --frozen-lockfile`.
+
+#### Phase 5 — Code quality
+- `package.json`: `start` script fixed (`dist/index.js`); 7 dead deps removed (`concat-map`, `get-video-duration`, `youtubei.js`, `unify-errors`, `zod-validation-error`, `regenerator-runtime`, `node-gyp`).
+- `CLAUDE.md`: updated to Fastify v5, all 7 Prisma models listed.
+- Deleted: `.github/workflows/main.disabledyml`, `sonar-project.properties`.
+- `src/__tests__/components/messages/parseDuration.test.ts`: updated for `'error'` on `full+undefined/null`.
+
+#### Skipped (non-trivial, next phase)
+- Task 17: `noImplicitAny: true` in tsconfig.
+- Task 18: 6 `@ts-ignore` removals (need type augmentation for `discordClient.commands`).
+- Task 21: `requireSession` preHandler extraction (5 duplications).
+- Task 22: embed color constants (~30 hardcoded hex values).
+
+### Session 32 (desktop volume burst fix + OBS volume)
+- `playerVolume.js`: `muted: true` always; removed `isDesktop` param.
+- `client.html` `can-play`: order now `applyPlayerVolume → unmute → play`.
+- `commandHelpers.ts` `computeFinalDuration`: priority now `custom → audioDuration → mediaDuration`.
+- OBS volume: `volumeFromUrlParams` reads `?volume=XX`; `local-server.ts` `activeVolume`; `main.ts` calls `setLocalServerVolume`.
+- +15 tests. 416/416 pass.
 
 ---
 
@@ -35,26 +57,33 @@ Branch `develop`. PR #75 (`develop → main`) merged. SonarCloud Quality Gate **
 
 | Item | State |
 |---|---|
-| main | PR #75 merged — Sonar gate red (duplication) |
-| Working tree | Clean — session 31 pushed to `develop` |
-| Sonar access | SonarQube MCP connected (`SONARQUBE_TOKEN` user env var) |
-| Local env | `node_modules` installed via `npx pnpm@9` (`zlib-sync` native build failed — non-blocking for tests). No global `pnpm`. Files are CRLF locally; lint with `endOfLine: auto` |
-| Prod containers | `livechatccb` (3000) + `cobalt` (9000) |
-| TikTok CDN | Root cause unconfirmed, needs `cdnDomain` log |
+| Branch | `feat/security-quality-audit`, off `develop`, uncommitted changes staged |
+| Tests | 416/416 vitest |
+| Sonar | Gate pending — must check after PR push |
+| Prisma | Schema changed — `ClientSession` unique constraint changed; VPS needs `DELETE FROM ClientSession` before `migration:up` |
+| Prod | Not yet deployed; `prisma/clear-sessions.sql` must run first |
+| TikTok CDN | Unconfirmed, needs `cdnDomain` prod log |
 
 ---
 
 ## 3. Next Steps
 
 ### [IMMEDIATE]
-1. User: manual test of volume fix in desktop app (volume 20% → mp4, YouTube, TikTok start at 20%).
-2. Check Sonar gate on the PR containing session 31 via MCP → green before merge to `main`.
+1. Push `feat/security-quality-audit` → open PR against `main`.
+2. Sonar gate must be green before merge.
+3. VPS deployment order:
+   ```bash
+   docker compose exec livechatccb sqlite3 /data/sqlite.db "DELETE FROM ClientSession;"
+   docker compose up --build -d
+   ```
+4. Full test phase: write tests for all new behaviors (token auth, parseDuration error, content-utils limits, url-guard SSRF additions, messagesWorker maxMediaTime).
 
-### [AFTER]
-- VPS: `git pull && docker compose up --build -d`; send TikTok command, check `cdnDomain` log; if `*.tiktokcdn*.com` → fix `parseCookiesForDomain`.
-
-### [LATER]
-- `presenceStore.test.ts` reimplements the store instead of importing it — rewrite test against real module.
-- Pre-existing clones (not New Code): `announceCommand`/`announceGuildCommand`/`maintenanceCommand`, `statsRoutes`/`dashboardRoutes` session check, `client.html` 373/765.
-- H-AUD-06: 4 commands store `media` in DB instead of `audio`.
-- S-1: CSP nonce to replace `unsafe-inline` in dashboard.
+### [LATER — Quality phase 5 remainder]
+- Task 17: `noImplicitAny: true` + fix resulting errors.
+- Task 18: Remove 6 `@ts-ignore` (type augmentation for `discordClient.commands`).
+- Task 21: Extract `requireSession` preHandler.
+- Task 22: Embed color constants.
+- Logic bugs phase: `/hidetalk`, FIFO order, `busyUntil` reset, etc.
+- `presenceStore.test.ts` rewrite against real module.
+- TikTok CDN: check `cdnDomain` prod log.
+- Electron v33 EOL upgrade (separate ticket).
