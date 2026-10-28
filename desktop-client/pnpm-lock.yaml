@@ -7,19 +7,6 @@ settings:
 importers:
 
   .:
-    dependencies:
-      electron-updater:
-        specifier: ^6.3.9
-        version: 6.8.9
-      fs-extra:
-        specifier: ^10.1.0
-        version: 10.1.0
-      socket.io:
-        specifier: ^4.7.4
-        version: 4.8.3
-      socket.io-client:
-        specifier: ^4.7.4
-        version: 4.8.3
     devDependencies:
       '@types/node':
         specifier: 20.11.17
@@ -30,9 +17,21 @@ importers:
       electron-builder:
         specifier: ^24.13.3
         version: 24.13.3(electron-builder-squirrel-windows@24.13.3)
+      electron-updater:
+        specifier: ^6.3.9
+        version: 6.8.9
       esbuild:
         specifier: ^0.28.2
         version: 0.28.2
+      fs-extra:
+        specifier: ^10.1.0
+        version: 10.1.0
+      socket.io:
+        specifier: ^4.7.4
+        version: 4.8.3
+      socket.io-client:
+        specifier: ^4.7.4
+        version: 4.8.3
       typescript:
         specifier: 5.3.3
         version: 5.3.3
