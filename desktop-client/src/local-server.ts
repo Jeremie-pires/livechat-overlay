@@ -118,7 +118,7 @@ export async function startLocalServer(settings: AppSettings): Promise<void> {
     reconnectionDelay: 2000,
     reconnectionDelayMax: 10000,
     reconnectionAttempts: Infinity,
-    transports: ['websocket', 'polling'],
+    transports: ['websocket'],
   });
 
   remote.on('server:env', (serverEnv: string) => {
