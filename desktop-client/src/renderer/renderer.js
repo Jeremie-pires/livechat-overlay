@@ -743,6 +743,10 @@ window.livechat.onMaintenance(({ maintenance }) => {
   }
 });
 
+window.livechat.onAuthError(({ message }) => {
+  showStatusToast('error', 'Token invalide', message);
+});
+
 window.livechat.onSettingsChanged(settings => {
   state.settings = settings;
   syncBaseSettingsToElements(settings);

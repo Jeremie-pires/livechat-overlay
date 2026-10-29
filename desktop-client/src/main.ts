@@ -547,6 +547,12 @@ function registerIpc() {
     controlWindow?.webContents.send('server:maintenance', data);
   });
 
+  ipcMain.on('auth:error', (_event, data: unknown) => {
+    const obj = data as Record<string, unknown>;
+    if (typeof obj?.message !== 'string') return;
+    controlWindow?.webContents.send('auth:error', data);
+  });
+
   ipcMain.handle('app:open-external', (_event, url: string) => {
     let parsed: URL;
     try {

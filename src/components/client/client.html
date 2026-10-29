@@ -808,6 +808,13 @@
           }
         });
 
+        socket.on('auth:error', function (data) {
+          console.warn('[Socket] auth:error:', data.message);
+          if (window.livechatOverlay && typeof window.livechatOverlay.reportAuthError === 'function') {
+            window.livechatOverlay.reportAuthError(data);
+          }
+        });
+
         socket.on('disconnect', function () {
           hideOverlay();
           if (window.livechatOverlay && typeof window.livechatOverlay.reportServerStatus === 'function') {

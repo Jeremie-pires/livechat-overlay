@@ -95,6 +95,7 @@ export const loadSocket = (fastify: FastifyCustomInstance) => {
 
       if (!token) {
         logger.warn(`[Socket] join-room rejected — token required (socket: ${socket.id}, guild: ${guildId})`);
+        socket.emit('auth:error', { message: 'Token required' });
         return;
       }
 
@@ -102,6 +103,7 @@ export const loadSocket = (fastify: FastifyCustomInstance) => {
         const session = await prisma.clientSession.findUnique({ where: { tokenHash: hashToken(token) } });
         if (!session || session.guildId !== guildId) {
           logger.warn(`[Socket] join-room rejected — invalid token for guild "${guildId}" (socket: ${socket.id})`);
+          socket.emit('auth:error', { message: 'Invalid token' });
           return;
         }
 

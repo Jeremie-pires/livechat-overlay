@@ -13,24 +13,22 @@ _Updated: 2026-10-29_
 - **CI fixes**: `eslint-plugin-import` bumped to `2.31.0`; pnpm lockfile regenerated (v8); `MockLogger` unused type removed; zod CVE-2023-54404 added to `.trivyignore`; `pnpm run generate` step added to `release.yml`.
 - **VPS dev deployed**: `git pull` → `docker compose -f docker-compose.dev.yml up --build -d` → schema migration via `docker compose run --rm livechatccb-dev /app/node_modules/.bin/prisma db push --accept-data-loss` → bot online as "Livechat dev#5585".
 
-### Session 34 — Overlay connection bug (develop)
+### Session 34 — Overlay connection bug (RESOLVED) + auth error UX
 
-- **Root cause**: overlay window's socket never connects → `showOverlay()` never called → opacity 0 → nothing displays. Socket.io client was loaded from `cdn.socket.io` CDN which may be blocked in Electron context (Cloudflare UA-based bot filtering).
-- **Fix 1** (`client.html`): replaced CDN script tag with `/socket.io/socket.io.js` served by the same-origin server. Eliminates external CDN dependency.
-- **Fix 2** (`desktop-client/src/main.ts`): strips `Electron/X.X.X` from overlay window UA before loading URL, preventing Cloudflare from flagging socket.io polling requests as bot traffic.
-- **Fix 3** (`desktop-client/src/local-server.ts`): added forwarding of `server:status`, `bot:offline`, `server:maintenance` events from remote to local clients (was missing — OBS browser source would also have been broken). Added `lastServerStatus` cache so late-connecting clients get the current status immediately.
+- **Overlay socket bug**: Fixed — WS now connects (cause unconfirmed, likely UA strip + local socket.io client + WS-only transport combined).
+- **Manual validation**: token auth reject confirmed in logs (`level:40` warn), `/msg` works, preview format buttons work, TTS/stop/SSRF/maxMediaTime pending full user test.
+- **auth:error feedback**: Server now emits `auth:error` on invalid/missing token. Full chain: `socketLoader.ts` → `client.html` listener → `overlay-preload.ts` IPC → `main.ts` handler → `preload.ts` `onAuthError` → `renderer.js` toast notification.
 
 ## Current state
 
-`develop` has the overlay bug fix pending push/CI. VPS dev confirmed: bot online ("Livechat dev#5585"), `server:status { botOnline: true }` correctly emitted, ClientSession exists for Jerezouz. Server-side is fully healthy. Fix requires: (1) server container redeploy for `client.html`, (2) new Electron build for UA strip + local-server fixes.
+`develop` branch has all session 34 changes committed and pushed. CI in progress. Dev container running (`dev-livechat-overlay-livechatccb-dev-1`). Server-side healthy. Next: prod release once CI green.
 
 ## Next steps
 
-1. Push `develop` → CI builds new Docker image → VPS pull + restart dev container.
-2. User rebuilds Electron desktop-client (or waits for next release).
-3. User reconnects overlay — verify dot green + test format buttons work + `/msg` displays.
-4. If UA was the issue: dot green immediately after container restart (server fix alone sufficient).
-5. Complete manual validation (token auth, SSRF block, TTS, stop, maxMediaTime clamping).
+1. Wait for CI green on `develop`.
+2. Merge `develop` → `main` + deploy to prod (remember: clear `ClientSession` table before schema push — see `prisma/clear-sessions.sql`).
+3. Bump `desktop-client/package.json` version, create annotated tag → CI builds new Electron release.
+4. Complete remaining manual validation: SSRF block, TTS, stop, maxMediaTime clamping.
 
 ## Open issues
 
@@ -51,3 +49,4 @@ _Updated: 2026-10-29_
 - 2026-10-28 zod CVE-2023-54404 suppressed in `.trivyignore` — fix requires zod v4 (breaking API change); accepted risk pending migration.
 - 2026-10-28 Prisma binary invoked directly (`/app/node_modules/.bin/prisma`) not via `node` or shell PATH — the `.bin/prisma` file is a shell wrapper, not a JS entry point.
 - 2026-10-28 VPS SQLite dev DB at `/data/sqlite-dev.db` (not `/data/sqlite.db`) — separate volume for dev container.
+- 2026-10-29 `auth:error` socket event propagated full chain to Electron toast — uses existing `showStatusToast('error', ...)` infrastructure.
