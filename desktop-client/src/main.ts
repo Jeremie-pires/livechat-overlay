@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, safeStorage, screen, shell, Tray } from 'electron';
+import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, nativeImage, safeStorage, screen, shell, Tray } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import fs from 'fs/promises';
 import path from 'path';
@@ -551,6 +551,10 @@ function registerIpc() {
     const obj = data as Record<string, unknown>;
     if (typeof obj?.message !== 'string') return;
     controlWindow?.webContents.send('auth:error', data);
+  });
+
+  ipcMain.handle('clipboard:write', (_event, text: string) => {
+    clipboard.writeText(text);
   });
 
   ipcMain.handle('app:open-external', (_event, url: string) => {

@@ -674,7 +674,7 @@ function bindEvents() {
       const url = elements.obsUrlDisplay.value;
       if (!url) return;
       try {
-        await navigator.clipboard.writeText(url);
+        await window.livechat.copyToClipboard(url);
         elements.obsUrlCopyBtn.textContent = '✓ Copié';
         setTimeout(() => { elements.obsUrlCopyBtn.textContent = 'Copier'; }, 2000);
       } catch {
