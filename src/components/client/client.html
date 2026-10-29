@@ -728,11 +728,15 @@
       document.addEventListener('DOMContentLoaded', function () {
         var debugEl = document.getElementById('debug-overlay');
         var isDebug = urlParams.get('debug') === '1';
-        var dbg = { socket: 'disconnected', env: '?', botOnline: '?', room: '?', lastMsg: 'none' };
-        if (isDebug && debugEl) debugEl.style.display = 'block';
+        var dbg = { socket: 'init', env: '?', botOnline: '?', room: '?', lastMsg: 'none' };
         function refreshDebug() {
           if (!isDebug || !debugEl) return;
           debugEl.innerHTML = 'socket: ' + dbg.socket + '<br>env: ' + dbg.env + '<br>botOnline: ' + dbg.botOnline + '<br>room: ' + dbg.room + '<br>lastMsg: ' + dbg.lastMsg;
+        }
+        if (isDebug && debugEl) {
+          debugEl.style.display = 'block';
+          refreshDebug();
+          window.onerror = function(msg) { dbg.socket = 'JS ERR: ' + String(msg).slice(0, 40); refreshDebug(); };
         }
 
         var socket = io({
