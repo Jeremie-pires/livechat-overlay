@@ -726,6 +726,7 @@
 
       document.addEventListener('DOMContentLoaded', function () {
         var socket = io({
+          transports: ['websocket'],
           reconnection: true,
           reconnectionDelay: 1000,
           reconnectionDelayMax: 1000,
