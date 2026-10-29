@@ -158,6 +158,10 @@ export async function startLocalServer(
   });
 
   remote.on('new-message', (data: unknown) => {
+    if (!lastServerStatus || (lastServerStatus as { botOnline?: boolean }).botOnline !== true) {
+      lastServerStatus = { botOnline: true, maintenance: false };
+      io.emit('server:status', lastServerStatus);
+    }
     io.to(`${activeEnv}:messages-${settings.guildId}`).emit('new-message', data);
   });
 
