@@ -747,6 +747,14 @@ window.livechat.onAuthError(({ message }) => {
   showStatusToast('error', 'Token invalide', message);
 });
 
+window.livechat.onObsRemoteStatus((event) => {
+  if (event.type === 'auth_error') {
+    showStatusToast('error', 'OBS — Token invalide', event.message ?? 'Token rejeté par le serveur.');
+  } else if (event.type === 'connect_error') {
+    showStatusToast('error', 'OBS — Connexion échouée', event.message ?? 'Impossible de joindre le serveur distant.');
+  }
+});
+
 window.livechat.onSettingsChanged(settings => {
   state.settings = settings;
   syncBaseSettingsToElements(settings);

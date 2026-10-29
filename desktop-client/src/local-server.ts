@@ -55,7 +55,16 @@ export function setLocalServerVolume(volume: number): void {
   }
 }
 
-export async function startLocalServer(settings: AppSettings): Promise<void> {
+export type RemoteStatusEvent =
+  | { type: 'connected' }
+  | { type: 'disconnected' }
+  | { type: 'connect_error'; message: string }
+  | { type: 'auth_error'; message: string };
+
+export async function startLocalServer(
+  settings: AppSettings,
+  onRemoteStatus?: (event: RemoteStatusEvent) => void,
+): Promise<void> {
   await stopLocalServer();
 
   const remoteBase = assertHttpUrl(settings.backendUrl).href.replace(/\/$/, '');
@@ -152,8 +161,24 @@ export async function startLocalServer(settings: AppSettings): Promise<void> {
     io.to(`${activeEnv}:messages-${settings.guildId}`).emit('stop');
   });
 
+  remote.on('connect', () => {
+    onRemoteStatus?.({ type: 'connected' });
+  });
+
+  remote.on('disconnect', () => {
+    onRemoteStatus?.({ type: 'disconnected' });
+  });
+
+  remote.on('auth:error', (data: unknown) => {
+    const msg = typeof (data as Record<string, unknown>)?.message === 'string'
+      ? (data as Record<string, string>).message
+      : 'Auth error';
+    onRemoteStatus?.({ type: 'auth_error', message: msg });
+  });
+
   remote.on('connect_error', (err: Error) => {
     console.error('[LocalServer] Remote connection error:', err.message);
+    onRemoteStatus?.({ type: 'connect_error', message: err.message });
   });
 
   httpServer = server;

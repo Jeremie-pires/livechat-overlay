@@ -14,7 +14,7 @@ import {
   type AppSettings,
   type PresenceEntry,
 } from './utils';
-import { startLocalServer, stopLocalServer, getLocalObsUrl, setLocalServerVolume } from './local-server';
+import { startLocalServer, stopLocalServer, getLocalObsUrl, setLocalServerVolume, type RemoteStatusEvent } from './local-server';
 
 type OverlayStatusType = 'idle' | 'loading' | 'connected' | 'error';
 
@@ -352,7 +352,9 @@ async function connectOverlay() {
   overlayWindow.showInactive();
 
   if (!isLocalServerRunning && settings.guildId) {
-    startLocalServer(settings)
+    startLocalServer(settings, (event: RemoteStatusEvent) => {
+      controlWindow?.webContents.send('local-server:remote-status', event);
+    })
       .then(() => {
         isLocalServerRunning = true;
         controlWindow?.webContents.send('local-server:url-changed', getLocalObsUrl());
@@ -404,7 +406,9 @@ function registerIpc() {
         settings.clientToken !== prev.clientToken ||
         settings.localServerPort !== prev.localServerPort)
     ) {
-      startLocalServer(settings)
+      startLocalServer(settings, (event: RemoteStatusEvent) => {
+        controlWindow?.webContents.send('local-server:remote-status', event);
+      })
         .then(() => {
           controlWindow?.webContents.send('local-server:url-changed', getLocalObsUrl());
         })

@@ -93,6 +93,11 @@ contextBridge.exposeInMainWorld('livechat', {
     ipcRenderer.on('auth:error', listener);
     return () => ipcRenderer.removeListener('auth:error', listener);
   },
+  onObsRemoteStatus: (callback: (event: { type: string; message?: string }) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, data: { type: string; message?: string }) => callback(data);
+    ipcRenderer.on('local-server:remote-status', listener);
+    return () => ipcRenderer.removeListener('local-server:remote-status', listener);
+  },
 });
 
 declare global {
@@ -126,6 +131,7 @@ declare global {
       onServerStatus: (callback: (data: { botOnline: boolean; maintenance: boolean }) => void) => () => void;
       onMaintenance: (callback: (data: { maintenance: boolean }) => void) => () => void;
       onAuthError: (callback: (data: { message: string }) => void) => () => void;
+      onObsRemoteStatus: (callback: (event: { type: string; message?: string }) => void) => () => void;
     };
   }
 }
