@@ -23,7 +23,10 @@ function isPortAvailable(port: number): Promise<boolean> {
 async function proxyAsset(req: IncomingMessage, res: ServerResponse, remoteBase: string): Promise<void> {
   try {
     const reqUrl = new URL(req.url ?? '/', 'http://localhost');
-    if (!reqUrl.pathname.startsWith('/client')) {
+    const isAllowed =
+      reqUrl.pathname.startsWith('/client') ||
+      reqUrl.pathname === '/socket.io/socket.io.js';
+    if (!isAllowed) {
       res.writeHead(404);
       res.end();
       return;
@@ -81,7 +84,8 @@ export async function startLocalServer(
   activePort = port;
 
   const server = createServer(async (req, res) => {
-    if ((req.url ?? '').startsWith('/socket.io')) return;
+    const reqPath = req.url ?? '';
+    if (reqPath.startsWith('/socket.io') && reqPath !== '/socket.io/socket.io.js') return;
     const origin = req.headers.origin ?? '';
     if (!origin || origin === 'null' || /^http:\/\/localhost(:\d+)?$/.test(origin)) {
       res.setHeader('Access-Control-Allow-Origin', origin || '*');
