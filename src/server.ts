@@ -12,6 +12,7 @@ import { loadDiscord } from './loaders/DiscordLoader';
 import { loadRosetty } from './services/i18n/loader';
 import { loadPrismaClient } from './services/prisma/loadPrisma';
 import { isRateLimitExempt } from './services/utils';
+import { corsAllowedHeaders, createCorsDelegator, createCorsOrigin } from './services/cors';
 import './services/cpuSampler';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -24,26 +25,8 @@ export const runServer = async () => {
 
   const allowedOrigin = new URL(env.API_URL).origin;
 
-  const corsOrigin = (origin: string | undefined, callback: (err: Error | null, allow: boolean) => void) => {
-    if (!origin || origin === allowedOrigin) {
-      callback(null, true);
-    } else {
-      logger.warn({ origin, allowedOrigin }, '[CORS] Rejected origin');
-      callback(null, false);
-    }
-  };
-
-  const corsAllowedHeaders = [
-    'Origin',
-    'X-Requested-With',
-    'Content-Type',
-    'Accept',
-    'Authorization',
-    'forest-context-url',
-    'Set-Cookie',
-    'set-cookie',
-    'Cookie',
-  ];
+  const corsOrigin = createCorsOrigin(allowedOrigin);
+  const corsDelegator = createCorsDelegator(allowedOrigin);
 
   const logLevel = env.LOG || 'info';
 
@@ -171,12 +154,7 @@ export const runServer = async () => {
     logger.info({ event: 'shutdown' }, '[SERVER] Connections closed');
   });
 
-  await fastify.register(FastifyCORS, {
-    methods: ['GET', 'PUT', 'DELETE', 'POST', 'OPTIONS', 'PATCH'],
-    allowedHeaders: corsAllowedHeaders,
-    origin: corsOrigin,
-    credentials: true,
-  });
+  await fastify.register(FastifyCORS, () => corsDelegator);
 
   await fastify.register(FastifyRateLimit, {
     max: 300,
