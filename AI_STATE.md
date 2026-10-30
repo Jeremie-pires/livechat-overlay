@@ -27,17 +27,16 @@ _Updated: 2026-10-30_
 
 ## Current state
 
-`develop` branch at `v1.3.2-rc.12`. Fix A committed locally, not pushed or deployed. Stable users are on 1.3.1 (`main` untouched).
+`develop` branch at `v1.3.2-rc.12`. Fix A pushed, CI green, deployed on the dev backend. OBS browser source validated on the rc.12 desktop app: media shows on screen and in OBS (small display delay, not blocking). Stable users are on 1.3.1 (`main` untouched).
 
 ## Next steps
 
-1. Redeploy the dev backend, open `/client?guildId=…&debug=1` in Chrome via the local OBS server, send an image and a video, read the console.
-2. Check whether `/api/video` is blocked by CORS from the `localhost:3001` origin (backend rejects it); fix if confirmed.
-3. Cleanup (B), one rc per step with a test each: statut `botOnline:true` synthesized in `local-server.ts`, Electron UA strip, forced WebSocket transport on the overlay, `?debug=1` overlay (keep or drop).
-4. Make the local server answer `sync-time` with the backend clock (low priority).
-5. Merge `develop` → `main` + deploy to prod (clear `ClientSession` table before schema push — `prisma/clear-sessions.sql`).
-6. Bump `desktop-client/package.json` to `1.3.2` (stable), create annotated tag → CI builds Electron stable release.
-7. Complete remaining manual validation: SSRF block, TTS, stop, maxMediaTime clamping.
+1. Check whether `/api/video` (TikTok / Twitter via cobalt) is blocked by CORS from the `localhost:3001` origin. Attachments and other videos already load fine in OBS; the backend still sends no `Access-Control-Allow-Origin` for that origin.
+2. Cleanup (B), one rc per step with a test each: statut `botOnline:true` synthesized in `local-server.ts`, Electron UA strip, forced WebSocket transport on the overlay, `?debug=1` overlay (keep or drop).
+3. Make the local server answer `sync-time` with the backend clock (likely cause of the small OBS display delay; low priority).
+4. Merge `develop` → `main` through a PR (SonarCloud gate green) + deploy to prod (clear `ClientSession` table before schema push — `prisma/clear-sessions.sql`; existing client tokens become invalid).
+5. Bump `desktop-client/package.json` to `1.3.2` (stable), create annotated tag → CI builds Electron stable release.
+6. Complete remaining manual validation: SSRF block, TTS, stop, maxMediaTime clamping.
 
 ## Open issues
 
