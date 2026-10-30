@@ -9,10 +9,10 @@ _Updated: 2026-10-30_
 - Fix: CORS logic extracted to `src/services/cors.ts`. A per-request delegator allows `http://localhost:3001` only on `/api/video` (GET/OPTIONS, no credentials, `Range` allowed, `Content-Range` exposed). Other routes are unchanged. Covered by `src/__tests__/services/cors.test.ts`.
 
 ## Current state
-`develop` at `v1.3.2-rc.12`, dev backend up. OBS shows attachments and other videos. CORS fix committed on `develop`, deployed on the dev backend and validated in OBS (attachments, TikTok, Twitter). Stable users are on 1.3.1 (`main` untouched).
+`develop` at `1.3.2` (version bumped, not yet tagged), dev backend up. OBS shows attachments and other videos. CORS fix committed on `develop`, deployed on the dev backend and validated in OBS (attachments, TikTok, Twitter). Stable users are on 1.3.1 (`main` untouched).
 
 ## Next steps
-1. Merge `develop` → `main` via PR (SonarCloud green), deploy prod (clear `ClientSession` first), tag `1.3.2` stable.
+1. Merge the `develop` → `main` PR once SonarCloud is green, deploy prod (clear `ClientSession` first), then tag `v1.3.2` from `main` (annotated message is the update modal text).
 2. Finish manual validation: SSRF, TTS, stop, maxMediaTime.
 
 ## Open issues
