@@ -16,4 +16,7 @@ contextBridge.exposeInMainWorld('livechatOverlay', {
   reportMaintenance: (data: unknown) => {
     ipcRenderer.send('server:maintenance', data);
   },
+  reportAuthError: (data: unknown) => {
+    ipcRenderer.send('auth:error', data);
+  },
 });

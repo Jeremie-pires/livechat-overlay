@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, safeStorage, screen, shell, Tray } from 'electron';
+import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, nativeImage, safeStorage, screen, shell, Tray } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import fs from 'fs/promises';
 import path from 'path';
@@ -14,7 +14,7 @@ import {
   type AppSettings,
   type PresenceEntry,
 } from './utils';
-import { startLocalServer, stopLocalServer, getLocalObsUrl, setLocalServerVolume } from './local-server';
+import { startLocalServer, stopLocalServer, getLocalObsUrl, setLocalServerVolume, type RemoteStatusEvent } from './local-server';
 
 type OverlayStatusType = 'idle' | 'loading' | 'connected' | 'error';
 
@@ -288,6 +288,10 @@ function createOverlayWindow() {
     },
   });
 
+  overlayWindow.webContents.setUserAgent(
+    overlayWindow.webContents.getUserAgent().replace(/ Electron\/[\d.]+/, ''),
+  );
+
   overlayWindow.webContents.on('did-finish-load', async () => {
     if (overlayWindow) {
       await overlayWindow.webContents.insertCSS(`
@@ -348,7 +352,9 @@ async function connectOverlay() {
   overlayWindow.showInactive();
 
   if (!isLocalServerRunning && settings.guildId) {
-    startLocalServer(settings)
+    startLocalServer(settings, (event: RemoteStatusEvent) => {
+      controlWindow?.webContents.send('local-server:remote-status', event);
+    })
       .then(() => {
         isLocalServerRunning = true;
         controlWindow?.webContents.send('local-server:url-changed', getLocalObsUrl());
@@ -400,7 +406,9 @@ function registerIpc() {
         settings.clientToken !== prev.clientToken ||
         settings.localServerPort !== prev.localServerPort)
     ) {
-      startLocalServer(settings)
+      startLocalServer(settings, (event: RemoteStatusEvent) => {
+        controlWindow?.webContents.send('local-server:remote-status', event);
+      })
         .then(() => {
           controlWindow?.webContents.send('local-server:url-changed', getLocalObsUrl());
         })
@@ -541,6 +549,16 @@ function registerIpc() {
     const obj = data as Record<string, unknown>;
     if (typeof obj?.maintenance !== 'boolean') return;
     controlWindow?.webContents.send('server:maintenance', data);
+  });
+
+  ipcMain.on('auth:error', (_event, data: unknown) => {
+    const obj = data as Record<string, unknown>;
+    if (typeof obj?.message !== 'string') return;
+    controlWindow?.webContents.send('auth:error', data);
+  });
+
+  ipcMain.handle('clipboard:write', (_event, text: string) => {
+    clipboard.writeText(text);
   });
 
   ipcMain.handle('app:open-external', (_event, url: string) => {

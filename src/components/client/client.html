@@ -730,6 +730,7 @@
 
       document.addEventListener('DOMContentLoaded', function () {
         var socket = io({
+          transports: ['websocket'],
           reconnection: true,
           reconnectionDelay: 1000,
           reconnectionDelayMax: 1000,
@@ -808,6 +809,13 @@
           if (typeof data.maintenance === 'boolean') lastKnownMaintenance = data.maintenance;
           if (window.livechatOverlay && typeof window.livechatOverlay.reportMaintenance === 'function') {
             window.livechatOverlay.reportMaintenance(data);
+          }
+        });
+
+        socket.on('auth:error', function (data) {
+          console.warn('[Socket] auth:error:', data.message);
+          if (window.livechatOverlay && typeof window.livechatOverlay.reportAuthError === 'function') {
+            window.livechatOverlay.reportAuthError(data);
           }
         });
 

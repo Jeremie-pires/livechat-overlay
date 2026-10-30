@@ -674,7 +674,7 @@ function bindEvents() {
       const url = elements.obsUrlDisplay.value;
       if (!url) return;
       try {
-        await navigator.clipboard.writeText(url);
+        await window.livechat.copyToClipboard(url);
         elements.obsUrlCopyBtn.textContent = '✓ Copié';
         setTimeout(() => { elements.obsUrlCopyBtn.textContent = 'Copier'; }, 2000);
       } catch {
@@ -740,6 +740,18 @@ window.livechat.onMaintenance(({ maintenance }) => {
     showStatusToast('warning', 'Maintenance activée', 'Le serveur est en cours de maintenance.');
   } else {
     showStatusToast('success', 'Retour en ligne', 'Le serveur est de nouveau opérationnel.');
+  }
+});
+
+window.livechat.onAuthError(({ message }) => {
+  showStatusToast('error', 'Token invalide', message);
+});
+
+window.livechat.onObsRemoteStatus((event) => {
+  if (event.type === 'auth_error') {
+    showStatusToast('error', 'OBS — Token invalide', event.message ?? 'Token rejeté par le serveur.');
+  } else if (event.type === 'connect_error') {
+    showStatusToast('error', 'OBS — Connexion échouée', event.message ?? 'Impossible de joindre le serveur distant.');
   }
 });
 

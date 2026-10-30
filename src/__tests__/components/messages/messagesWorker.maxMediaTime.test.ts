@@ -62,7 +62,10 @@ describe('executeMessagesWorker — maxMediaTime clamp', () => {
   beforeEach(() => {
     emitSpy = vi.fn();
     (global as Record<string, unknown>).logger = {
-      debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn(),
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
     };
   });
 

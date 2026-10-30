@@ -15,7 +15,9 @@ describe('computeFinalDuration', () => {
   });
 
   it('uses audioDuration when mediaDuration is absent (e.g. YouTube + audio overlay)', () => {
-    expect(computeFinalDuration(undefined, undefined, 'video/youtube', { audioDuration: 120, audioUrl: 'a.mp3' })).toBe(120);
+    expect(computeFinalDuration(undefined, undefined, 'video/youtube', { audioDuration: 120, audioUrl: 'a.mp3' })).toBe(
+      120,
+    );
   });
 
   it('returns undefined when nothing is set', () => {

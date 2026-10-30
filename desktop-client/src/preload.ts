@@ -71,6 +71,7 @@ contextBridge.exposeInMainWorld('livechat', {
   },
   installUpdate: () => ipcRenderer.invoke('update:install'),
   openExternal: (url: string) => ipcRenderer.invoke('app:open-external', url) as Promise<void>,
+  copyToClipboard: (text: string) => ipcRenderer.invoke('clipboard:write', text) as Promise<void>,
   getObsUrl: () => ipcRenderer.invoke('local-server:get-url') as Promise<string>,
   onObsUrlChanged: (callback: (url: string) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, url: string) => callback(url);
@@ -86,6 +87,16 @@ contextBridge.exposeInMainWorld('livechat', {
     const listener = (_event: Electron.IpcRendererEvent, data: { maintenance: boolean }) => callback(data);
     ipcRenderer.on('server:maintenance', listener);
     return () => ipcRenderer.removeListener('server:maintenance', listener);
+  },
+  onAuthError: (callback: (data: { message: string }) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, data: { message: string }) => callback(data);
+    ipcRenderer.on('auth:error', listener);
+    return () => ipcRenderer.removeListener('auth:error', listener);
+  },
+  onObsRemoteStatus: (callback: (event: { type: string; message?: string }) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, data: { type: string; message?: string }) => callback(data);
+    ipcRenderer.on('local-server:remote-status', listener);
+    return () => ipcRenderer.removeListener('local-server:remote-status', listener);
   },
 });
 
@@ -114,10 +125,13 @@ declare global {
       onUserLeft: (callback: (data: { id: string }) => void) => () => void;
       installUpdate: () => Promise<void>;
       openExternal: (url: string) => Promise<void>;
+      copyToClipboard: (text: string) => Promise<void>;
       getObsUrl: () => Promise<string>;
       onObsUrlChanged: (callback: (url: string) => void) => () => void;
       onServerStatus: (callback: (data: { botOnline: boolean; maintenance: boolean }) => void) => () => void;
       onMaintenance: (callback: (data: { maintenance: boolean }) => void) => () => void;
+      onAuthError: (callback: (data: { message: string }) => void) => () => void;
+      onObsRemoteStatus: (callback: (event: { type: string; message?: string }) => void) => () => void;
     };
   }
 }

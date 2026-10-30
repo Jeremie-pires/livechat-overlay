@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { clampVolume, buildPlayerOptions, applyPlayerVolume, volumeFromUrlParams } from '../../components/client/playerVolume.js';
+import {
+  clampVolume,
+  buildPlayerOptions,
+  applyPlayerVolume,
+  volumeFromUrlParams,
+} from '../../components/client/playerVolume.js';
 
 // Minimal model of Vidstack 1.12.13: `player.volume` set before can-play is queued,
 // then on can-play the provider receives `storage?.getVolume() ?? props.volume` (default 1).

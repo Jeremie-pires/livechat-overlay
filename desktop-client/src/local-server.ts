@@ -55,13 +55,23 @@ export function setLocalServerVolume(volume: number): void {
   }
 }
 
-export async function startLocalServer(settings: AppSettings): Promise<void> {
+export type RemoteStatusEvent =
+  | { type: 'connected' }
+  | { type: 'disconnected' }
+  | { type: 'connect_error'; message: string }
+  | { type: 'auth_error'; message: string };
+
+export async function startLocalServer(
+  settings: AppSettings,
+  onRemoteStatus?: (event: RemoteStatusEvent) => void,
+): Promise<void> {
   await stopLocalServer();
 
   const remoteBase = assertHttpUrl(settings.backendUrl).href.replace(/\/$/, '');
   activeGuildId = settings.guildId;
   activeVolume = Math.round(Math.max(0, Math.min(100, settings.volume)));
   activeEnv = 'production';
+  let lastServerStatus: unknown = null;
 
   let port = settings.localServerPort ?? 3001;
   for (let attempt = 0; attempt < 10; attempt++) {
@@ -89,6 +99,7 @@ export async function startLocalServer(settings: AppSettings): Promise<void> {
 
   io.on('connection', (socket) => {
     socket.emit('server:env', activeEnv);
+    if (lastServerStatus !== null) socket.emit('server:status', lastServerStatus);
 
     socket.on('join-room', (payload: string | { id: string; token?: string }) => {
       const roomId = typeof payload === 'string' ? payload : payload?.id;
@@ -116,7 +127,7 @@ export async function startLocalServer(settings: AppSettings): Promise<void> {
     reconnectionDelay: 2000,
     reconnectionDelayMax: 10000,
     reconnectionAttempts: Infinity,
-    transports: ['websocket', 'polling'],
+    transports: ['websocket'],
   });
 
   remote.on('server:env', (serverEnv: string) => {
@@ -129,7 +140,24 @@ export async function startLocalServer(settings: AppSettings): Promise<void> {
     remote.emit('join-room', joinPayload);
   });
 
+  remote.on('server:status', (data: unknown) => {
+    lastServerStatus = data;
+    io.emit('server:status', data);
+  });
+
+  remote.on('bot:offline', () => {
+    io.emit('bot:offline');
+  });
+
+  remote.on('server:maintenance', (data: unknown) => {
+    io.emit('server:maintenance', data);
+  });
+
   remote.on('new-message', (data: unknown) => {
+    if (!lastServerStatus || (lastServerStatus as { botOnline?: boolean }).botOnline !== true) {
+      lastServerStatus = { botOnline: true, maintenance: false };
+      io.emit('server:status', lastServerStatus);
+    }
     io.to(`${activeEnv}:messages-${settings.guildId}`).emit('new-message', data);
   });
 
@@ -137,8 +165,24 @@ export async function startLocalServer(settings: AppSettings): Promise<void> {
     io.to(`${activeEnv}:messages-${settings.guildId}`).emit('stop');
   });
 
+  remote.on('connect', () => {
+    onRemoteStatus?.({ type: 'connected' });
+  });
+
+  remote.on('disconnect', () => {
+    onRemoteStatus?.({ type: 'disconnected' });
+  });
+
+  remote.on('auth:error', (data: unknown) => {
+    const msg = typeof (data as Record<string, unknown>)?.message === 'string'
+      ? (data as Record<string, string>).message
+      : 'Auth error';
+    onRemoteStatus?.({ type: 'auth_error', message: msg });
+  });
+
   remote.on('connect_error', (err: Error) => {
     console.error('[LocalServer] Remote connection error:', err.message);
+    onRemoteStatus?.({ type: 'connect_error', message: err.message });
   });
 
   httpServer = server;
