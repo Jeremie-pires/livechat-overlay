@@ -209,7 +209,6 @@
   </head>
 
   <body>
-    <div id="debug-overlay" style="display:none;position:fixed;top:8px;left:8px;z-index:9999;background:rgba(0,0,0,0.75);color:#fff;font:12px monospace;padding:8px 12px;border-radius:6px;pointer-events:none;line-height:1.6"></div>
     <button class="absolute z-50 rounded-full bg-red-500 px-4 text-white pointer-events-auto" id="disappear">
       Click on me so i can disappear <br />(Fix Autoplay, Browser Source > Right Click > Interact / Interragir <br />and
       click on button.)
@@ -726,19 +725,6 @@
       }
 
       document.addEventListener('DOMContentLoaded', function () {
-        var debugEl = document.getElementById('debug-overlay');
-        var isDebug = urlParams.get('debug') === '1';
-        var dbg = { socket: 'init', env: '?', botOnline: '?', room: '?', lastMsg: 'none' };
-        function refreshDebug() {
-          if (!isDebug || !debugEl) return;
-          debugEl.innerHTML = 'socket: ' + dbg.socket + '<br>env: ' + dbg.env + '<br>botOnline: ' + dbg.botOnline + '<br>room: ' + dbg.room + '<br>lastMsg: ' + dbg.lastMsg;
-        }
-        if (isDebug && debugEl) {
-          debugEl.style.display = 'block';
-          refreshDebug();
-          window.onerror = function(msg) { dbg.socket = 'JS ERR: ' + String(msg).slice(0, 40); refreshDebug(); };
-        }
-
         var socket = io({
           transports: ['websocket'],
           reconnection: true,
@@ -748,25 +734,19 @@
         });
 
         socket.on('connect', () => {
-          dbg.socket = 'connected'; refreshDebug();
           syncServerClock(socket);
         });
 
-        socket.on('disconnect', () => { dbg.socket = 'disconnected'; refreshDebug(); });
-
         socket.on('server:env', function (serverEnv) {
-          dbg.env = serverEnv; refreshDebug();
           const guildId = urlParams.get('guildId');
           const token = urlParams.get('token');
           if (!guildId) return;
           const roomId = serverEnv + ':messages-' + guildId;
-          dbg.room = roomId; refreshDebug();
           const roomPayload = token ? { id: roomId, token } : roomId;
           socket.emit('join-room', roomPayload);
         });
 
         socket.on('new-message', function (data) {
-          dbg.lastMsg = new Date().toLocaleTimeString(); refreshDebug();
           console.debug(data);
           scheduleMessageDisplay(data);
         });
@@ -810,7 +790,6 @@
         });
 
         socket.on('server:status', function (data) {
-          dbg.botOnline = String(data.botOnline); refreshDebug();
           if (typeof data.maintenance === 'boolean') lastKnownMaintenance = data.maintenance;
           if (data.botOnline) {
             showOverlay();

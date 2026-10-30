@@ -2,6 +2,7 @@
 _Updated: 2026-10-30_
 
 ## Done
+- Cleanup: removed the `?debug=1` overlay from `client.html`. Kept the synthesized `botOnline`, the Electron UA strip and the WebSocket-only transport (validated production workarounds).
 - Validated in OBS by the user: attachments, TikTok and Twitter all play.
 - Diagnosed TikTok/Twitter failure in the OBS browser source. Dev backend logs show yt-dlp (TikTok) and cobalt (Twitter) resolve successfully, then `[CORS] Rejected origin` for `http://localhost:3001`.
 - Cause: `corsOrigin` in `src/server.ts` only allows the origin of `API_URL`.
@@ -11,9 +12,8 @@ _Updated: 2026-10-30_
 `develop` at `v1.3.2-rc.12`, dev backend up. OBS shows attachments and other videos. CORS fix committed on `develop`, deployed on the dev backend and validated in OBS (attachments, TikTok, Twitter). Stable users are on 1.3.1 (`main` untouched).
 
 ## Next steps
-1. Cleanup (B) one rc per step: synthesized `botOnline`, UA strip, forced WebSocket transport, `?debug=1` overlay.
-2. Merge `develop` → `main` via PR (SonarCloud green), deploy prod (clear `ClientSession` first), tag `1.3.2` stable.
-3. Finish manual validation: SSRF, TTS, stop, maxMediaTime.
+1. Merge `develop` → `main` via PR (SonarCloud green), deploy prod (clear `ClientSession` first), tag `1.3.2` stable.
+2. Finish manual validation: SSRF, TTS, stop, maxMediaTime.
 
 ## Open issues
 - Tasks 17, 18, 21, 22 (`noImplicitAny`, 6 `@ts-ignore`, `requireSession` preHandler, embed colors).
@@ -34,3 +34,4 @@ _Updated: 2026-10-30_
 - 2026-10-30 socket.io client for `client.html` comes from the CDN, not the local server: a packaged ASAR has no `client-dist`, and engine.io intercepts `/socket.io/*` anyway. Do not reintroduce a same-origin socket.io.js for OBS.
 - 2026-10-30 RC.12 synthesizes `server:status { botOnline: true }` on first `new-message` in local-server — workaround for backend sending status before OBS browser source connects; real status from backend still overrides it.
 - 2026-10-30 `/api/video` failure from OBS is a CORS rejection of `http://localhost:3001`, not an extraction failure — the fix belongs in the backend CORS policy, not in yt-dlp/cobalt.
+- 2026-10-30 Cleanup (B) limited to the `?debug=1` overlay — the `botOnline` synthesis, UA strip and WebSocket-only transport stay until each can be retested on a packaged build; removing them blind risks breaking OBS or the Cloudflare path.
