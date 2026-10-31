@@ -21,7 +21,6 @@ _Updated: 2026-10-31_
 - The socket `disconnecting` debounce in `socketLoader.ts` has no test.
 - TikTok CDN cookie fix to confirm in prod logs.
 - The CI only pushes the image: backends are redeployed by hand.
-- Local server `sync-time` should use the backend clock.
 
 ## Decisions
 - 2026-10-28 Socket auth requires DB token lookup on every join — avoids stateful in-memory token map, consistent with Prisma session model.
@@ -40,4 +39,5 @@ _Updated: 2026-10-31_
 - 2026-10-31 `full` on content without a duration (image, text) still answers with the generic "between 1 and 3600 seconds" message — a dedicated message needs a new i18n key, deferred.
 - 2026-10-31 SSRF audit: `url-guard` now also blocks 0/8, 192.0.0/24, 198.18/15, 224+/240+, IPv6 multicast and 6to4 wrapping a private IPv4. Two blind or low-risk gaps are accepted: ffprobe follows HTTP redirects (only a duration leaks; piping the stream would break mp4 files with a trailing index) and `/api/video` follows CDN redirects (the URL comes from yt-dlp/cobalt on whitelisted hosts).
 - 2026-10-31 The worker skips busy guilds when selecting the next message instead of requeuing it at `now + 250 ms`: requeuing reshuffled a guild's messages. `executionDate` is never rewritten. Backpressure is now `previous busyUntil − executionDate`, computed at claim time.
+- 2026-10-31 The local OBS server keeps answering `sync-time` with the PC clock, not the backend clock. The drift is under a second with Windows NTP sync and the 1.2 s display lead absorbs it; a fix would need a desktop release and an OBS retest for no visible gain.
 - 2026-10-30 The prod schema change needs `prisma db push --accept-data-loss` once, after emptying `ClientSession` — the startup `db push` refuses the new unique constraint without the flag.
