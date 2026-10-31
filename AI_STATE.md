@@ -6,6 +6,7 @@ _Updated: 2026-10-31_
 - OBS TikTok/Twitter fixed: CORS allows the local overlay origin on `/api/video` only (`src/services/cors.ts`), validated in OBS.
 - SonarCloud gate fixed: actions pinned to a SHA, SRI on the socket.io CDN script, UA regex linearized. `?debug=1` overlay removed.
 - Prod database backed up, `ClientSession` emptied.
+- 2026-10-31 audit: `full` duration fixed and capped, SSRF guard extended, `presenceStore.test.ts` now tests the real module (it tested an inline copy). `/hidetalk` already defers its reply via `executeTalkHandler`, so that issue is closed.
 
 ## Current state
 `main` and the tag are at 1.3.2, so stable desktop users will auto-update. The prod backend is healthy after the one-time `prisma db push --accept-data-loss`, and the desktop release was checked. The `full` duration fix is committed on `develop` but not pushed nor deployed: with a URL, `full` still fails in prod with "between 1 and 3600 seconds".
@@ -15,7 +16,9 @@ _Updated: 2026-10-31_
 2. Finish manual validation: SSRF, TTS, stop, maxMediaTime.
 
 ## Open issues
-- Tasks 17, 18, 21, 22; logic bugs (`/hidetalk`, FIFO, `busyUntil`); `presenceStore.test.ts`; Electron v33 EOL.
+- Tasks 17, 18, 21, 22; logic bugs (FIFO, `busyUntil`); Electron v33 EOL.
+- FIFO: a busy guild's due messages are requeued one by one at `now + 250 ms`, so their order depends on the polling phase when the guild frees up. Two messages from the same guild can play out of order.
+- The socket `disconnecting` debounce in `socketLoader.ts` has no test.
 - TikTok CDN cookie fix to confirm in prod logs.
 - The CI only pushes the image: backends are redeployed by hand.
 - Local server `sync-time` should use the backend clock.
