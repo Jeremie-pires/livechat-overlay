@@ -31,6 +31,7 @@ const makeCandidate = (contentOverrides: Record<string, unknown>) => ({
   duration: 10,
   type: 'message',
   submissionDate: new Date(),
+  executionDate: new Date(),
   discordReceivedAt: new Date(),
   processingMs: 0,
   busyRequeueMs: 0,
@@ -45,6 +46,7 @@ const makePrisma = (candidate: ReturnType<typeof makeCandidate>) => ({
   },
   guild: {
     findFirst: vi.fn().mockResolvedValue(null),
+    findMany: vi.fn().mockResolvedValue([]),
     upsert: vi.fn(),
   },
   stats: { upsert: vi.fn().mockResolvedValue({}) },

@@ -4,6 +4,7 @@ import { parseDuration } from '../../../services/utils';
 describe('parseDuration (shared helper — sendCommand / hidesendCommand)', () => {
   it.each([
     ['full', 29.4, 30],
+    ['full', 10800, 3600],
     ['full', null, 'error'],
     ['full', undefined, 'error'],
   ] as [string, number | null | undefined, number | 'error'][])(

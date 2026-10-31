@@ -29,6 +29,7 @@ function makeCandidate(duration: number) {
     authorImage: null,
     type: 'message',
     submissionDate: new Date(),
+    executionDate: new Date(),
     discordReceivedAt: null,
     processingMs: null,
     busyRequeueMs: 0,
@@ -49,6 +50,7 @@ function makeMockPrisma(maxMediaTime: number | null, candidateDuration: number) 
   };
   return {
     queue: { findFirst: vi.fn().mockResolvedValue(candidate) },
+    guild: { findMany: vi.fn().mockResolvedValue([]) },
     $transaction: vi.fn().mockImplementation((cb: (tx: MockTx) => unknown) => cb(tx)),
     stats: { upsert: vi.fn().mockResolvedValue({}) },
     latencySample: { create: vi.fn().mockResolvedValue({}) },
