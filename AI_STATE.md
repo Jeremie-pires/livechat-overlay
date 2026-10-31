@@ -1,27 +1,24 @@
 # Project state
-_Updated: 2026-10-30_
+_Updated: 2026-10-31_
 
 ## Done
-- Cleanup: removed the `?debug=1` overlay from `client.html`. Kept the synthesized `botOnline`, the Electron UA strip and the WebSocket-only transport (validated production workarounds).
-- Validated in OBS by the user: attachments, TikTok and Twitter all play.
-- Diagnosed TikTok/Twitter failure in the OBS browser source. Dev backend logs show yt-dlp (TikTok) and cobalt (Twitter) resolve successfully, then `[CORS] Rejected origin` for `http://localhost:3001`.
-- Cause: `corsOrigin` in `src/server.ts` only allows the origin of `API_URL`.
-- Fix: CORS logic extracted to `src/services/cors.ts`. A per-request delegator allows `http://localhost:3001` only on `/api/video` (GET/OPTIONS, no credentials, `Range` allowed, `Content-Range` exposed). Other routes are unchanged. Covered by `src/__tests__/services/cors.test.ts`.
+- Released 1.3.2: `develop` merged into `main`, annotated tag `v1.3.2` pushed, desktop release CI triggered.
+- OBS TikTok/Twitter fixed: CORS allows the local overlay origin on `/api/video` only (`src/services/cors.ts`), validated in OBS.
+- SonarCloud gate fixed: actions pinned to a SHA, SRI on the socket.io CDN script, UA regex linearized. `?debug=1` overlay removed.
+- Prod database backed up, `ClientSession` emptied.
 
 ## Current state
-`develop` at `1.3.2` (version bumped, not yet tagged), dev backend up. OBS shows attachments and other videos. CORS fix committed on `develop`, deployed on the dev backend and validated in OBS (attachments, TikTok, Twitter). Stable users are on 1.3.1 (`main` untouched).
+`main` and the tag are at 1.3.2, so stable desktop users will auto-update. The prod backend is healthy after the one-time `prisma db push --accept-data-loss`, and the desktop release was checked. The `full` duration fix is committed on `develop` but not pushed nor deployed: with a URL, `full` still fails in prod with "between 1 and 3600 seconds".
 
 ## Next steps
-1. Merge the `develop` → `main` PR once SonarCloud is green, deploy prod (clear `ClientSession` first), then tag `v1.3.2` from `main` (annotated message is the update modal text).
+1. Push the `full` duration fix (committed on `develop`, with regression tests) and redeploy the backend by hand.
 2. Finish manual validation: SSRF, TTS, stop, maxMediaTime.
 
 ## Open issues
-- Tasks 17, 18, 21, 22 (`noImplicitAny`, 6 `@ts-ignore`, `requireSession` preHandler, embed colors).
-- Logic bugs backlog: `/hidetalk`, FIFO order, `busyUntil` reset.
-- `presenceStore.test.ts` rewrite; Electron v33 EOL.
-- TikTok CDN: confirm cookie fix via the `cdnDomain` prod log.
-- The CI only pushes the image: the dev backend is redeployed by hand (`git pull` + `docker compose -f docker-compose.dev.yml up -d --build`).
-- Local server `sync-time` should use the backend clock (small OBS delay).
+- Tasks 17, 18, 21, 22; logic bugs (`/hidetalk`, FIFO, `busyUntil`); `presenceStore.test.ts`; Electron v33 EOL.
+- TikTok CDN cookie fix to confirm in prod logs.
+- The CI only pushes the image: backends are redeployed by hand.
+- Local server `sync-time` should use the backend clock.
 
 ## Decisions
 - 2026-10-28 Socket auth requires DB token lookup on every join — avoids stateful in-memory token map, consistent with Prisma session model.
@@ -35,3 +32,7 @@ _Updated: 2026-10-30_
 - 2026-10-30 RC.12 synthesizes `server:status { botOnline: true }` on first `new-message` in local-server — workaround for backend sending status before OBS browser source connects; real status from backend still overrides it.
 - 2026-10-30 `/api/video` failure from OBS is a CORS rejection of `http://localhost:3001`, not an extraction failure — the fix belongs in the backend CORS policy, not in yt-dlp/cobalt.
 - 2026-10-30 Cleanup (B) limited to the `?debug=1` overlay — the `botOnline` synthesis, UA strip and WebSocket-only transport stay until each can be retested on a packaged build; removing them blind risks breaking OBS or the Cloudflare path.
+- 2026-10-30 Third-party actions are pinned to a commit SHA and CDN scripts carry SRI — SonarCloud fails the security gate otherwise.
+- 2026-10-31 A custom duration is checked twice: numeric values before content extraction (no yt-dlp call for a typo), `full` after it (needs the URL's duration). `full` is capped at 3600 s like numeric values — the client never plays longer, and an uncapped value kept the guild busy after playback ended.
+- 2026-10-31 `full` on content without a duration (image, text) still answers with the generic "between 1 and 3600 seconds" message — a dedicated message needs a new i18n key, deferred.
+- 2026-10-30 The prod schema change needs `prisma db push --accept-data-loss` once, after emptying `ClientSession` — the startup `db push` refuses the new unique constraint without the flag.

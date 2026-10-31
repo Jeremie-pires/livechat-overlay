@@ -107,11 +107,9 @@ export async function executeMessageHandler(
     return;
   }
 
-  const { finalDuration: customFinalDuration, error: durationError } = parseCustomDuration(
-    customDurationString,
-    mediaDuration,
-  );
-  if (durationError) {
+  // Reject a malformed duration before the costly content extraction; "full" waits for the media duration.
+  const isFullDuration = customDurationString?.trim().toLowerCase() === 'full';
+  if (!isFullDuration && parseCustomDuration(customDurationString, undefined).error) {
     await replyError(interaction, 'invalidDuration');
     return;
   }
@@ -148,6 +146,16 @@ export async function executeMessageHandler(
 
   mediaDuration = mediaDuration ?? additionalContent?.mediaDuration;
   mediaIsShort = additionalContent?.mediaIsShort ?? mediaIsShort;
+
+  // Parsed once the media duration is known: "full" needs it for URL content.
+  const { finalDuration: customFinalDuration, error: durationError } = parseCustomDuration(
+    customDurationString,
+    mediaDuration,
+  );
+  if (durationError) {
+    await replyError(interaction, 'invalidDuration');
+    return;
+  }
 
   const finalDuration = computeFinalDuration(customFinalDuration, mediaDuration, mediaContentType, audioInfo);
   const resolvedDuration = await getDurationFromGuildId(
