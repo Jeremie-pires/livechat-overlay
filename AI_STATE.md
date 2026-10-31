@@ -6,7 +6,7 @@ _Updated: 2026-10-31_
 - OBS TikTok/Twitter fixed: CORS allows the local overlay origin on `/api/video` only (`src/services/cors.ts`), validated in OBS.
 - SonarCloud gate fixed: actions pinned to a SHA, SRI on the socket.io CDN script, UA regex linearized. `?debug=1` overlay removed.
 - Prod database backed up, `ClientSession` emptied.
-- 2026-10-31 audit: `full` duration fixed and capped, SSRF guard extended, `presenceStore.test.ts` now tests the real module (it tested an inline copy). `/hidetalk` already defers its reply via `executeTalkHandler`, so that issue is closed.
+- 2026-10-31 audit: `full` duration fixed and capped, SSRF guard extended, `presenceStore.test.ts` now tests the real module (it tested an inline copy). `/hidetalk` already defers its reply via `executeTalkHandler`, so that issue is closed. Queue FIFO per guild fixed in the worker (not deployed; check by sending 3 messages in a row).
 
 ## Current state
 `main` and the tag are at 1.3.2, so stable desktop users will auto-update. The prod backend is healthy after the one-time `prisma db push --accept-data-loss`, and the desktop release was checked. The `full` duration fix is committed on `develop` but not pushed nor deployed: with a URL, `full` still fails in prod with "between 1 and 3600 seconds".
@@ -16,8 +16,8 @@ _Updated: 2026-10-31_
 2. Finish manual validation: SSRF, TTS, stop, maxMediaTime.
 
 ## Open issues
-- Tasks 17, 18, 21, 22; logic bugs (FIFO, `busyUntil`); Electron v33 EOL.
-- FIFO: a busy guild's due messages are requeued one by one at `now + 250 ms`, so their order depends on the polling phase when the guild frees up. Two messages from the same guild can play out of order.
+- Tasks 17, 18, 21, 22; `busyUntil` logic bug (symptom not documented yet); Electron v33 EOL.
+- `Queue.busyRequeueMs` is no longer written or read since the FIFO fix; dropping the column needs a schema migration.
 - The socket `disconnecting` debounce in `socketLoader.ts` has no test.
 - TikTok CDN cookie fix to confirm in prod logs.
 - The CI only pushes the image: backends are redeployed by hand.
@@ -39,4 +39,5 @@ _Updated: 2026-10-31_
 - 2026-10-31 A custom duration is checked twice: numeric values before content extraction (no yt-dlp call for a typo), `full` after it (needs the URL's duration). `full` is capped at 3600 s like numeric values — the client never plays longer, and an uncapped value kept the guild busy after playback ended.
 - 2026-10-31 `full` on content without a duration (image, text) still answers with the generic "between 1 and 3600 seconds" message — a dedicated message needs a new i18n key, deferred.
 - 2026-10-31 SSRF audit: `url-guard` now also blocks 0/8, 192.0.0/24, 198.18/15, 224+/240+, IPv6 multicast and 6to4 wrapping a private IPv4. Two blind or low-risk gaps are accepted: ffprobe follows HTTP redirects (only a duration leaks; piping the stream would break mp4 files with a trailing index) and `/api/video` follows CDN redirects (the URL comes from yt-dlp/cobalt on whitelisted hosts).
+- 2026-10-31 The worker skips busy guilds when selecting the next message instead of requeuing it at `now + 250 ms`: requeuing reshuffled a guild's messages. `executionDate` is never rewritten. Backpressure is now `previous busyUntil − executionDate`, computed at claim time.
 - 2026-10-30 The prod schema change needs `prisma db push --accept-data-loss` once, after emptying `ClientSession` — the startup `db push` refuses the new unique constraint without the flag.

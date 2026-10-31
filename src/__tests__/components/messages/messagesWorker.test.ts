@@ -54,6 +54,7 @@ describe('executeMessagesWorker — empty queue behavior', () => {
       queue: {
         findFirst: vi.fn().mockResolvedValue(null),
       },
+      guild: { findMany: vi.fn().mockResolvedValue([]) },
     };
     // @ts-ignore
     global.prisma = mockPrisma;

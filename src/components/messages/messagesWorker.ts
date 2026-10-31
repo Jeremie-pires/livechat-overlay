@@ -24,15 +24,20 @@ const getMediaType = (type: string, content: { url?: string; mediaContentType?: 
 };
 
 export const executeMessagesWorker = async (fastify: FastifyCustomInstance) => {
+  const now = new Date();
+  // Busy guilds are skipped rather than requeued: their messages keep their executionDate,
+  // so each guild plays its messages in submission order (FIFO).
+  const busyGuilds = await prisma.guild.findMany({
+    where: { busyUntil: { gte: now } },
+    select: { id: true },
+  });
+
   const candidate = await prisma.queue.findFirst({
     where: {
-      executionDate: {
-        lte: new Date(),
-      },
+      executionDate: { lte: now },
+      discordGuildId: { notIn: busyGuilds.map(({ id }) => id) },
     },
-    orderBy: {
-      executionDate: 'asc',
-    },
+    orderBy: [{ executionDate: 'asc' }, { submissionDate: 'asc' }],
   });
 
   if (candidate === null) {
@@ -40,27 +45,24 @@ export const executeMessagesWorker = async (fastify: FastifyCustomInstance) => {
     return;
   }
 
-  // Atomic claim: busyGuild check, requeue-if-busy, and dequeue-if-free are all inside one
-  // transaction — eliminates the TOCTOU gap between the check and the deleteMany.
+  // Atomic claim: the busy check and the dequeue are inside one transaction — eliminates
+  // the TOCTOU gap between the check and the deleteMany.
   const lastMessage = await prisma.$transaction(async (tx) => {
     const guildRow = await tx.guild.findFirst({
       where: { id: candidate.discordGuildId },
       select: { busyUntil: true, maxMediaTime: true },
     });
 
-    if (guildRow?.busyUntil && guildRow.busyUntil >= new Date()) {
-      await tx.queue.update({
-        where: { id: candidate.id },
-        data: {
-          executionDate: addMilliseconds(new Date(), REQUEUE_INTERVAL_MS),
-          busyRequeueMs: { increment: REQUEUE_INTERVAL_MS },
-        },
-      });
-      return null;
-    }
+    const claimedAt = new Date();
+    // The guild became busy since the selection above: leave the message for a later tick.
+    if (guildRow?.busyUntil && guildRow.busyUntil >= claimedAt) return null;
 
     const { count } = await tx.queue.deleteMany({ where: { id: candidate.id } });
     if (count === 0) return null;
+
+    // Time the message spent due but blocked by the previous message of its guild.
+    const previousBusyUntil = guildRow?.busyUntil?.getTime() ?? 0;
+    const backpressureMs = Math.max(0, previousBusyUntil - candidate.executionDate.getTime());
 
     const maxTime = guildRow?.maxMediaTime;
     const clampedDuration = maxTime && maxTime > 0 ? Math.min(candidate.duration, maxTime) : candidate.duration;
@@ -74,7 +76,7 @@ export const executeMessagesWorker = async (fastify: FastifyCustomInstance) => {
       update: { busyUntil },
     });
 
-    return { ...candidate, duration: clampedDuration };
+    return { ...candidate, duration: clampedDuration, backpressureMs };
   });
 
   if (lastMessage === null) return;
@@ -111,15 +113,14 @@ export const executeMessagesWorker = async (fastify: FastifyCustomInstance) => {
   const emittedAt = Date.now();
 
   const enqueuedAt = lastMessage.submissionDate.getTime();
-  const busyRequeueMs = lastMessage.busyRequeueMs;
+  const { backpressureMs } = lastMessage;
 
   const ingestionMs = lastMessage.discordReceivedAt
     ? Math.max(0, enqueuedAt - lastMessage.discordReceivedAt.getTime() - (lastMessage.processingMs ?? 0))
     : 0;
   const processingMs = lastMessage.processingMs ?? 0;
-  const queueWaitMs = Math.max(0, dequeuedAt - enqueuedAt - busyRequeueMs);
+  const queueWaitMs = Math.max(0, dequeuedAt - enqueuedAt - backpressureMs);
   const emitMs = Math.max(0, emittedAt - dequeuedAt);
-  const backpressureMs = busyRequeueMs;
   const totalMs = ingestionMs + processingMs + queueWaitMs + emitMs;
 
   if (ingestionMs === 0 && lastMessage.discordReceivedAt === null) {
