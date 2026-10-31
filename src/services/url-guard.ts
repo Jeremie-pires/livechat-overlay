@@ -19,14 +19,19 @@ function isPrivateIpv4(addr: string): boolean {
   if (parts.length !== 4 || parts.some((p) => Number.isNaN(p) || p < 0 || p > 255)) return false;
   const [a, b] = parts;
   return (
+    a === 0 ||
     a === 127 ||
     a === 10 ||
     (a === 172 && b >= 16 && b <= 31) ||
     (a === 192 && b === 168) ||
     (a === 169 && b === 254) ||
     (a === 100 && b >= 64 && b <= 127) ||
-    parts.every((p) => p === 0) ||
-    parts.every((p) => p === 255)
+    // 192.0.0.0/24 — IETF protocol assignments
+    (a === 192 && b === 0 && parts[2] === 0) ||
+    // 198.18.0.0/15 — benchmarking
+    (a === 198 && (b === 18 || b === 19)) ||
+    // 224.0.0.0/4 multicast, 240.0.0.0/4 reserved, 255.255.255.255 broadcast
+    a >= 224
   );
 }
 
@@ -56,6 +61,14 @@ function isPrivateIpv6(addr: string): boolean {
   if (/^f[cd]/i.test(n)) return true;
   // 64:ff9b::/96 — NAT64
   if (n.startsWith('64:ff9b:')) return true;
+  // ff00::/8 — multicast
+  if (n.startsWith('ff')) return true;
+  // 2002::/16 — 6to4, the second and third groups embed an IPv4 address
+  if (n.startsWith('2002:')) {
+    const [, hi, lo] = n.split(':');
+    const v4 = ipv4MappedToV4(`${hi}:${lo}`);
+    return v4 === null || isPrivateIpv4(v4);
+  }
   return false;
 }
 

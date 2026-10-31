@@ -226,6 +226,34 @@ describe('isPrivateIp — new IPv6 ranges (fec0::/10 and NAT64)', () => {
   );
 });
 
+// ── isPrivateIp — reserved, multicast and 6to4 ranges (audit addition) ───────
+
+describe('isPrivateIp — reserved, multicast and 6to4 ranges', () => {
+  it.each([
+    ['0.1.2.3'],
+    ['192.0.0.8'],
+    ['198.18.0.1'],
+    ['198.19.255.255'],
+    ['224.0.0.1'],
+    ['239.255.255.250'],
+    ['240.0.0.1'],
+  ])('returns true for reserved IPv4 %s', (ip) => expect(isPrivateIp(ip)).toBe(true));
+
+  it.each([['192.0.2.1'], ['198.17.0.1'], ['198.20.0.1'], ['223.255.255.255']])(
+    'returns false for public IPv4 %s',
+    (ip) => expect(isPrivateIp(ip)).toBe(false),
+  );
+
+  it.each([['ff02::1'], ['ff05::1:3'], ['2002:7f00:1::1'], ['2002:a00:1::'], ['2002::1']])(
+    'returns true for multicast or private 6to4 IPv6 %s',
+    (ip) => expect(isPrivateIp(ip)).toBe(true),
+  );
+
+  it('returns false for 6to4 wrapping a public IPv4', () => {
+    expect(isPrivateIp('2002:808:808::1')).toBe(false);
+  });
+});
+
 // ── assertPublicHttpUrl — new ranges rejected as literal IPs ──────────────────
 
 describe('assertPublicHttpUrl — CGNAT and new IPv6 literal IPs blocked', () => {
