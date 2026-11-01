@@ -239,7 +239,7 @@
 
     <script type="module">
       import { VidstackPlayer, VidstackPlayerLayout } from './vidstack.js';
-      import { clampVolume, buildPlayerOptions, applyPlayerVolume, volumeFromUrlParams } from './playerVolume.js';
+      import { clampVolume, buildPlayerOptions, setInitialPlayerVolume, applyPlayerVolume, volumeFromUrlParams } from './playerVolume.js';
 
       const overlayStage = document.getElementById('overlay-stage');
       const overlayShell = document.getElementById('overlay-shell');
@@ -271,7 +271,10 @@
           el.volume = currentVolume;
           el.muted = currentVolume === 0;
         });
-        applyPlayerVolume(document.querySelector('media-player'), currentVolume);
+        var player = document.querySelector('media-player');
+        applyPlayerVolume(player, currentVolume);
+        // can-play mutes the player at volume 0 — unmute it when the volume goes back up
+        if (player) player.muted = currentVolume === 0;
       };
 
       // Queue system
@@ -495,8 +498,9 @@
             wrapper.appendChild(video);
           } else {
             (async () => {
+              setInitialPlayerVolume(wrapper, currentVolume);
               await VidstackPlayer.create({
-                ...buildPlayerOptions({ src, layout: new VidstackPlayerLayout({}), volume: currentVolume }),
+                ...buildPlayerOptions({ src, layout: new VidstackPlayerLayout({}) }),
                 logLevel: 'debug',
               });
 

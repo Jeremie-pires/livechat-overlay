@@ -2,45 +2,79 @@ import { describe, it, expect } from 'vitest';
 import {
   clampVolume,
   buildPlayerOptions,
+  setInitialPlayerVolume,
   applyPlayerVolume,
   volumeFromUrlParams,
 } from '../../components/client/playerVolume.js';
 
-// Minimal model of Vidstack 1.12.13: `player.volume` set before can-play is queued,
-// then on can-play the provider receives `storage?.getVolume() ?? props.volume` (default 1).
-function fakeVidstack(options: { volume?: number }) {
+function fakeTarget() {
+  const attributes = new Map<string, string>();
+  return {
+    attributes,
+    setAttribute: (name: string, value: string) => attributes.set(name, value),
+  };
+}
+
+// Minimal model of Vidstack 1.12.13 (checked in a real browser):
+// - VidstackPlayer.create copies the target's attributes into props, then assigns each
+//   option through the element setter, which only queues a request;
+// - right after can-play, the queue is served, then the provider receives props.volume (default 1).
+function fakeVidstack(target: ReturnType<typeof fakeTarget>, options: Record<string, unknown>) {
   const video = { volume: 1 };
   const queued: Array<() => void> = [];
+  const propsVolume = Number(target.attributes.get('volume') ?? 1);
   const player = {
     set volume(v: number) {
       queued.push(() => (video.volume = v));
     },
     querySelector: (sel: string) => (sel === 'video' ? video : null),
   };
+  if ('volume' in options) player.volume = options.volume as number;
   const canPlay = () => {
     queued.forEach((fn) => fn());
-    video.volume = options.volume ?? 1;
+    video.volume = propsVolume;
   };
   return { player, video, canPlay };
 }
 
-describe('buildPlayerOptions', () => {
-  it('passes the app volume as a create prop so can-play does not reset it to 100%', () => {
-    const options = buildPlayerOptions({ src: 'a.mp4', layout: {}, volume: 0.2, isDesktop: true });
-    const { player, video, canPlay } = fakeVidstack(options);
+describe('setInitialPlayerVolume', () => {
+  it('keeps the app volume after can-play instead of resetting it to 100%', () => {
+    const target = fakeTarget();
+    setInitialPlayerVolume(target, 0.1);
+    const { player, video, canPlay } = fakeVidstack(target, buildPlayerOptions({ src: 'a.mp4', layout: {} }));
 
-    applyPlayerVolume(player, 0.2);
+    applyPlayerVolume(player, 0.1);
     canPlay();
 
-    expect(video.volume).toBe(0.2);
+    expect(video.volume).toBe(0.1);
   });
 
-  it('always starts muted to prevent volume burst before can-play', () => {
-    expect(buildPlayerOptions({ src: 'a.mp4', layout: {}, volume: 1 }).muted).toBe(true);
+  it('starts at 100% without it, even when the volume is set before can-play', () => {
+    const target = fakeTarget();
+    const { player, video, canPlay } = fakeVidstack(target, buildPlayerOptions({ src: 'a.mp4', layout: {} }));
+
+    applyPlayerVolume(player, 0.1);
+    canPlay();
+
+    expect(video.volume).toBe(1);
   });
 
-  it('clamps the volume prop', () => {
-    expect(buildPlayerOptions({ src: 'a.mp4', layout: {}, volume: 3, isDesktop: true }).volume).toBe(1);
+  it('clamps the volume attribute', () => {
+    const target = fakeTarget();
+    setInitialPlayerVolume(target, 3);
+    expect(target.attributes.get('volume')).toBe('1');
+  });
+
+  it('ignores a missing target', () => {
+    expect(() => setInitialPlayerVolume(null, 0.5)).not.toThrow();
+  });
+});
+
+describe('buildPlayerOptions', () => {
+  it('does not pass volume or muted, which create() cannot turn into props', () => {
+    const options = buildPlayerOptions({ src: 'a.mp4', layout: {} });
+    expect(options).not.toHaveProperty('volume');
+    expect(options).not.toHaveProperty('muted');
   });
 });
 
