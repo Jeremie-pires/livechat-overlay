@@ -1,26 +1,31 @@
 # Project state
-_Updated: 2026-10-31_
+_Updated: 2026-11-01_
 
 ## Done
-- Released 1.3.2: `develop` merged into `main`, annotated tag `v1.3.2` pushed, desktop release CI triggered.
-- OBS TikTok/Twitter fixed: CORS allows the local overlay origin on `/api/video` only (`src/services/cors.ts`), validated in OBS.
-- SonarCloud gate fixed: actions pinned to a SHA, SRI on the socket.io CDN script, UA regex linearized. `?debug=1` overlay removed.
-- Prod database backed up, `ClientSession` emptied.
-- 2026-10-31 audit: `full` duration fixed and capped, SSRF guard extended, `presenceStore.test.ts` now tests the real module (it tested an inline copy). `/hidetalk` already defers its reply via `executeTalkHandler`, so that issue is closed. Queue FIFO per guild fixed in the worker (not deployed; check by sending 3 messages in a row).
+- Audit of the open tasks, merged into `main` via PR #81 (CI and SonarCloud gate green):
+  - `full` duration now works with a URL, is capped at 3600 s, and a malformed duration is rejected before content extraction.
+  - The worker plays each guild's messages in FIFO order.
+  - The SSRF guard blocks reserved, multicast and 6to4 ranges.
+  - `presenceStore.test.ts` tests the real module instead of an inline copy.
+- The overlay player now starts at the app volume: Vidstack re-applied its default volume (100%) right after `can-play`, so the volume is set as an attribute on the target before `VidstackPlayer.create`. Raising the volume from 0 also unmutes the player.
+- `full` now works with a YouTube link (duration fetched through yt-dlp only when `full` is used) and with an audio track (the audio duration takes priority, as in `computeFinalDuration`).
+- `/hidetalk` was already fixed (it defers its reply through `executeTalkHandler`); the issue is closed.
 
 ## Current state
-`main` and the tag are at 1.3.2, so stable desktop users will auto-update. The prod backend is healthy after the one-time `prisma db push --accept-data-loss`, and the desktop release was checked. The `full` duration fix is committed on `develop` but not pushed nor deployed: with a URL, `full` still fails in prod with "between 1 and 3600 seconds".
+`main` holds release 1.3.2 plus PR #81. `develop` adds the player volume fix and the YouTube/audio `full` fix; both change the backend only (the overlay page is served by the backend), so no desktop release is needed. Prod still runs the backend from before PR #81. The suite has 491 passing tests.
 
 ## Next steps
-1. Push the `full` duration fix (committed on `develop`, with regression tests) and redeploy the backend by hand.
-2. Finish manual validation: SSRF, TTS, stop, maxMediaTime.
+1. Merge `develop` into `main`, redeploy the backend by hand, then check: `/send` with a YouTube link and `full` (in the link and in the audio field), a video at 10% volume starting quietly, and 3 messages in a row in one guild playing in order.
+2. Desktop side, needs a release: send the current volume to OBS when its socket connects (it falls back to the volume in the copied URL), and add `volume` to the PC overlay URL.
 
 ## Open issues
-- Tasks 17, 18, 21, 22; `busyUntil` logic bug (symptom not documented yet); Electron v33 EOL.
-- `Queue.busyRequeueMs` is no longer written or read since the FIFO fix; dropping the column needs a schema migration.
+- `busyUntil` logic bug: the symptom is not documented yet.
+- Undecided: should `/stop` be restricted to admins? The code has no permission check.
+- Tasks 17, 18, 21, 22; Electron v33 is end of life.
+- `Queue.busyRequeueMs` is no longer used; dropping it needs a schema migration.
 - The socket `disconnecting` debounce in `socketLoader.ts` has no test.
-- TikTok CDN cookie fix to confirm in prod logs.
-- The CI only pushes the image: backends are redeployed by hand.
+- The TikTok CDN cookie fix is still to confirm in prod logs.
+- CI only pushes the image; backends are redeployed by hand.
 
 ## Decisions
 - 2026-10-28 Socket auth requires DB token lookup on every join — avoids stateful in-memory token map, consistent with Prisma session model.
@@ -40,4 +45,6 @@ _Updated: 2026-10-31_
 - 2026-10-31 SSRF audit: `url-guard` now also blocks 0/8, 192.0.0/24, 198.18/15, 224+/240+, IPv6 multicast and 6to4 wrapping a private IPv4. Two blind or low-risk gaps are accepted: ffprobe follows HTTP redirects (only a duration leaks; piping the stream would break mp4 files with a trailing index) and `/api/video` follows CDN redirects (the URL comes from yt-dlp/cobalt on whitelisted hosts).
 - 2026-10-31 The worker skips busy guilds when selecting the next message instead of requeuing it at `now + 250 ms`: requeuing reshuffled a guild's messages. `executionDate` is never rewritten. Backpressure is now `previous busyUntil − executionDate`, computed at claim time.
 - 2026-10-31 The local OBS server keeps answering `sync-time` with the PC clock, not the backend clock. The drift is under a second with Windows NTP sync and the 1.2 s display lead absorbs it; a fix would need a desktop release and an OBS retest for no visible gain.
+- 2026-11-01 The initial player volume goes through the `volume` attribute of the target element: Vidstack 1.12.13 only reads props at setup, and the `volume`/`muted` options of `create()` only queue a request that `can-play` overwrites with the default.
+- 2026-11-01 A YouTube link's duration is fetched with yt-dlp only for `full`, to avoid adding a yt-dlp call to every YouTube message.
 - 2026-10-30 The prod schema change needs `prisma db push --accept-data-loss` once, after emptying `ClientSession` — the startup `db push` refuses the new unique constraint without the flag.

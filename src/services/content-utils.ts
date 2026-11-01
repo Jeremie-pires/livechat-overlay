@@ -512,6 +512,13 @@ function sanitizeTwitterUrl(url: string): string {
   }
 }
 
+// YouTube links play in an iframe, so their duration is only fetched (via yt-dlp) when "full" needs it.
+export async function getYouTubeDuration(url: string): Promise<number | undefined> {
+  if (!isYouTubeUrl(url)) return undefined;
+  const extracted = await extractAudioUrl(url, env.YTDLP_COOKIES);
+  return extracted?.duration;
+}
+
 export interface AudioInfo {
   audioUrl: string;
   audioDuration?: number;

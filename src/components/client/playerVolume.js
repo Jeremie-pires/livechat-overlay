@@ -5,9 +5,11 @@ export function clampVolume(vol) {
   return Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : 1;
 }
 
-// Always start muted so autoplay cannot produce a volume burst before can-play fires.
-// The can-play handler sets volume then unmutes; Electron and browser both allow muted autoplay.
-export function buildPlayerOptions({ src, layout, volume }) {
+// No `volume`/`muted` here: VidstackPlayer.create assigns options through the element setters,
+// which only queue a request and leave the props at their defaults (volume 1, unmuted).
+// Right after can-play, Vidstack 1.12.13 pushes props.volume to the provider, so those
+// requests are overwritten and the media starts at 100%. Use setInitialPlayerVolume instead.
+export function buildPlayerOptions({ src, layout }) {
   return {
     target: '#message-player',
     src,
@@ -16,9 +18,13 @@ export function buildPlayerOptions({ src, layout, volume }) {
     playsInline: true,
     load: 'eager',
     autoplay: true,
-    muted: true,
-    volume: clampVolume(volume),
   };
+}
+
+// VidstackPlayer.create copies the target's attributes onto <media-player>, and the player
+// reads them into its props at setup — the only way to set props.volume from outside.
+export function setInitialPlayerVolume(target, volume) {
+  target?.setAttribute('volume', String(clampVolume(volume)));
 }
 
 // Reads ?volume=XX (0–100 integer) from a URL search string and returns a 0–1 float.

@@ -6,7 +6,7 @@ import {
   SlashCommandBuilder,
 } from 'discord.js';
 import { measureContentProcessing, ContentInfo } from '../../services/telemetry';
-import { AudioInfo, getAudioInfoFromUrl } from '../../services/content-utils';
+import { AudioInfo, getAudioInfoFromUrl, getYouTubeDuration } from '../../services/content-utils';
 import { I18nKey } from '../../services/i18n/loader';
 import { getDurationFromGuildId, parseDuration } from '../../services/utils';
 import { QueueType } from '../../services/prisma/loadPrisma';
@@ -52,6 +52,17 @@ export function parseCustomDuration(
   const result = parseDuration(customDurationString.trim().toLowerCase(), mediaDuration);
   if (result === 'error') return { finalDuration: undefined, error: true };
   return { finalDuration: result, error: false };
+}
+
+// Same priority as computeFinalDuration: a separate audio track sets the length of the message.
+async function resolveFullDuration(
+  audioInfo: AudioInfo | null,
+  mediaDuration: number | null | undefined,
+  url: string | undefined,
+): Promise<number | null | undefined> {
+  if (audioInfo?.audioDuration) return audioInfo.audioDuration;
+  if (mediaDuration) return mediaDuration;
+  return url ? getYouTubeDuration(url) : undefined;
 }
 
 export function computeFinalDuration(
@@ -150,7 +161,7 @@ export async function executeMessageHandler(
   // Parsed once the media duration is known: "full" needs it for URL content.
   const { finalDuration: customFinalDuration, error: durationError } = parseCustomDuration(
     customDurationString,
-    mediaDuration,
+    isFullDuration ? await resolveFullDuration(audioInfo, mediaDuration, url) : mediaDuration,
   );
   if (durationError) {
     await replyError(interaction, 'invalidDuration');
