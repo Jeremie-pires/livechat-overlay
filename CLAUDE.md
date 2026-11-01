@@ -111,7 +111,7 @@ git push origin v1.2.11-rc.1
 ```
 
 - Tag pattern `vX.X.X` → stable GitHub Release
-- Tag pattern `vX.X.X-rc.N` → pre-release (electron-updater skips auto-update for stable users)
+- Tag pattern `vX.X.X-rc.N` → **pre-release on GitHub** (hidden from casual browsing, electron-updater skips auto-update for stable users) — **enforced by CI automatically**
 - **Always run from the repo root** (not `desktop-client/`) — git tags are repo-level
 
 ## 🧠 Memory & Context
