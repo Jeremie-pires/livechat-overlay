@@ -2,7 +2,8 @@ const MAX_DURATION_SECONDS = 3600;
 
 export const isRateLimitExempt = (req: { url?: string }): boolean => {
   const url = req.url ?? '';
-  return url.startsWith('/socket.io') || url.startsWith('/health') || url.startsWith('/client/');
+  // `/client` itself (the overlay page, loaded as `/client?guildId=…`) as well as its assets under `/client/`.
+  return url.startsWith('/socket.io') || url.startsWith('/health') || /^\/client(?:[/?]|$)/.test(url);
 };
 
 export function parseDuration(trimmed: string, mediaDuration: number | null | undefined): number | 'error' {
