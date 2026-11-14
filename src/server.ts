@@ -12,6 +12,7 @@ import { loadDiscord } from './loaders/DiscordLoader';
 import { loadRosetty } from './services/i18n/loader';
 import { loadPrismaClient } from './services/prisma/loadPrisma';
 import { isRateLimitExempt } from './services/utils';
+import { TRUSTED_PROXIES } from './services/trustedProxies';
 import { corsAllowedHeaders, createCorsDelegator, createCorsOrigin } from './services/cors';
 import './services/cpuSampler';
 
@@ -76,7 +77,7 @@ export const runServer = async () => {
     logger: loggerOptions,
     disableRequestLogging: true,
     genReqId: (req) => resolveCorrelationId(req.headers['x-request-id']),
-    trustProxy: isDeployedMode() ? 1 : false,
+    trustProxy: isDeployedMode() ? TRUSTED_PROXIES : false,
   });
 
   const logger = fastify.log;
